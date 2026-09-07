@@ -55,12 +55,12 @@ export function createProviderService(config: Config, store: ProviderStore) {
         quoteTypedData(quote, config.chainId, config.vault)
       ),
     }
-    store.put("quotes", offer.id, allowanceId, offer)
+    store.saveQuote(offer)
     return { offer }
   }
 
   async function authorize(id: string, signature?: string) {
-    const offer = store.get("quotes", id)
+    const offer = store.getQuote(id)
     if (!offer || !signature) {
       throw new Error("Unknown quote or missing agent signature.")
     }
@@ -94,7 +94,7 @@ export function createProviderService(config: Config, store: ProviderStore) {
       throw new Error("Transaction does not pay this exact quote.")
     }
 
-    const existing = store.get("jobs", offer.id)
+    const existing = store.getDelivery(offer.id)
     if (existing?.status === "completed" || existing?.status === "failed") {
       return existing
     }
@@ -107,7 +107,7 @@ export function createProviderService(config: Config, store: ProviderStore) {
       modelMs: 0,
       deliveryMs: 0,
     }
-    store.put("jobs", offer.id, offer.quote.allowanceId, job)
+    store.saveDelivery(job)
     const modelStarted = performance.now()
     try {
       job.content = await executeTask(offer.task)
@@ -120,7 +120,7 @@ export function createProviderService(config: Config, store: ProviderStore) {
     }
     job.modelMs = performance.now() - modelStarted
     job.deliveryMs = performance.now() - started
-    store.put("jobs", offer.id, offer.quote.allowanceId, job)
+    store.saveDelivery(job)
     return job
   }
 
@@ -173,7 +173,7 @@ export function createProviderService(config: Config, store: ProviderStore) {
 
   async function getDelivery(id: string, signature: string | undefined) {
     await authorize(id, signature)
-    return store.get("jobs", id) ?? { status: "pending" as const }
+    return store.getDelivery(id) ?? { status: "pending" as const }
   }
 
   return {

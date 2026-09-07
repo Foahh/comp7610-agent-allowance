@@ -4,14 +4,16 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./records": "./src/records.ts"
   },
   "scripts": {
     "build": "vp pack",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "vp exec node ../../scripts/migrate.ts"
+    "db:init": "vp exec node ../../scripts/init-db.ts"
   },
   "dependencies": {
+    "@repo/schemas": "workspace:*",
     "@repo/utils": "workspace:*",
     "drizzle-orm": "catalog:"
   },

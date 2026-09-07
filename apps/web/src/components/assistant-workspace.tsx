@@ -52,7 +52,7 @@ export function AssistantWorkspace() {
         </div>
       </aside>
       <section className="chat-workspace" aria-label="Assistant conversation">
-        <WorkspaceHeader assistant={assistant} />
+        <WorkspaceHeader />
         <ScenarioBar assistant={assistant} />
         {assistant.error && (
           <div className="px-5 py-2">

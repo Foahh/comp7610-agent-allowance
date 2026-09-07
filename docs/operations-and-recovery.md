@@ -10,4 +10,6 @@ Keep one buyer process per agent signer and database. Run contract tests separat
 
 Application restarts preserve data. The contracts run on Sepolia independently of the local application. Existing purchase history may contain results from earlier versions; start a new conversation when validating live-model behavior.
 
-Numbered SQL files in `packages/db/migrations` are applied at startup and by `vp run db:migrate`. If using `db:generate`, review the SQL and add the intended changes as a new numbered runtime migration.
+Fresh databases are initialized at startup and by `vp run db:init` using `packages/db/src/schema.sql`. Drizzle table definitions live in `packages/db/src/schema.ts`; keep both definitions aligned. There is no migration or compatibility layer. When changing the schema, stop the services, delete the buyer/provider SQLite files and their `-wal`/`-shm` companions, then restart. This discards local history and sessions.
+
+Quotes, purchases, deliveries, and delivery references are stored in relational columns and tables. Token amounts remain decimal text to preserve uint256 precision. Payment journal updates and delivery reference replacements are transactional; unresolved purchases are selected by their indexed payment status.

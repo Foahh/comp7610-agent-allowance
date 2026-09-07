@@ -11,5 +11,5 @@ for (const role of ["buyer", "provider"]) {
     configuredPath || `${config.root}data/${role}-${config.chainId}.sqlite`
   )
   store.close()
-  console.log(role + " migrations applied")
+  console.log(role + " database initialized")
 }

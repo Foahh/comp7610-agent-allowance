@@ -5,7 +5,7 @@
 - `apps/providers`: independent Hono service with its own catalog, model prompts, asset tools, quote key, and delivery storage.
 - `packages/contracts`: Hardhat 3, ATT, and the non-upgradeable allowance vault.
 - `packages/schemas`: shared Valibot payloads; amounts cross JSON as integer strings.
-- `packages/db`: Drizzle with Node SQLite and versioned SQL migrations.
+- `packages/db`: Drizzle with Node SQLite, explicit relational tables, foreign keys, and indexed queries. The package exports the connection factory and table definitions.
 - `packages/utils`: chain ABI and quote hashing, plus server-only configuration.
 
 The custom provider protocol exposes capabilities, quotes, execution, and retrieval. It does not claim standardized A2A or x402 compatibility.

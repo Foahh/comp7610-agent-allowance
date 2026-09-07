@@ -27,7 +27,7 @@ export function createConversationRoutes(
   const active = new Set<string>()
 
   function owned(id: string, owner: string) {
-    const conversation = store.get("conversations", id)
+    const conversation = store.getConversation(id)
     if (!conversation || conversation.owner !== owner) {
       throw new HTTPException(404, { message: "Conversation not found." })
     }
@@ -35,7 +35,7 @@ export function createConversationRoutes(
   }
 
   const listing = router.get("/", (context) =>
-    context.json(store.list("conversations", context.get("owner")))
+    context.json(store.listConversations(context.get("owner")))
   )
   const creating = listing.post(
     "/",
@@ -58,12 +58,7 @@ export function createConversationRoutes(
         allowanceId: null,
         createdAt: Date.now(),
       }
-      store.put(
-        "conversations",
-        conversation.id,
-        conversation.owner,
-        conversation
-      )
+      store.saveConversation(conversation)
       return context.json(conversation, 201)
     }
   )
@@ -72,8 +67,8 @@ export function createConversationRoutes(
     const conversation = owned(context.req.param("id"), context.get("owner"))
     return context.json({
       conversation,
-      messages: store.list("messages", conversation.id),
-      purchases: store.list("purchases", conversation.id).map(publicPurchase),
+      messages: store.listMessages(conversation.id),
+      purchases: store.listPurchases(conversation.id).map(publicPurchase),
       allowance: conversation.allowanceId
         ? await payments.allowance(conversation.allowanceId)
         : null,
@@ -99,7 +94,7 @@ export function createConversationRoutes(
       ) {
         throw new Error("Allowance ownership, agent, or provider mismatch.")
       }
-      const bound = store.get("allowances", allowanceId)
+      const bound = store.getAllowance(allowanceId)
       if (bound && bound.conversationId !== conversation.id) {
         throw new Error("Allowance already belongs to another conversation.")
       }
@@ -113,16 +108,7 @@ export function createConversationRoutes(
         }
       }
       conversation.allowanceId = allowanceId
-      store.put("allowances", allowanceId, conversation.id, {
-        conversationId: conversation.id,
-        allowanceId,
-      })
-      store.put(
-        "conversations",
-        conversation.id,
-        conversation.owner,
-        conversation
-      )
+      store.bindAllowance(conversation, allowanceId)
       return context.json(state)
     }
   )
@@ -145,13 +131,12 @@ export function createConversationRoutes(
         })
       }
       const key = "run:" + conversation.id + ":" + requestId
-      if (store.get("jobs", key)) {
+      if (!store.acceptRun(key, conversation.id)) {
         throw new HTTPException(409, {
           message:
             "This message was already accepted. Refresh the conversation.",
         })
       }
-      store.put("jobs", key, conversation.id, { acceptedAt: Date.now() })
       active.add(conversation.id)
 
       return streamSSE(context, async (stream) => {
@@ -178,7 +163,7 @@ export function createConversationRoutes(
     active.add(conversation.id)
     try {
       await payments.recoverAll()
-      for (const item of store.list("purchases", conversation.id)) {
+      for (const item of store.listPurchases(conversation.id)) {
         await agent.deliver(item, async () => {})
       }
       return context.json({ ok: true })

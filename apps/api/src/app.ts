@@ -35,7 +35,7 @@ export function createApp(
       return next()
     }
     const token = getCookie(context, "agent_session")
-    const session = token ? store.get("sessions", token) : undefined
+    const session = token ? store.getSession(token) : undefined
     if (!session || session.expiresAt <= Date.now()) {
       return context.json({ error: "Connect and verify your wallet." }, 401)
     }

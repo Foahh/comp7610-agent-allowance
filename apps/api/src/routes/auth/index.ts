@@ -29,7 +29,8 @@ export function createAuthRoutes(store: BuyerStore, config: Config) {
         "This signature only opens a local session. It does not authorize spending.",
       ].join("\n")
 
-      store.put("challenges", id, owner, {
+      store.saveChallenge({
+        id,
         owner,
         message,
         expiresAt,
@@ -44,13 +45,13 @@ export function createAuthRoutes(store: BuyerStore, config: Config) {
     async (context) => {
       const { id, signature } = context.req.valid("json")
 
-      const challenge = store.get("challenges", id)
+      const challenge = store.getChallenge(id)
       if (!challenge || challenge.expiresAt <= Date.now()) {
         return context.json({ error: "Challenge expired." }, 401)
       }
 
       // Consume before asynchronous verification to reject concurrent replay.
-      store.remove("challenges", id)
+      store.removeChallenge(id)
       const recovered = await recoverMessageAddress({
         message: challenge.message,
         signature: signature as `0x${string}`,
@@ -60,7 +61,8 @@ export function createAuthRoutes(store: BuyerStore, config: Config) {
       }
 
       const token = randomBytes(32).toString("hex")
-      store.put("sessions", token, challenge.owner, {
+      store.saveSession({
+        id: token,
         owner: challenge.owner,
         expiresAt: Date.now() + 8 * 3600000,
       })
@@ -78,7 +80,7 @@ export function createAuthRoutes(store: BuyerStore, config: Config) {
   return verify.post("/logout", (context) => {
     const token = getCookie(context, "agent_session")
     if (token) {
-      store.remove("sessions", token)
+      store.removeSession(token)
     }
 
     deleteCookie(context, "agent_session", { path: "/api" })

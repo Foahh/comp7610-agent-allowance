@@ -1,15 +1,6 @@
-import type { AssistantController } from "#/hooks/use-assistant"
 import { Badge } from "#/components/ui/badge"
-import { SEPOLIA_CHAIN_ID } from "@repo/utils"
 
-export function WorkspaceHeader({
-  assistant,
-}: {
-  assistant: AssistantController
-}) {
-  const network =
-    assistant.config?.chainId === SEPOLIA_CHAIN_ID ? "Sepolia" : "Local chain"
-
+export function WorkspaceHeader() {
   return (
     <header className="chat-header">
       <div>
@@ -18,7 +9,7 @@ export function WorkspaceHeader({
           Evidence, ideas, and a budget you control.
         </p>
       </div>
-      <Badge variant="outline">{network}</Badge>
+      <Badge variant="outline">Sepolia</Badge>
     </header>
   )
 }

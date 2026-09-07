@@ -1,13 +1,9 @@
-import { openDatabase, type Store } from "@repo/db"
-import type { Delivery, SignedQuote } from "@repo/schemas"
-
-type ProviderTables = {
-  quotes: SignedQuote
-  jobs: Delivery
-}
-
-export type ProviderStore = Store<ProviderTables>
+import { openDatabase } from "@repo/db"
+import { createRecordQueries } from "@repo/db/records"
 
 export function openProviderDatabase(filename?: string) {
-  return openDatabase<ProviderTables>(filename)
+  const connection = openDatabase(filename)
+  return { ...connection, ...createRecordQueries(connection.db) }
 }
+
+export type ProviderStore = ReturnType<typeof openProviderDatabase>

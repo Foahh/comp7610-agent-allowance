@@ -1,13 +1,14 @@
 import { defineConfig } from "drizzle-kit"
-import { fileURLToPath } from "node:url"
+import { readConfig } from "@repo/utils/config"
+
+const config = readConfig()
 
 export default defineConfig({
   dialect: "sqlite",
   schema: "./src/schema.ts",
-  out: "./drizzle",
   dbCredentials: {
     url:
       process.env.DATABASE_PATH ||
-      fileURLToPath(new URL("../../data/data.sqlite", import.meta.url)),
+      config.root + "data/buyer-" + config.chainId + ".sqlite",
   },
 })

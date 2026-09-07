@@ -13,10 +13,7 @@ if (existsSync(envPath)) {
 }
 
 export function readConfig() {
-  const chainId = Number(process.env.CHAIN_ID || SEPOLIA_CHAIN_ID)
-  if (chainId !== SEPOLIA_CHAIN_ID) {
-    throw new Error("Unsupported chain.")
-  }
+  const chainId = SEPOLIA_CHAIN_ID
 
   const deploymentPath = root + "data/deployment-" + chainId + ".json"
   const deployment = existsSync(deploymentPath)

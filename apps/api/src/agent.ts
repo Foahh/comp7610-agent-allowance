@@ -62,7 +62,7 @@ export function createAgent(
           "Provider connection interrupted. Retry delivery without another payment.",
       }
     }
-    store.put("purchases", purchase.id, purchase.conversationId, purchase)
+    store.savePurchase(purchase)
     await emit({ type: "purchase", purchase: publicPurchase(purchase) })
     return purchase
   }
@@ -82,7 +82,7 @@ export function createAgent(
         content,
         createdAt: Date.now(),
       }
-      store.put("messages", message.id, conversation.id, message)
+      store.saveMessage(message)
     }
     remember("user", prompt)
     const sendText = async (text: string) => {
@@ -113,19 +113,17 @@ export function createAgent(
       if (taskHash(offer.task) !== taskHash(task)) {
         throw new Error("Provider changed the requested task.")
       }
-      store.put("quotes", offer.id, conversation.id, offer)
+      store.saveQuote(offer, conversation.id)
       return { offer }
     }
 
     async function purchase(id: string) {
-      const offer = store.get("quotes", id)
-      const permitted = store
-        .list("quotes", conversation.id)
-        .some((item) => item.id === id)
+      const offer = store.getQuote(id)
+      const permitted = store.hasQuote(id, conversation.id)
       if (!offer || !permitted) {
         throw new Error("Unknown quote for this conversation.")
       }
-      const existing = store.get("purchases", id)
+      const existing = store.getPurchase(id)
       if (!existing && purchaseCount >= 2) {
         return { error: "This run has reached its two-purchase limit." }
       }
@@ -176,7 +174,7 @@ export function createAgent(
             "Reuse or resume an existing purchase without charging again.",
           inputSchema: valibotSchema(v.object({ purchaseId: v.string() })),
           execute: async ({ purchaseId }) => {
-            const item = store.get("purchases", purchaseId)
+            const item = store.getPurchase(purchaseId)
             if (!item || item.conversationId !== conversation.id) {
               return { error: "Unknown purchase." }
             }
@@ -185,14 +183,14 @@ export function createAgent(
         }),
       }
       const paidContext = store
-        .list("purchases", conversation.id)
+        .listPurchases(conversation.id)
         .map(publicPurchase)
       const result = streamText({
         model: provider.chat(settings.model),
         system: BUYER_SYSTEM_PROMPT,
         messages: [
           ...store
-            .list("messages", conversation.id)
+            .listMessages(conversation.id)
             .map(({ role, content }) => ({ role, content })),
           // Keep purchased text out of system instructions, even on later turns.
           {

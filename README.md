@@ -25,12 +25,12 @@ vp run models:check
 
 ## Sepolia
 
-Set `CHAIN_ID=11155111`, provide a Sepolia `RPC_URL`, configure the test signer keys in `.env`, fund the required wallets with Sepolia ETH, then run:
+The application uses Sepolia. Configure the test signer keys in `.env` and fund the required wallets with Sepolia ETH. `RPC_URL` is optional; set it to use your own Sepolia RPC provider instead of the default public endpoint. Then run:
 
 ```powershell
 vp run @repo/contracts#build
 vp run deploy:sepolia
-vp run db:migrate
+vp run db:init
 vp run dev
 ```
 

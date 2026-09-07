@@ -85,7 +85,7 @@ export function createPayments(
   }
 
   function save(purchase: Purchase) {
-    store.put("purchases", purchase.id, purchase.conversationId, purchase)
+    store.savePurchase(purchase)
     return purchase
   }
 
@@ -141,7 +141,7 @@ export function createPayments(
 
   async function purchase(conversation: Conversation, offer: SignedQuote) {
     return serialized(async () => {
-      const existing = store.get("purchases", offer.id)
+      const existing = store.getPurchase(offer.id)
       if (existing) {
         if (existing.conversationId !== conversation.id) {
           throw new Error("Quote belongs to another conversation.")
@@ -149,13 +149,7 @@ export function createPayments(
         return recover(existing)
       }
 
-      const unresolved = store
-        .list("purchases")
-        .filter(
-          (item) =>
-            item.paymentStatus === "pending" ||
-            item.paymentStatus === "prepared"
-        )
+      const unresolved = store.listUnresolvedPurchases()
       for (const item of unresolved) {
         const recovered = await recover(item)
         if (recovered.paymentStatus === "pending") {
@@ -232,7 +226,7 @@ export function createPayments(
 
   async function recoverAll() {
     return serialized(async () => {
-      for (const item of store.list("purchases")) {
+      for (const item of store.listUnresolvedPurchases()) {
         await recover(item)
       }
     })
