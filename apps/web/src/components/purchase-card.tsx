@@ -21,15 +21,15 @@ export function PurchaseCard({
   const { offer, paymentStatus, delivery } = purchase
 
   return (
-    <Card>
+    <Card className="purchase-card">
       <CardHeader>
-        <div className="flex items-center justify-between gap-3">
+        <div className="purchase-heading">
           <CardTitle>
             {offer.task.service === "analysis"
               ? "City evidence analysis"
               : "Recommendation brief"}
           </CardTitle>
-          <Badge variant="outline">
+          <Badge variant="outline" className="purchase-amount">
             {formatUnits(BigInt(offer.quote.amount), 6)} ATT
           </Badge>
         </div>
@@ -57,7 +57,7 @@ export function PurchaseCard({
           )}
         </div>
         {(purchase.error || delivery?.error) && (
-          <p className="text-sm">{purchase.error || delivery?.error}</p>
+          <p className="purchase-error">{purchase.error || delivery?.error}</p>
         )}
         <details>
           <summary className="cursor-pointer text-sm">View receipt</summary>

@@ -1,6 +1,5 @@
 import type { Allowance } from "@repo/schemas"
 
-import { useState } from "react"
 import { formatUnits } from "viem"
 
 import { AttToken } from "#/components/att-token"
@@ -9,7 +8,6 @@ import { Button } from "#/components/ui/button"
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -29,8 +27,10 @@ type Props = {
   allowance: Allowance | null
   connected: boolean
   busy: boolean
-  initialBudget: string
-  initialCap: string
+  budget: string
+  cap: string
+  onBudgetChange: (value: string) => void
+  onCapChange: (value: string) => void
   onFund: (budget: string, cap: string) => void
   onAction: (action: "revokeAllowance" | "withdrawUnused") => void
 }
@@ -39,57 +39,25 @@ export function AllowancePanel({
   allowance,
   connected,
   busy,
-  initialBudget,
-  initialCap,
+  budget,
+  cap,
+  onBudgetChange,
+  onCapChange,
   onFund,
   onAction,
 }: Props) {
-  const [budget, setBudget] = useState(initialBudget)
-  const [cap, setCap] = useState(initialCap)
   const canCreate = !allowance || allowance.revoked
   const { invalidBudget, invalidCap } = validateAmounts(budget, cap)
 
   return (
-    <Card>
+    <Card className="allowance-card">
       <CardHeader>
-        <CardTitle>Conversation allowance</CardTitle>
-        <CardDescription>
-          Approve ATT first, then confirm allowance creation. Valid for 24
-          hours. Gas is paid separately in test ETH.
-        </CardDescription>
+        <CardTitle>
+          <h3>Conversation allowance</h3>
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        {allowance && (
-          <>
-            <Badge variant={allowance.revoked ? "outline" : "secondary"}>
-              {allowance.revoked ? "Revoked" : "Authorized"} · #{allowance.id}
-            </Badge>
-            <div>
-              <p className="balance">
-                {amount(allowance.remaining)} <span>ATT left</span>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {amount(allowance.spent)} spent of {amount(allowance.budget)}{" "}
-                ATT
-              </p>
-            </div>
-            <dl className="allowance-facts">
-              <div>
-                <dt>Per purchase</dt>
-                <dd>{amount(allowance.perPurchase)} ATT</dd>
-              </div>
-              <div>
-                <dt>Expires</dt>
-                <dd>
-                  {new Date(
-                    Number(allowance.expiresAt) * 1000
-                  ).toLocaleString()}
-                </dd>
-              </div>
-            </dl>
-            <Separator />
-          </>
-        )}
+        {allowance && <AllowanceSummary allowance={allowance} />}
         {canCreate && (
           <FieldGroup>
             <Field data-invalid={invalidBudget}>
@@ -103,11 +71,12 @@ export function AllowancePanel({
                 aria-invalid={invalidBudget}
                 inputMode="decimal"
                 value={budget}
-                onChange={(event) => setBudget(event.target.value)}
+                aria-describedby={invalidBudget ? "budget-error" : undefined}
+                onChange={(event) => onBudgetChange(event.target.value)}
                 disabled={busy}
               />
               {invalidBudget && (
-                <FieldError>
+                <FieldError id="budget-error">
                   Enter a positive amount with at most six decimal places.
                 </FieldError>
               )}
@@ -123,11 +92,12 @@ export function AllowancePanel({
                 aria-invalid={invalidCap}
                 inputMode="decimal"
                 value={cap}
-                onChange={(event) => setCap(event.target.value)}
+                aria-describedby={invalidCap ? "cap-error" : undefined}
+                onChange={(event) => onCapChange(event.target.value)}
                 disabled={busy}
               />
               {invalidCap && (
-                <FieldError>
+                <FieldError id="cap-error">
                   Use a positive cap no larger than the total.
                 </FieldError>
               )}
@@ -135,33 +105,15 @@ export function AllowancePanel({
           </FieldGroup>
         )}
       </CardContent>
-      <CardFooter className="flex flex-col items-stretch gap-2">
-        {canCreate ? (
-          <Button
-            disabled={!connected || busy || invalidBudget || invalidCap}
-            onClick={() => onFund(budget, cap)}
-          >
-            Authorize allowance
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            disabled={busy}
-            onClick={() => onAction("revokeAllowance")}
-          >
-            Stop future spending
-          </Button>
-        )}
-        {allowance?.revoked && BigInt(allowance.remaining) > 0n && (
-          <Button
-            variant="outline"
-            disabled={busy}
-            onClick={() => onAction("withdrawUnused")}
-          >
-            Withdraw unused ATT
-          </Button>
-        )}
-      </CardFooter>
+      <AllowanceActions
+        allowance={allowance}
+        canCreate={canCreate}
+        connected={connected}
+        busy={busy}
+        invalid={invalidBudget || invalidCap}
+        onFund={() => onFund(budget, cap)}
+        onAction={onAction}
+      />
     </Card>
   )
 }
@@ -173,4 +125,85 @@ function validateAmounts(budget: string, cap: string) {
     !validAmount.test(cap) || Number(cap) <= 0 || Number(cap) > Number(budget)
 
   return { invalidBudget, invalidCap }
+}
+
+function AllowanceSummary({ allowance }: { allowance: Allowance }) {
+  return (
+    <>
+      <Badge variant={allowance.revoked ? "outline" : "secondary"}>
+        {allowance.revoked ? "Revoked" : "Authorized"} · #{allowance.id}
+      </Badge>
+      <div className="allowance-balance">
+        <p className="eyebrow">Remaining allowance</p>
+        <p className="balance">
+          {amount(allowance.remaining)} <span>ATT</span>
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {amount(allowance.spent)} spent of {amount(allowance.budget)} ATT
+        </p>
+      </div>
+      <dl className="allowance-facts">
+        <div>
+          <dt>Per purchase</dt>
+          <dd>{amount(allowance.perPurchase)} ATT</dd>
+        </div>
+        <div>
+          <dt>Expires</dt>
+          <dd>
+            {new Date(Number(allowance.expiresAt) * 1000).toLocaleString()}
+          </dd>
+        </div>
+      </dl>
+      <Separator />
+    </>
+  )
+}
+
+function AllowanceActions({
+  allowance,
+  canCreate,
+  connected,
+  busy,
+  invalid,
+  onFund,
+  onAction,
+}: Pick<Props, "allowance" | "connected" | "busy" | "onAction"> & {
+  canCreate: boolean
+  invalid: boolean
+  onFund: () => void
+}) {
+  return (
+    <CardFooter className="flex flex-col items-stretch gap-2">
+      {canCreate && (
+        <p className="allowance-guidance">
+          {connected
+            ? "Approve ATT, then confirm creation in your wallet. "
+            : "Connect your wallet and select a conversation to authorize spending. "}
+          Valid for 24 hours. Gas is paid separately in test ETH.
+        </p>
+      )}
+      {canCreate ? (
+        <Button disabled={!connected || busy || invalid} onClick={onFund}>
+          Authorize allowance
+        </Button>
+      ) : (
+        <Button
+          variant="outline"
+          disabled={busy}
+          onClick={() => onAction("revokeAllowance")}
+        >
+          Stop future spending
+        </Button>
+      )}
+      {allowance?.revoked && BigInt(allowance.remaining) > 0n && (
+        <Button
+          variant="outline"
+          disabled={busy}
+          onClick={() => onAction("withdrawUnused")}
+        >
+          Withdraw unused ATT
+        </Button>
+      )}
+    </CardFooter>
+  )
 }

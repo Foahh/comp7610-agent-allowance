@@ -1,3 +1,4 @@
+import { RiSparklingLine, RiWallet3Line } from "@remixicon/react"
 import { SEPOLIA_CHAIN_ID } from "@repo/utils"
 
 import type { AssistantController } from "#/hooks/use-assistant"
@@ -14,8 +15,10 @@ import {
   MessageResponse,
 } from "#/components/ai-elements/message"
 import { Shimmer } from "#/components/ai-elements/shimmer"
+import { Button } from "#/components/ui/button"
 
 import { PurchaseCard } from "./purchase-card.tsx"
+import { ScenarioBar } from "./scenario-bar"
 
 export function ConversationThread({
   assistant,
@@ -60,12 +63,41 @@ export function ConversationThread({
 
   return (
     <Conversation className="h-full" aria-label="Conversation">
-      <ConversationContent className="px-5 py-8 md:px-10">
-        {!messages.length && (
-          <ConversationEmptyState
-            title="What would you like to work on?"
-            description="Compare evidence, commission a brief, and keep every purchase within your allowance. Connect a wallet to start a conversation; funding is optional until you buy a service."
-          />
+      <ConversationContent
+        className="thread-content"
+        data-empty={timeline.length === 0}
+      >
+        {timeline.length === 0 && !assistant.loading && (
+          <ConversationEmptyState className="welcome-state">
+            <div className="welcome-icon">
+              <RiSparklingLine aria-hidden="true" />
+            </div>
+            <h2>
+              What would you like
+              <br className="hidden sm:block" /> to work on?
+            </h2>
+            {!assistant.wallet ? (
+              <>
+                <Button
+                  disabled={assistant.run.busy || !assistant.config}
+                  onClick={assistant.connect}
+                >
+                  <RiWallet3Line />
+                  Connect wallet
+                </Button>
+                <p className="welcome-hint">
+                  Start chatting now. Funding is only needed for purchases.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="welcome-hint">
+                  Describe your task below, or try a scenario below.
+                </p>
+                <ScenarioBar assistant={assistant} />
+              </>
+            )}
+          </ConversationEmptyState>
         )}
         {timeline.map((entry) => {
           if (entry.kind === "purchase") {
@@ -84,7 +116,7 @@ export function ConversationThread({
               <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase group-[.is-user]:text-right">
                 {message.role === "user" ? "You" : "Your assistant"}
               </p>
-              <MessageContent>
+              <MessageContent className="chat-message-content">
                 {message.role === "assistant" ? (
                   <MessageResponse
                     className="message-markdown"

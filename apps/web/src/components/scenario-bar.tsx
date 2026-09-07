@@ -8,8 +8,8 @@ export function ScenarioBar({ assistant }: { assistant: AssistantController }) {
 
   return (
     <div className="demo-bar">
-      <span className="text-sm text-muted-foreground">Try a scenario</span>
       <ToggleGroup
+        aria-label="Try a scenario"
         multiple={false}
         className="flex-wrap"
         value={[scenario]}

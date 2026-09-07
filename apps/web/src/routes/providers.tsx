@@ -1,6 +1,6 @@
 import { RiArrowLeftLine, RiSearchLine, RiTeamLine } from "@remixicon/react"
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { useState } from "react"
+import { useRef, useState } from "react"
 
 import { Badge } from "#/components/ui/badge"
 import { Button } from "#/components/ui/button"
@@ -39,6 +39,7 @@ export const Route = createFileRoute("/providers")({ component: ProvidersPage })
 
 function ProvidersPage() {
   const [search, setSearch] = useState("")
+  const searchInput = useRef<HTMLInputElement>(null)
   const query = search.trim().toLowerCase()
   const matches = providers.filter((provider) =>
     [
@@ -53,18 +54,25 @@ function ProvidersPage() {
   )
 
   return (
-    <main className="providers-page">
+    <main className="providers-page app-surface">
       <header className="providers-header">
-        <Link to="/" className="brand">
-          <span className="brand-copy">
-            <span className="eyebrow">COMP7610</span>
-            <strong>Agent Spend</strong>
-          </span>
-        </Link>
-        <Button nativeButton={false} render={<Link to="/" />} variant="outline">
-          <RiArrowLeftLine />
-          Back to assistant
-        </Button>
+        <div className="providers-header-inner">
+          <Link to="/" className="brand">
+            <span className="brand-copy">
+              <span className="eyebrow">COMP7610</span>
+              <strong>Agent Spend</strong>
+            </span>
+          </Link>
+          <Button
+            nativeButton={false}
+            role="link"
+            render={<Link to="/" />}
+            variant="outline"
+          >
+            <RiArrowLeftLine />
+            Back to assistant
+          </Button>
+        </div>
       </header>
       <section className="providers-content" aria-labelledby="providers-title">
         <div className="providers-intro">
@@ -79,6 +87,7 @@ function ProvidersPage() {
           <div className="provider-search">
             <RiSearchLine aria-hidden="true" />
             <Input
+              ref={searchInput}
               aria-label="Search providers and services"
               placeholder="Search providers or services…"
               value={search}
@@ -99,7 +108,13 @@ function ProvidersPage() {
             <RiSearchLine className="size-6" />
             <h2>No providers found</h2>
             <p>Try another provider name or service.</p>
-            <Button variant="outline" onClick={() => setSearch("")}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearch("")
+                searchInput.current?.focus()
+              }}
+            >
               Clear search
             </Button>
           </div>
@@ -113,8 +128,10 @@ function ProviderCard({ provider }: { provider: Provider }) {
   return (
     <Card className="provider-card">
       <CardHeader>
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <RiTeamLine className="size-6" />
+        <div className="provider-heading">
+          <span className="provider-icon">
+            <RiTeamLine className="size-5" aria-hidden="true" />
+          </span>
           <Badge variant="secondary">{provider.category}</Badge>
         </div>
         <CardTitle>

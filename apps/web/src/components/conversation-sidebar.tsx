@@ -10,13 +10,25 @@ import { Button } from "#/components/ui/button"
 
 import { useWorkspaceAssistant } from "./assistant-context"
 
-type Props = { collapsed: boolean; onToggle: () => void }
+type Props = {
+  collapsed: boolean
+  onToggle?: () => void
+  onNavigate?: () => void
+}
 
-export function ConversationSidebar({ collapsed, onToggle }: Props) {
+export function ConversationSidebar({
+  collapsed,
+  onToggle,
+  onNavigate,
+}: Props) {
   const assistant = useWorkspaceAssistant()
   const { run, wallet, selected } = assistant
   return (
-    <aside className="conversation-sidebar">
+    <aside
+      className="conversation-sidebar"
+      data-collapsed={collapsed}
+      aria-label="Conversation navigation"
+    >
       <div className="sidebar-heading">
         <div className="brand" hidden={collapsed}>
           <span className="brand-copy">
@@ -24,17 +36,19 @@ export function ConversationSidebar({ collapsed, onToggle }: Props) {
             <strong>Agent Spend</strong>
           </span>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-expanded={!collapsed}
-          aria-controls="conversation-navigation"
-          onClick={onToggle}
-        >
-          <RiLayoutLeftLine />
-        </Button>
+        {onToggle && (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!collapsed}
+            aria-controls="conversation-navigation"
+            onClick={onToggle}
+          >
+            <RiLayoutLeftLine />
+          </Button>
+        )}
       </div>
       <Button
         variant="outline"
@@ -42,7 +56,10 @@ export function ConversationSidebar({ collapsed, onToggle }: Props) {
         aria-label="New conversation"
         title="New conversation"
         disabled={run.busy || !wallet}
-        onClick={() => assistant.preset("success")}
+        onClick={() => {
+          assistant.preset("success")
+          onNavigate?.()
+        }}
       >
         <RiAddLine data-icon="inline-start" />
         {!collapsed && "New conversation"}
@@ -53,13 +70,25 @@ export function ConversationSidebar({ collapsed, onToggle }: Props) {
         aria-label="Conversations"
         className="conversation-navigation"
       >
+        <p className="eyebrow">Conversations</p>
+        {assistant.conversations.length === 0 && (
+          <p className="sidebar-empty">
+            {wallet
+              ? "Your conversations will appear here."
+              : "Connect your wallet to start a conversation."}
+          </p>
+        )}
         {assistant.conversations.map((conversation) => (
           <div key={conversation.id} className="conversation-row">
             <Button
               className="conversation-select"
               variant={selected === conversation.id ? "secondary" : "ghost"}
               disabled={run.busy}
-              onClick={() => assistant.select(conversation.id)}
+              aria-current={selected === conversation.id ? "true" : undefined}
+              onClick={() => {
+                assistant.select(conversation.id)
+                onNavigate?.()
+              }}
             >
               <span className="truncate">{conversation.title}</span>
             </Button>
@@ -79,8 +108,14 @@ export function ConversationSidebar({ collapsed, onToggle }: Props) {
       </nav>
       <Button
         nativeButton={false}
+        role="link"
         render={
-          <Link to="/providers" aria-label="Providers" title="Providers" />
+          <Link
+            to="/providers"
+            aria-label="Providers"
+            title="Providers"
+            onClick={onNavigate}
+          />
         }
         variant="ghost"
         size={collapsed ? "icon" : "default"}
