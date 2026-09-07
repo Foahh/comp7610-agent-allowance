@@ -1,8 +1,12 @@
 import * as v from "valibot"
 
-export const AddressSchema = v.pipe(v.string(), v.regex(/^0x[0-9a-fA-F]{40}$/))
-export const HexSchema = v.pipe(v.string(), v.regex(/^0x[0-9a-fA-F]+$/))
-export const AmountSchema = v.pipe(v.string(), v.regex(/^(0|[1-9][0-9]*)$/))
+const addressPattern = /^0x[0-9a-fA-F]{40}$/
+const hexPattern = /^0x[0-9a-fA-F]+$/
+const amountPattern = /^(0|[1-9][0-9]*)$/
+
+export const AddressSchema = v.pipe(v.string(), v.regex(addressPattern))
+export const HexSchema = v.pipe(v.string(), v.regex(hexPattern))
+export const AmountSchema = v.pipe(v.string(), v.regex(amountPattern))
 export const ServiceSchema = v.picklist(["analysis", "writing"])
 export const ScenarioSchema = v.picklist(["success", "insufficient"])
 

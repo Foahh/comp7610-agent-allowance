@@ -13,6 +13,9 @@ const provider = "0x0000000000000000000000000000000000000003" as Address
 const vault = "0x0000000000000000000000000000000000000004" as Address
 const chainId = 11155111
 const currentTimestamp = 1_000n
+const unauthorizedTaskPattern = /authorized task and allowance/
+const expiredAuthorityPattern = /revoked or expired/
+const purchaseCapExceededPattern = /exceeds/
 
 function createValidInput() {
   const task = {
@@ -80,23 +83,23 @@ describe("quote validation", () => {
     const input = createValidInput()
     input.offer.task.brief = "Use a different task instead."
 
-    assert.throws(
-      () => assertPurchasableQuote(input),
-      /authorized task and allowance/
-    )
+    assert.throws(() => assertPurchasableQuote(input), unauthorizedTaskPattern)
   })
 
   test("rejects expired authority", () => {
     const input = createValidInput()
     input.allowance.expiresAt = currentTimestamp.toString()
 
-    assert.throws(() => assertPurchasableQuote(input), /revoked or expired/)
+    assert.throws(() => assertPurchasableQuote(input), expiredAuthorityPattern)
   })
 
   test("rejects amounts above the purchase cap", () => {
     const input = createValidInput()
     input.allowance.perPurchase = "1000000"
 
-    assert.throws(() => assertPurchasableQuote(input), /exceeds/)
+    assert.throws(
+      () => assertPurchasableQuote(input),
+      purchaseCapExceededPattern
+    )
   })
 })

@@ -6,6 +6,8 @@ import { createWalletClient, http, type Abi, type Hex } from "viem"
 
 const config = readConfig()
 const account = signer("deployer")
+const agent = signer("agent").address
+const provider = signer("provider").address
 const client = publicClient(config.chainId, config.rpcUrl)
 const wallet = createWalletClient({
   account,
@@ -47,8 +49,8 @@ writeFileSync(
       token,
       vault,
       owner: account.address,
-      agent: signer("agent").address,
-      provider: signer("provider").address,
+      agent,
+      provider,
     },
     null,
     2

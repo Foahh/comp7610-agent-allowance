@@ -12,11 +12,10 @@ import {
   INTERPRET_TASK_SYSTEM_PROMPT,
 } from "./prompts.ts"
 
+const analysisTopicPattern = /tokyo|seoul|taipei|cities|exchange/i
+
 export async function interpretTask(task: Task) {
-  if (
-    task.service === "analysis" &&
-    !/tokyo|seoul|taipei|cities|exchange/i.test(task.brief)
-  ) {
+  if (task.service === "analysis" && !analysisTopicPattern.test(task.brief)) {
     return {
       clarification:
         "The dataset covers Tokyo, Seoul and Taipei. Which comparison would help your task?",

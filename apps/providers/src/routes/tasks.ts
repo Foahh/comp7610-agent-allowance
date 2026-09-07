@@ -6,8 +6,10 @@ import * as v from "valibot"
 
 import type { ProviderService } from "../lib/provider-service.ts"
 
+const transactionHashPattern = /^0x[0-9a-fA-F]{64}$/
+
 const TransactionRequestSchema = v.object({
-  txHash: v.pipe(v.string(), v.regex(/^0x[0-9a-fA-F]{64}$/)),
+  txHash: v.pipe(v.string(), v.regex(transactionHashPattern)),
 })
 
 export function createTaskRoutes(

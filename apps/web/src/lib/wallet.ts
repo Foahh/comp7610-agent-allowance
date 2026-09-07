@@ -16,6 +16,8 @@ import {
 
 import type { AppConfig } from "./client.ts"
 
+const tokenAmountPattern = /^\d+(\.\d{1,6})?$/
+
 declare global {
   interface Window {
     ethereum?: EIP1193Provider
@@ -61,7 +63,7 @@ export async function fundAllowance(
   if (budget <= 0n || cap <= 0n || cap > budget) {
     throw new Error("Use a positive cap no larger than the total.")
   }
-  if (!/^\d+(\.\d{1,6})?$/.test(total) || !/^\d+(\.\d{1,6})?$/.test(maximum)) {
+  if (!tokenAmountPattern.test(total) || !tokenAmountPattern.test(maximum)) {
     throw new Error("Amounts support at most six decimal places.")
   }
 

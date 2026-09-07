@@ -11,6 +11,7 @@ import { privateKeyToAccount } from "viem/accounts"
 import { confirmationCount, SEPOLIA_CHAIN_ID } from "./chain.ts"
 
 const root = projectRoot()
+const privateKeyPattern = /^0x[0-9a-fA-F]{64}$/
 const envPath = `${root}.env`
 
 if (existsSync(envPath)) {
@@ -58,13 +59,24 @@ export function readConfig() {
 export type Config = ReturnType<typeof readConfig>
 
 export function signer(role: "agent" | "provider" | "deployer") {
-  const key = process.env[`${role.toUpperCase()}_PRIVATE_KEY`]
+  const variable = `${role.toUpperCase()}_PRIVATE_KEY`
+  const key = process.env[variable]?.trim()
 
   if (!key) {
     throw new Error(`Set ${role.toUpperCase()}_PRIVATE_KEY for Sepolia.`)
   }
 
-  return privateKeyToAccount(key as Hex)
+  if (!privateKeyPattern.test(key)) {
+    throw new Error(
+      `${variable} must be 0x followed by 64 hexadecimal characters.`
+    )
+  }
+
+  try {
+    return privateKeyToAccount(key as Hex)
+  } catch {
+    throw new Error(`${variable} is not a valid secp256k1 private key.`)
+  }
 }
 
 export function modelSettings(role: "buyer" | "seller") {

@@ -23,6 +23,8 @@ import type { ProviderStore } from "./store.ts"
 import { catalog } from "./catalog.ts"
 import { executeTask, interpretTask } from "./specialist.ts"
 
+const citationPattern = /exchange-cities-synthetic-v1|\[[^\]\n]+\]/g
+
 export function createProviderService(config: Config, store: ProviderStore) {
   const client = publicClient(config.chainId, config.rpcUrl)
   const account = signer("provider")
@@ -205,11 +207,7 @@ export function createProviderService(config: Config, store: ProviderStore) {
 }
 
 function extractReferences(content: string) {
-  return [
-    ...new Set(
-      content.match(/exchange-cities-synthetic-v1|\[[^\]\n]+\]/g) ?? []
-    ),
-  ]
+  return [...new Set(content.match(citationPattern) ?? [])]
 }
 
 export type ProviderService = ReturnType<typeof createProviderService>
