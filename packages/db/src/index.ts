@@ -8,7 +8,7 @@ import { DatabaseSync } from "node:sqlite"
 import * as schema from "./schema.ts"
 
 export * from "./schema.ts"
-export { eq, and, inArray } from "drizzle-orm"
+export { eq, and, inArray, notInArray } from "drizzle-orm"
 
 export function openDatabase(
   filename = process.env.DATABASE_PATH ||

@@ -1,60 +1,30 @@
-import { RiAddLine } from "@remixicon/react"
+import { useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert"
 import { Button } from "#/components/ui/button"
 import { Spinner } from "#/components/ui/spinner"
-import { useAssistant } from "#/hooks/use-assistant"
 
 import { AllowancePanel } from "./allowance-panel.tsx"
+import { useWorkspaceAssistant } from "./assistant-context"
 import { ChatComposer } from "./chat-composer.tsx"
+import { ConversationSidebar } from "./conversation-sidebar"
 import { ConversationThread } from "./conversation-thread.tsx"
 import { ScenarioBar } from "./scenario-bar.tsx"
 import { WalletControls } from "./wallet-controls.tsx"
-import { WorkspaceHeader } from "./workspace-header.tsx"
 
 export function AssistantWorkspace() {
-  const assistant = useAssistant()
+  const assistant = useWorkspaceAssistant()
+  const [collapsed, setCollapsed] = useState(false)
   const { run, wallet, selected, details } = assistant
   const scenario = details?.conversation.scenario || assistant.scenario
 
   return (
-    <main className="workspace">
-      <aside className="conversation-sidebar">
-        <div className="brand">
-          <span className="brand-mark">a.</span>
-          <span>Agent Spend Guard</span>
-        </div>
-        <p className="eyebrow">COMP7610 · agent to agent</p>
-        <Button
-          variant="outline"
-          disabled={run.busy || !wallet}
-          onClick={() => assistant.preset("success")}
-        >
-          <RiAddLine data-icon="inline-start" />
-          New conversation
-        </Button>
-        <nav aria-label="Conversations" className="flex flex-col gap-2">
-          {assistant.conversations.map((conversation) => (
-            <Button
-              key={conversation.id}
-              variant={selected === conversation.id ? "secondary" : "ghost"}
-              disabled={run.busy}
-              onClick={() => assistant.select(conversation.id)}
-            >
-              <span className="truncate">{conversation.title}</span>
-            </Button>
-          ))}
-        </nav>
-        <div className="sidebar-note">
-          <p>Delegate the work.</p>
-          <p>Keep control of the spending.</p>
-          <p className="text-sm text-muted-foreground">
-            ATT is a demonstration token with no monetary value.
-          </p>
-        </div>
-      </aside>
+    <main className="workspace" data-sidebar-collapsed={collapsed}>
+      <ConversationSidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
+      />
       <section className="chat-workspace" aria-label="Assistant conversation">
-        <WorkspaceHeader />
         <ScenarioBar assistant={assistant} />
         {assistant.error && (
           <div className="px-5 py-2">
@@ -90,19 +60,6 @@ export function AssistantWorkspace() {
           onFund={assistant.fund}
           onAction={assistant.allowanceAction}
         />
-        <div className="specialist-note">
-          <p className="eyebrow">Available specialist</p>
-          <h2>Exchange Evidence</h2>
-          <p className="text-sm text-muted-foreground">
-            Analysis · 0.01 ATT
-            <br />
-            Recommendation brief · 0.005 ATT
-          </p>
-          <p className="text-sm text-muted-foreground">
-            A separate agent interprets the brief, quotes the work, and delivers
-            cited results.
-          </p>
-        </div>
         {!!assistant.purchases.length && (
           <Button
             variant="ghost"

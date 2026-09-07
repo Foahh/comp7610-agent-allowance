@@ -5,6 +5,8 @@ import {
   eq,
   and,
   inArray,
+  notInArray,
+  deletedConversations,
   conversations,
   messages,
   allowances,
@@ -112,6 +114,16 @@ export function openBuyerDatabase(filename?: string) {
     savePurchase,
     listPurchases,
     saveConversation,
+    deleteConversation(id: string) {
+      db.transaction((tx) => {
+        // Keep allowance bindings and the payment journal for reconciliation.
+        tx.insert(deletedConversations)
+          .values({ conversationId: id, deletedAt: Date.now() })
+          .onConflictDoNothing()
+          .run()
+        tx.delete(messages).where(eq(messages.conversationId, id)).run()
+      })
+    },
     listUnresolvedPurchases() {
       return listPurchases(undefined, true)
     },
@@ -119,14 +131,34 @@ export function openBuyerDatabase(filename?: string) {
       return db
         .select()
         .from(conversations)
-        .where(eq(conversations.id, id))
+        .where(
+          and(
+            eq(conversations.id, id),
+            notInArray(
+              conversations.id,
+              db
+                .select({ id: deletedConversations.conversationId })
+                .from(deletedConversations)
+            )
+          )
+        )
         .get()
     },
     listConversations(owner: string) {
       return db
         .select()
         .from(conversations)
-        .where(eq(conversations.owner, owner))
+        .where(
+          and(
+            eq(conversations.owner, owner),
+            notInArray(
+              conversations.id,
+              db
+                .select({ id: deletedConversations.conversationId })
+                .from(deletedConversations)
+            )
+          )
+        )
         .orderBy(conversations.createdAt)
         .all()
     },

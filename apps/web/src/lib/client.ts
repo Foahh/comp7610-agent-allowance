@@ -45,12 +45,16 @@ export type ConversationDetails = v.InferOutput<
   typeof ConversationDetailsSchema
 >
 
-async function requestJson(path: string, body?: unknown): Promise<unknown> {
+async function requestJson(
+  path: string,
+  body?: unknown,
+  method = body === undefined ? "GET" : "POST"
+): Promise<unknown> {
   const response = await fetch(`/api${path}`, {
-    method: body === undefined ? "GET" : "POST",
+    method,
     headers:
       body === undefined ? undefined : { "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   })
 
   const result: unknown = await response.json()
@@ -65,6 +69,10 @@ async function requestJson(path: string, body?: unknown): Promise<unknown> {
 
 export async function getConfig() {
   return v.parse(AppConfigSchema, await requestJson("/config"))
+}
+
+export async function deleteConversation(id: string) {
+  await requestJson(`/conversations/${id}`, undefined, "DELETE")
 }
 
 export async function listConversations() {

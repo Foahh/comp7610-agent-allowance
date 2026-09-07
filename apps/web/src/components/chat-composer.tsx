@@ -58,10 +58,6 @@ export function ChatComposer({
           />
         </PromptInputFooter>
       </PromptInput>
-      <p className="text-xs text-muted-foreground">
-        Synthetic city data for teaching. Payment receipts do not guarantee
-        service quality.
-      </p>
     </div>
   )
 }

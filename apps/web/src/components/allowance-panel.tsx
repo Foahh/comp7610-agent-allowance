@@ -3,6 +3,7 @@ import type { Allowance } from "@repo/schemas"
 import { useState } from "react"
 import { formatUnits } from "viem"
 
+import { AttToken } from "#/components/att-token"
 import { Badge } from "#/components/ui/badge"
 import { Button } from "#/components/ui/button"
 import {
@@ -17,7 +18,6 @@ import {
   Field,
   FieldGroup,
   FieldLabel,
-  FieldDescription,
   FieldError,
 } from "#/components/ui/field"
 import { Input } from "#/components/ui/input"
@@ -54,11 +54,12 @@ export function AllowancePanel({
       <CardHeader>
         <CardTitle>Conversation allowance</CardTitle>
         <CardDescription>
-          You control the budget. The contract enforces it.
+          Approve ATT first, then confirm allowance creation. Valid for 24
+          hours. Gas is paid separately in test ETH.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        {allowance ? (
+        {allowance && (
           <>
             <Badge variant={allowance.revoked ? "outline" : "secondary"}>
               {allowance.revoked ? "Revoked" : "Authorized"} · #{allowance.id}
@@ -88,16 +89,15 @@ export function AllowancePanel({
             </dl>
             <Separator />
           </>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Chat freely. Activate an allowance when you want your assistant to
-            hire a specialist.
-          </p>
         )}
         {canCreate && (
           <FieldGroup>
             <Field data-invalid={invalidBudget}>
-              <FieldLabel htmlFor="budget">Total allowance (ATT)</FieldLabel>
+              <FieldLabel htmlFor="budget">
+                <span>
+                  Total allowance (<AttToken />)
+                </span>
+              </FieldLabel>
               <Input
                 id="budget"
                 aria-invalid={invalidBudget}
@@ -113,7 +113,9 @@ export function AllowancePanel({
               )}
             </Field>
             <Field data-invalid={invalidCap}>
-              <FieldLabel htmlFor="cap">Maximum per purchase (ATT)</FieldLabel>
+              <FieldLabel htmlFor="cap">
+                <span>Maximum per purchase (ATT)</span>
+              </FieldLabel>
               <Input
                 id="cap"
                 aria-invalid={invalidCap}
@@ -122,10 +124,6 @@ export function AllowancePanel({
                 onChange={(event) => setCap(event.target.value)}
                 disabled={busy}
               />
-              <FieldDescription>
-                Approve ATT first, then confirm allowance creation. Valid for 24
-                hours. Gas is paid separately in test ETH.
-              </FieldDescription>
               {invalidCap && (
                 <FieldError>
                   Use a positive cap no larger than the total.

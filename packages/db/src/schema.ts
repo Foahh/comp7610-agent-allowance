@@ -28,6 +28,14 @@ export const conversations = sqliteTable(
   ]
 )
 
+export const deletedConversations = sqliteTable("deleted_conversations", {
+  conversationId: text("conversation_id")
+    .primaryKey()
+    .notNull()
+    .references(() => conversations.id),
+  deletedAt: integer("deleted_at").notNull(),
+})
+
 export const allowances = sqliteTable(
   "allowances",
   {

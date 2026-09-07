@@ -1,11 +1,13 @@
 import type { Conversation } from "@repo/schemas"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 
 import {
   bindAllowance,
   createAuthChallenge,
   createConversation as requestConversation,
+  deleteConversation,
   recoverConversation,
   sendMessage,
   verifyAuthChallenge,
@@ -28,6 +30,7 @@ const EXCHANGE_SEMESTER_PROMPT = [
 ].join(" ")
 
 export function useAssistant() {
+  const cache = useQueryClient()
   const [wallet, setWallet] = useState<ConnectedWallet | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [scenario, setScenario] = useState<Scenario>("success")
@@ -134,6 +137,23 @@ export function useAssistant() {
     })
   }
 
+  function removeConversation(id: string) {
+    if (run.busy) {
+      return
+    }
+    void perform(async () => {
+      await deleteConversation(id)
+      if (selected === id) {
+        setSelected(
+          conversations.data?.find((conversation) => conversation.id !== id)
+            ?.id ?? null
+        )
+        setDraft("")
+      }
+      cache.removeQueries({ queryKey: ["conversation", id], exact: true })
+    })
+  }
+
   const purchases = new Map(
     (details.data?.purchases || []).map((item) => [item.id, item])
   )
@@ -166,6 +186,7 @@ export function useAssistant() {
     allowanceAction,
     send,
     recover,
+    removeConversation,
   }
 }
 

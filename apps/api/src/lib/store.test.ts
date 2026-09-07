@@ -63,6 +63,35 @@ function purchase(id = "quote-1"): Purchase {
 }
 
 describe("relational storage", () => {
+  test("deletes chat messages and hides the conversation while retaining payment records", () => {
+    const store = openBuyerDatabase(":memory:")
+    try {
+      store.saveConversation(conversation)
+      store.saveConversation({ ...conversation, id: "other" })
+      store.bindAllowance(conversation, "1")
+      store.savePurchase(purchase())
+      store.saveMessage({
+        id: "message",
+        conversationId: conversation.id,
+        role: "user",
+        content: "Private chat",
+        createdAt: 1,
+      })
+      store.deleteConversation(conversation.id)
+      assert.equal(store.getConversation(conversation.id), undefined)
+      assert.deepEqual(
+        store.listConversations(conversation.owner).map((item) => item.id),
+        ["other"]
+      )
+      assert.deepEqual(store.listMessages(conversation.id), [])
+      assert.equal(store.getAllowance("1")?.conversationId, conversation.id)
+      assert.equal(store.getPurchase("quote-1")?.rawTransaction, "0xabcdef")
+      assert.equal(store.listUnresolvedPurchases().length, 1)
+      store.deleteConversation(conversation.id)
+    } finally {
+      store.close()
+    }
+  })
   test("persists journal columns and reconstructs nested responses after reopening", () => {
     const directory = mkdtempSync(join(tmpdir(), "allowance-db-test-"))
     const path = join(directory, "buyer.sqlite")

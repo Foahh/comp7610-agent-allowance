@@ -73,6 +73,47 @@ export function createConversationRoutes(
         return context.json(conversation, 201)
       }
     )
+    .delete("/:id", async (context) => {
+      const conversation = owned(context.req.param("id"), context.get("owner"))
+      if (active.has(conversation.id)) {
+        throw new HTTPException(409, {
+          message: "Wait for the active run before deleting this conversation.",
+        })
+      }
+      active.add(conversation.id)
+      try {
+        if (conversation.allowanceId) {
+          const allowance = await payments.allowance(conversation.allowanceId)
+          if (!allowance.revoked || BigInt(allowance.remaining) > 0n) {
+            throw new HTTPException(409, {
+              message:
+                "Stop future spending and withdraw unused ATT before deleting this conversation.",
+            })
+          }
+        }
+        if (
+          store
+            .listPurchases(conversation.id)
+            .some(
+              (purchase) =>
+                purchase.paymentStatus === "prepared" ||
+                purchase.paymentStatus === "pending" ||
+                (purchase.paymentStatus === "confirmed" &&
+                  purchase.delivery?.status !== "completed" &&
+                  purchase.delivery?.status !== "failed")
+            )
+        ) {
+          throw new HTTPException(409, {
+            message:
+              "Refresh pending purchases before deleting this conversation.",
+          })
+        }
+        store.deleteConversation(conversation.id)
+        return context.json({ ok: true })
+      } finally {
+        active.delete(conversation.id)
+      }
+    })
     .get("/:id", async (context) => {
       const conversation = owned(context.req.param("id"), context.get("owner"))
 

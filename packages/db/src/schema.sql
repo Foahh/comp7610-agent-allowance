@@ -104,3 +104,8 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE INDEX IF NOT EXISTS sessions_lookup_idx ON sessions (expires_at);
+
+CREATE TABLE IF NOT EXISTS deleted_conversations (
+  conversation_id TEXT PRIMARY KEY NOT NULL REFERENCES conversations(id),
+  deleted_at INTEGER NOT NULL
+);
