@@ -17,6 +17,7 @@
     "@hono/standard-validator": "catalog:",
     "@repo/db": "workspace:*",
     "@repo/schemas": "workspace:*",
+    "@repo/utils": "workspace:*",
     "@x402/core": "catalog:",
     "@x402/evm": "catalog:",
     "@x402/fetch": "catalog:",

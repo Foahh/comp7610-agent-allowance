@@ -9,9 +9,10 @@
   "scripts": {
     "build": "vp pack",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "vp exec node ../../scripts/migrate.ts"
   },
   "dependencies": {
+    "@repo/utils": "workspace:*",
     "drizzle-orm": "catalog:"
   },
   "devDependencies": {

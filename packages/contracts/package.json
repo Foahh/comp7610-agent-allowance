@@ -1,0 +1,24 @@
+{
+  "name": "@repo/contracts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vp exec hardhat compile",
+    "test": "vp run build && vp test",
+    "node": "vp exec hardhat node --hostname 127.0.0.1",
+    "deploy": "vp exec node scripts/deploy.ts",
+    "deploy:local": "vp exec node scripts/deploy.ts --local",
+    "deploy:sepolia": "vp exec node scripts/deploy.ts --sepolia"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "catalog:",
+    "@repo/schemas": "workspace:*",
+    "@repo/utils": "workspace:*",
+    "viem": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "hardhat": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

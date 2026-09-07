@@ -17,6 +17,8 @@
     "@remixicon/react": "catalog:",
     "@repo/api": "workspace:*",
     "@repo/schemas": "workspace:*",
+    "@repo/utils": "workspace:*",
+    "@shadcn/react": "catalog:",
     "@tanstack/react-form": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
@@ -29,7 +31,8 @@
     "recharts": "catalog:",
     "shadcn": "catalog:",
     "tw-animate-css": "catalog:",
-    "valibot": "catalog:"
+    "valibot": "catalog:",
+    "viem": "catalog:"
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",

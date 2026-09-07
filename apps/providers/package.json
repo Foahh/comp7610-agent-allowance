@@ -8,14 +8,20 @@
     "build": "tsc && vp build"
   },
   "dependencies": {
+    "@ai-sdk/openai": "catalog:",
+    "@ai-sdk/valibot": "catalog:",
     "@hono/node-server": "catalog:",
     "@hono/standard-validator": "catalog:",
+    "@repo/db": "workspace:*",
     "@repo/schemas": "workspace:*",
+    "@repo/utils": "workspace:*",
     "@x402/core": "catalog:",
     "@x402/evm": "catalog:",
     "@x402/hono": "catalog:",
+    "ai": "catalog:",
     "hono": "catalog:",
-    "valibot": "catalog:"
+    "valibot": "catalog:",
+    "viem": "catalog:"
   },
   "devDependencies": {
     "@hono/vite-dev-server": "catalog:",

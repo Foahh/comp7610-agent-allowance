@@ -1,5 +1,5 @@
-import { defineConfig } from "drizzle-kit";
-import { fileURLToPath } from "node:url";
+import { defineConfig } from "drizzle-kit"
+import { fileURLToPath } from "node:url"
 
 export default defineConfig({
   dialect: "sqlite",
@@ -10,4 +10,4 @@ export default defineConfig({
       process.env.DATABASE_PATH ||
       fileURLToPath(new URL("../../data/data.sqlite", import.meta.url)),
   },
-});
+})

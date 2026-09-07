@@ -1,18 +1,22 @@
-import { fileURLToPath } from "node:url";
-import { defineConfig, loadEnv } from "vite-plus";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import { fileURLToPath } from "node:url"
+import { defineConfig, loadEnv } from "vite-plus"
+import react from "@vitejs/plugin-react"
+import tailwindcss from "@tailwindcss/vite"
+import { tanstackRouter } from "@tanstack/router-plugin/vite"
 
-const workspaceRoot = fileURLToPath(new URL("../../", import.meta.url));
+const workspaceRoot = fileURLToPath(new URL("../../", import.meta.url))
 
 export default defineConfig(({ mode }) => {
-  const environment = loadEnv(mode, workspaceRoot, "API_");
-  const apiPort = process.env.API_PORT || environment.API_PORT || "3001";
+  const environment = loadEnv(mode, workspaceRoot, "API_")
+  const apiPort = process.env.API_PORT || environment.API_PORT || "3001"
 
   return {
     resolve: { tsconfigPaths: true },
-    plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react(), tailwindcss()],
+    plugins: [
+      tanstackRouter({ target: "react", autoCodeSplitting: true }),
+      react(),
+      tailwindcss(),
+    ],
     server: {
       host: "127.0.0.1",
       port: 3000,
@@ -24,5 +28,5 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       strictPort: true,
     },
-  };
-});
+  }
+})

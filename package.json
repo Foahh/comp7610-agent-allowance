@@ -9,11 +9,18 @@
     "check": "vp check",
     "ready": "vp check && vp run -r build",
     "db:generate": "vp run @repo/db#db:generate",
-    "db:migrate": "vp run @repo/db#db:migrate",
+    "db:migrate": "vp exec node scripts/migrate.ts",
     "prepare": "vp config",
-    "doctor": "vpx react-doctor@latest"
+    "doctor": "vp exec react-doctor",
+    "test:contracts": "vp run @repo/contracts#test",
+    "chain": "vp run @repo/contracts#node",
+    "deploy:local": "vp run @repo/contracts#deploy:local",
+    "models:check": "vp exec node scripts/check-models.ts",
+    "deploy:sepolia": "vp run @repo/contracts#deploy:sepolia"
   },
   "devDependencies": {
+    "@repo/db": "workspace:*",
+    "@repo/utils": "workspace:*",
     "@types/node": "catalog:",
     "react-doctor": "catalog:",
     "typescript": "catalog:",

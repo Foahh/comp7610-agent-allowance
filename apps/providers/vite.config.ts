@@ -1,12 +1,14 @@
-import { fileURLToPath } from "node:url";
-import { defineConfig, loadEnv } from "vite-plus";
-import devServer from "@hono/vite-dev-server";
+import { fileURLToPath } from "node:url"
+import { defineConfig, loadEnv } from "vite-plus"
+import devServer from "@hono/vite-dev-server"
 
-const workspaceRoot = fileURLToPath(new URL("../../", import.meta.url));
+const workspaceRoot = fileURLToPath(new URL("../../", import.meta.url))
 
 export default defineConfig(({ mode }) => {
-  const environment = loadEnv(mode, workspaceRoot, "PROVIDERS_PORT");
-  const port = Number(process.env.PROVIDERS_PORT || environment.PROVIDERS_PORT || 3002);
+  const environment = loadEnv(mode, workspaceRoot, "PROVIDERS_PORT")
+  const port = Number(
+    process.env.PROVIDERS_PORT || environment.PROVIDERS_PORT || 3002
+  )
 
   return {
     appType: "custom",
@@ -18,5 +20,5 @@ export default defineConfig(({ mode }) => {
       target: "node24",
       sourcemap: true,
     },
-  };
-});
+  }
+})
