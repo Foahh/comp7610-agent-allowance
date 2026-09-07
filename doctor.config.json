@@ -1,6 +1,6 @@
 {
   "$schema": "https://react.doctor/schema/config.json",
   "ignore": {
-    "files": ["dist/**", "apps/web/src/components/ui/**", "node_modules/**"]
+    "files": ["dist/**", "**/src/components/ui/**", "node_modules/**"]
   }
 }

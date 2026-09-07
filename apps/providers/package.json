@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node dist/index.js",
     "dev": "vp dev",
     "build": "tsc && vp build"
   },
   "dependencies": {
     "@ai-sdk/valibot": "catalog:",
+    "@hono/node-server": "^2.1.1",
     "@hono/standard-validator": "catalog:",
     "@repo/db": "workspace:*",
     "@repo/schemas": "workspace:*",
@@ -19,6 +21,7 @@
     "viem": "catalog:"
   },
   "devDependencies": {
+    "@hono/vite-build": "^1.11.1",
     "@hono/vite-dev-server": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:",

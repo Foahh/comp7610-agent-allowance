@@ -10,13 +10,17 @@ export default defineConfig(({ mode }) => {
 
   return {
     appType: "custom",
-    plugins: [devServer({ entry: "src/index.ts" })],
+    plugins: [
+      build({ entry: "src/index.ts", port, shutdownTimeoutMs: 5000 }),
+      devServer({ entry: "src/index.ts" }),
+    ],
     server: { host: "127.0.0.1", port, strictPort: true },
     ssr: { noExternal: [/^@repo\//] },
     build: {
-      ssr: "src/index.ts",
       target: "node24",
       sourcemap: true,
     },
   }
 })
+
+import build from "@hono/vite-build/node"

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.ts"],
+      "ignoreDependencies": ["react-doctor"],
+    },
+    "apps/web": {
+      "entry": ["src/components/ui/**/*.{ts,tsx}"],
+    },
+    "apps/api": {
+      "ignoreDependencies": ["@hono/node-server"],
+    },
+    "apps/providers": {
+      "ignoreDependencies": ["@hono/node-server"],
+    },
+    "packages/contracts": {
+      "entry": ["scripts/deploy.ts"],
+      "ignoreDependencies": ["@openzeppelin/contracts"],
+    },
+  },
+}

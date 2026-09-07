@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "knip": "knip",
+    "deps:check": "knip --dependencies",
     "dev": "vp run --parallel --filter ./apps/* dev",
     "build": "vp run -r build",
     "check": "vp check",
@@ -18,9 +20,9 @@
     "@repo/db": "workspace:*",
     "@repo/utils": "workspace:*",
     "@types/node": "catalog:",
+    "knip": "catalog:",
     "react-doctor": "catalog:",
     "typescript": "catalog:",
-    "vite": "catalog:",
     "vite-plus": "catalog:"
   },
   "devEngines": {
