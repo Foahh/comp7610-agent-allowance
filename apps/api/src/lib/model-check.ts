@@ -1,6 +1,6 @@
-import { createOpenAI } from "@ai-sdk/openai"
 import { valibotSchema } from "@ai-sdk/valibot"
 import { modelSettings } from "@repo/utils/config"
+import { createModel } from "@repo/utils/model"
 import { generateText, streamText, tool, stepCountIs, Output } from "ai"
 import * as v from "valibot"
 
@@ -12,13 +12,13 @@ export async function checkModels() {
       throw new Error(`Configure ${role} model credentials first.`)
     }
 
-    const model = createOpenAI(settings).chat(settings.model)
+    const model = createModel({ ...settings, model: settings.model })
     let streamed = ""
 
     const response = streamText({
       model,
       prompt: "Reply with exactly OK.",
-      maxOutputTokens: 16,
+      abortSignal: AbortSignal.timeout(60000),
     })
 
     for await (const text of response.textStream) {
@@ -30,11 +30,12 @@ export async function checkModels() {
     }
 
     let invoked = false
-    await generateText({
+    const toolResponse = streamText({
       model,
-      prompt: "Call the probe tool once.",
-      toolChoice: "required",
-      stopWhen: stepCountIs(1),
+      prompt: "Call the probe tool once, then reply with the value it returns.",
+      toolChoice: "auto",
+      stopWhen: stepCountIs(2),
+      abortSignal: AbortSignal.timeout(60000),
       tools: {
         probe: tool({
           inputSchema: valibotSchema(v.object({})),
@@ -46,19 +47,29 @@ export async function checkModels() {
       },
     })
 
-    if (!invoked) {
-      throw new Error(`${role} did not call the probe tool.`)
+    let toolAnswer = ""
+    for await (const text of toolResponse.textStream) {
+      toolAnswer = `${toolAnswer}${text}`
+    }
+    if (
+      !invoked ||
+      (await toolResponse.steps).length < 2 ||
+      !toolAnswer.trim()
+    ) {
+      throw new Error(`${role} failed the multi-step tool probe.`)
     }
 
     const result = await generateText({
       model,
-      prompt: "Return a structured object with ok true.",
+      prompt: 'Return a JSON object with exactly this shape: {"ok": true}.',
       output: Output.object({
         schema: valibotSchema(v.object({ ok: v.boolean() })),
       }),
+      abortSignal: AbortSignal.timeout(60000),
     })
 
-    if (!result.output.ok) {
+    const output = result.output
+    if (!output.ok) {
       throw new Error(`${role} failed the structured-output probe.`)
     }
 

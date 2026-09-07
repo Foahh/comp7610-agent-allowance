@@ -107,6 +107,9 @@ settings:
 
 catalogs:
   default:
+    '@ai-sdk/deepseek':
+      specifier: ^3.0.39
+      version: 3.0.39
     '@ai-sdk/openai':
       specifier: 4.0.60
       version: 4.0.60
@@ -505,9 +508,18 @@ importers:
 
   packages/utils:
     dependencies:
+      '@ai-sdk/deepseek':
+        specifier: 'catalog:'
+        version: 3.0.39(zod@4.5.4)
+      '@ai-sdk/openai':
+        specifier: 'catalog:'
+        version: 4.0.60(zod@4.5.4)
       '@repo/schemas':
         specifier: workspace:*
         version: link:../schemas
+      ai:
+        specifier: 'catalog:'
+        version: 7.0.93(zod@4.5.4)
       viem:
         specifier: 'catalog:'
         version: 2.56.3(typescript@7.0.2)(zod@4.5.4)
@@ -529,6 +541,12 @@ packages:
 
   '@adraffy/ens-normalize@1.11.1':
     resolution: {integrity: sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ==}
+
+  '@ai-sdk/deepseek@3.0.39':
+    resolution: {integrity: sha512-QJz4BL9Hcd+/pr48jea7U6xmFiigw2IgDn5nUp2g1xRiY63koxvhGjCLHTUjcCfZnK55ymNtBI6VmP/qVfX2Rg==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
 
   '@ai-sdk/gateway@4.0.75':
     resolution: {integrity: sha512-HOnhw3oXtBnboBF7kAKipjToCN6+5w6EuukiUKiULcxBitS+vbHRRv9IUBcq+Z1wkXcJjfywKrt5r++I6OYyXg==}
@@ -5535,6 +5553,12 @@ packages:
 snapshots:
 
   '@adraffy/ens-normalize@1.11.1': {}
+
+  '@ai-sdk/deepseek@3.0.39(zod@4.5.4)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.10
+      '@ai-sdk/provider-utils': 5.0.36(zod@4.5.4)
+      zod: 4.5.4
 
   '@ai-sdk/gateway@4.0.75(zod@4.5.4)':
     dependencies:

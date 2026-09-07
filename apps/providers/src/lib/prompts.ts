@@ -4,6 +4,8 @@ export const INTERPRET_TASK_SYSTEM_PROMPT = [
   "If essential scope or evidence is unclear or unsupported, set",
   "needsClarification true and ask one question.",
   "Otherwise describe the deliverable in one sentence.",
+  'Return only a JSON object with "needsClarification" (boolean) and "message" (string).',
+  'Example JSON: {"needsClarification": false, "message": "A comparison of monthly housing and transport totals."}',
   "Do not invent capabilities, prices, or financial permissions.",
 ].join(" ")
 

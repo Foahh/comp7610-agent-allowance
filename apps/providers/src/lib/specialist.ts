@@ -1,8 +1,8 @@
 import type { Task } from "@repo/schemas"
 
-import { createOpenAI } from "@ai-sdk/openai"
 import { valibotSchema } from "@ai-sdk/valibot"
 import { modelSettings } from "@repo/utils/config"
+import { createModel } from "@repo/utils/model"
 import { generateText, Output, stepCountIs, tool } from "ai"
 import * as v from "valibot"
 
@@ -35,9 +35,9 @@ export async function interpretTask(task: Task) {
     throw new Error("Seller model is not configured.")
   }
 
-  const provider = createOpenAI(settings)
+  const model = createModel({ ...settings, model: settings.model })
   const result = await generateText({
-    model: provider.chat(settings.model),
+    model,
     system: INTERPRET_TASK_SYSTEM_PROMPT,
     prompt: JSON.stringify(task),
     output: Output.object({
@@ -45,13 +45,13 @@ export async function interpretTask(task: Task) {
         v.object({ needsClarification: v.boolean(), message: v.string() })
       ),
     }),
-    maxOutputTokens: 120,
     abortSignal: AbortSignal.timeout(30000),
   })
 
-  return result.output.needsClarification
-    ? { clarification: result.output.message }
-    : { deliverable: result.output.message }
+  const output = result.output
+  return output.needsClarification
+    ? { clarification: output.message }
+    : { deliverable: output.message }
 }
 
 export async function executeTask(task: Task) {
@@ -61,9 +61,9 @@ export async function executeTask(task: Task) {
     throw new Error("Seller model is not configured.")
   }
 
-  const provider = createOpenAI(settings)
+  const model = createModel({ ...settings, model: settings.model })
   const result = await generateText({
-    model: provider.chat(settings.model),
+    model,
     system: EXECUTE_TASK_SYSTEM_PROMPT,
     prompt: JSON.stringify(task),
     tools: {
@@ -80,7 +80,6 @@ export async function executeTask(task: Task) {
       }),
     },
     stopWhen: stepCountIs(4),
-    maxOutputTokens: 1500,
     abortSignal: AbortSignal.timeout(60000),
   })
 

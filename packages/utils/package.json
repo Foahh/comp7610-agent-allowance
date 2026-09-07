@@ -8,7 +8,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./config": "./src/config.ts"
+    "./config": "./src/config.ts",
+    "./model": "./src/model.ts"
   },
   "scripts": {
     "build": "vp pack",
@@ -16,7 +17,10 @@
     "check": "vp check"
   },
   "dependencies": {
+    "@ai-sdk/deepseek": "catalog:",
+    "@ai-sdk/openai": "catalog:",
     "@repo/schemas": "workspace:*",
+    "ai": "catalog:",
     "viem": "catalog:"
   },
   "devDependencies": {

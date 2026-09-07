@@ -1,4 +1,3 @@
-import { createOpenAI } from "@ai-sdk/openai"
 import { valibotSchema } from "@ai-sdk/valibot"
 import {
   SignedQuoteSchema,
@@ -11,6 +10,7 @@ import {
 } from "@repo/schemas"
 import { taskHash } from "@repo/utils"
 import { modelSettings, type Config } from "@repo/utils/config"
+import { createModel } from "@repo/utils/model"
 import { streamText, tool, stepCountIs } from "ai"
 import { randomUUID } from "node:crypto"
 import * as v from "valibot"
@@ -156,7 +156,7 @@ export function createAgent(
           "Configure the buyer model endpoint, API key, and model before chatting."
         )
       }
-      const provider = createOpenAI(settings)
+      const model = createModel({ ...settings, model: settings.model })
 
       const tools = {
         discoverServices: tool({
@@ -201,7 +201,7 @@ export function createAgent(
         .map(publicPurchase)
 
       const result = streamText({
-        model: provider.chat(settings.model),
+        model,
         system: BUYER_SYSTEM_PROMPT,
         messages: [
           ...store
@@ -215,7 +215,6 @@ export function createAgent(
         ],
         tools,
         stopWhen: stepCountIs(8),
-        maxOutputTokens: 2000,
         abortSignal: AbortSignal.timeout(180000),
       })
       for await (const part of result.fullStream) {
