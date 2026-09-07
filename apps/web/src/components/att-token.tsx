@@ -7,12 +7,14 @@ import {
 
 export function AttToken({ focusable = true }: { focusable?: boolean }) {
   return (
-    <TooltipProvider delayDuration={200}>
+    <TooltipProvider delay={200}>
       <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="att-token" tabIndex={focusable ? 0 : undefined}>
-            ATT
-          </span>
+        <TooltipTrigger
+          render={
+            <span className="att-token" tabIndex={focusable ? 0 : undefined} />
+          }
+        >
+          ATT
         </TooltipTrigger>
         <TooltipContent sideOffset={6}>
           ATT is a demonstration token with no monetary value.

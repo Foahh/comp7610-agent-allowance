@@ -78,15 +78,16 @@ export function ConversationSidebar({ collapsed, onToggle }: Props) {
         ))}
       </nav>
       <Button
-        asChild
+        nativeButton={false}
+        render={
+          <Link to="/providers" aria-label="Providers" title="Providers" />
+        }
         variant="ghost"
         size={collapsed ? "icon" : "default"}
         className="mt-auto"
       >
-        <Link to="/providers" aria-label="Providers" title="Providers">
-          <RiTeamLine />
-          {!collapsed && "Providers"}
-        </Link>
+        <RiTeamLine />
+        {!collapsed && "Providers"}
       </Button>
     </aside>
   )

@@ -61,11 +61,9 @@ function ProvidersPage() {
             <strong>Agent Spend</strong>
           </span>
         </Link>
-        <Button asChild variant="outline">
-          <Link to="/">
-            <RiArrowLeftLine />
-            Back to assistant
-          </Link>
+        <Button nativeButton={false} render={<Link to="/" />} variant="outline">
+          <RiArrowLeftLine />
+          Back to assistant
         </Button>
       </header>
       <section className="providers-content" aria-labelledby="providers-title">

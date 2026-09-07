@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "catalog:",
-    "@repo/schemas": "workspace:*",
     "@repo/utils": "workspace:*",
     "viem": "catalog:"
   },

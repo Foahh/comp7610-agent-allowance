@@ -1,11 +1,11 @@
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
-import { Slot } from "radix-ui"
+import { cn } from "cnfast"
 import * as React from "react"
 
-import { cn } from "#/lib/utils"
-
 const markerVariants = cva(
-  "group/marker relative flex min-h-4 w-full items-center gap-2 text-left text-xs tracking-wide text-muted-foreground uppercase [&_svg:not([class*='size-'])]:size-4 [a]:underline [a]:underline-offset-3 [a]:hover:text-foreground",
+  "group/marker relative flex min-h-4 w-full items-center gap-2 text-left text-xs text-muted-foreground [&_svg:not([class*='size-'])]:size-3.5 [a]:underline [a]:underline-offset-3 [a]:hover:text-foreground",
   {
     variants: {
       variant: {
@@ -21,22 +21,23 @@ const markerVariants = cva(
 function Marker({
   className,
   variant = "default",
-  asChild = false,
+  render,
   ...props
-}: React.ComponentProps<"div"> &
-  VariantProps<typeof markerVariants> & {
-    asChild?: boolean
-  }) {
-  const Comp = asChild ? Slot.Root : "div"
-
-  return (
-    <Comp
-      data-slot="marker"
-      data-variant={variant}
-      className={cn(markerVariants({ variant, className }))}
-      {...props}
-    />
-  )
+}: useRender.ComponentProps<"div"> & VariantProps<typeof markerVariants>) {
+  return useRender({
+    defaultTagName: "div",
+    props: mergeProps<"div">(
+      {
+        className: cn(markerVariants({ variant, className })),
+      },
+      props
+    ),
+    render,
+    state: {
+      slot: "marker",
+      variant,
+    },
+  })
 }
 
 function MarkerIcon({ className, ...props }: React.ComponentProps<"span">) {
@@ -45,7 +46,7 @@ function MarkerIcon({ className, ...props }: React.ComponentProps<"span">) {
       data-slot="marker-icon"
       aria-hidden="true"
       className={cn(
-        "size-4 shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "size-3.5 shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
         className
       )}
       {...props}
@@ -66,4 +67,4 @@ function MarkerContent({ className, ...props }: React.ComponentProps<"span">) {
   )
 }
 
-export { Marker, MarkerIcon, MarkerContent }
+export { Marker, MarkerIcon, MarkerContent, markerVariants }

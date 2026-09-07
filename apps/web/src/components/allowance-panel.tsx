@@ -114,7 +114,9 @@ export function AllowancePanel({
             </Field>
             <Field data-invalid={invalidCap}>
               <FieldLabel htmlFor="cap">
-                <span>Maximum per purchase (ATT)</span>
+                <span>
+                  Maximum per purchase (<AttToken />)
+                </span>
               </FieldLabel>
               <Input
                 id="cap"

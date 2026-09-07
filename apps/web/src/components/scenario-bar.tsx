@@ -10,13 +10,13 @@ export function ScenarioBar({ assistant }: { assistant: AssistantController }) {
     <div className="demo-bar">
       <span className="text-sm text-muted-foreground">Try a scenario</span>
       <ToggleGroup
-        type="single"
+        multiple={false}
         className="flex-wrap"
-        value={scenario}
+        value={[scenario]}
         disabled={assistant.run.busy}
-        onValueChange={(value) => {
-          if (value) {
-            assistant.preset(value as typeof scenario)
+        onValueChange={([value]) => {
+          if (value === "success" || value === "insufficient") {
+            assistant.preset(value)
           }
         }}
       >
