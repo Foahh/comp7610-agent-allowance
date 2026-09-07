@@ -9,7 +9,6 @@ export const ScenarioSchema = v.picklist(["success", "insufficient"])
 export const HealthSchema = v.object({
   status: v.literal("ok"),
   service: v.picklist(["api", "providers"]),
-  database: v.optional(v.literal("ok")),
 })
 
 export const ConversationSchema = v.object({

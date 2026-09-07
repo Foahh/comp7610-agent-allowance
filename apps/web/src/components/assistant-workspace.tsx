@@ -1,8 +1,10 @@
 import { RiAddLine } from "@remixicon/react"
-import { useAssistant } from "#/hooks/use-assistant"
-import { Button } from "#/components/ui/button"
+
 import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert"
+import { Button } from "#/components/ui/button"
 import { Spinner } from "#/components/ui/spinner"
+import { useAssistant } from "#/hooks/use-assistant"
+
 import { AllowancePanel } from "./allowance-panel.tsx"
 import { ChatComposer } from "./chat-composer.tsx"
 import { ConversationThread } from "./conversation-thread.tsx"
@@ -20,7 +22,7 @@ export function AssistantWorkspace() {
       <aside className="conversation-sidebar">
         <div className="brand">
           <span className="brand-mark">a.</span>
-          <span>Agent Allowance</span>
+          <span>Agent Spend Guard</span>
         </div>
         <p className="eyebrow">COMP7610 · agent to agent</p>
         <Button

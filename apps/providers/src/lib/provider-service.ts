@@ -1,11 +1,5 @@
-import { randomBytes } from "node:crypto"
-import {
-  decodeEventLog,
-  recoverMessageAddress,
-  type Address,
-  type Hex,
-} from "viem"
 import type { Delivery, SignedQuote, Task } from "@repo/schemas"
+
 import {
   publicClient,
   quoteId,
@@ -16,9 +10,18 @@ import {
   vaultAbi,
 } from "@repo/utils"
 import { signer, type Config } from "@repo/utils/config"
+import { randomBytes } from "node:crypto"
+import {
+  decodeEventLog,
+  recoverMessageAddress,
+  type Address,
+  type Hex,
+} from "viem"
+
+import type { ProviderStore } from "./store.ts"
+
 import { catalog } from "./catalog.ts"
 import { executeTask, interpretTask } from "./specialist.ts"
-import type { ProviderStore } from "./store.ts"
 
 export function createProviderService(config: Config, store: ProviderStore) {
   const client = publicClient(config.chainId, config.rpcUrl)
@@ -27,6 +30,7 @@ export function createProviderService(config: Config, store: ProviderStore) {
 
   async function createQuote(allowanceId: string, task: Task) {
     const interpretation = await interpretTask(task)
+
     if ("clarification" in interpretation) {
       return interpretation
     }
@@ -43,9 +47,10 @@ export function createProviderService(config: Config, store: ProviderStore) {
       requestHash: taskHash(task),
       recipient: account.address,
       amount: service.amount,
-      nonce: ("0x" + randomBytes(32).toString("hex")) as Hex,
+      nonce: `0x${randomBytes(32).toString("hex")}` as Hex,
       expiresAt: (block.timestamp + 600n).toString(),
     }
+
     const offer: SignedQuote = {
       id: quoteId(quote, config.chainId, config.vault),
       quote,
@@ -55,12 +60,15 @@ export function createProviderService(config: Config, store: ProviderStore) {
         quoteTypedData(quote, config.chainId, config.vault)
       ),
     }
+
     store.saveQuote(offer)
+
     return { offer }
   }
 
   async function authorize(id: string, signature?: string) {
     const offer = store.getQuote(id)
+
     if (!offer || !signature) {
       throw new Error("Unknown quote or missing agent signature.")
     }
@@ -70,13 +78,16 @@ export function createProviderService(config: Config, store: ProviderStore) {
       functionName: "allowances",
       args: [BigInt(offer.quote.allowanceId)],
     })
+
     const recovered = await recoverMessageAddress({
-      message: "AgentAllowance delivery " + id,
+      message: `Agent Spend Guard delivery ${id}`,
       signature: signature as Hex,
     })
+
     if (recovered.toLowerCase() !== allowance[1].toLowerCase()) {
       throw new Error("Only the authorized buyer can retrieve this task.")
     }
+
     return offer
   }
 
@@ -90,6 +101,7 @@ export function createProviderService(config: Config, store: ProviderStore) {
     if (receipt.status !== "success") {
       throw new Error("Payment transaction reverted.")
     }
+
     if (!receipt.logs.some((log) => isPaymentForOffer(log, offer))) {
       throw new Error("Transaction does not pay this exact quote.")
     }
@@ -107,8 +119,11 @@ export function createProviderService(config: Config, store: ProviderStore) {
       modelMs: 0,
       deliveryMs: 0,
     }
+
     store.saveDelivery(job)
+
     const modelStarted = performance.now()
+
     try {
       job.content = await executeTask(offer.task)
       job.status = "completed"
@@ -118,9 +133,11 @@ export function createProviderService(config: Config, store: ProviderStore) {
       job.error =
         error instanceof Error ? error.message : "Provider execution failed."
     }
+
     job.modelMs = performance.now() - modelStarted
     job.deliveryMs = performance.now() - started
     store.saveDelivery(job)
+
     return job
   }
 
@@ -131,6 +148,7 @@ export function createProviderService(config: Config, store: ProviderStore) {
     if (log.address.toLowerCase() !== config.vault.toLowerCase()) {
       return false
     }
+
     try {
       const event = decodeEventLog({
         abi: vaultAbi,
@@ -160,10 +178,12 @@ export function createProviderService(config: Config, store: ProviderStore) {
   ) {
     const offer = await authorize(id, signature)
     let delivery = runningDeliveries.get(id)
+
     if (!delivery) {
       delivery = deliver(offer, txHash)
       runningDeliveries.set(id, delivery)
     }
+
     try {
       return await delivery
     } finally {

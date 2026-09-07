@@ -1,5 +1,6 @@
-import { cn } from "#/lib/utils"
 import { RiLoaderLine } from "@remixicon/react"
+
+import { cn } from "#/lib/utils"
 
 function Spinner({
   className,

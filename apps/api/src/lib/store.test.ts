@@ -1,8 +1,5 @@
-import assert from "node:assert/strict"
-import { mkdtempSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { describe, test } from "vite-plus/test"
+import type { Conversation, Purchase, SignedQuote } from "@repo/schemas"
+
 import {
   conversations,
   messages,
@@ -11,9 +8,14 @@ import {
   deliveryReferences,
   eq,
 } from "@repo/db"
-import type { Conversation, Purchase, SignedQuote } from "@repo/schemas"
+import assert from "node:assert/strict"
+import { mkdtempSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { describe, test } from "vite-plus/test"
+
+import { openProviderDatabase } from "../../../providers/src/lib/store.ts"
 import { openBuyerDatabase } from "./store.ts"
-import { openProviderDatabase } from "../../providers/src/store.ts"
 
 const conversation: Conversation = {
   id: "conversation-1",
@@ -23,6 +25,7 @@ const conversation: Conversation = {
   allowanceId: null,
   createdAt: 1,
 }
+
 function offer(id = "quote-1"): SignedQuote {
   return {
     id,
@@ -44,6 +47,7 @@ function offer(id = "quote-1"): SignedQuote {
     },
   }
 }
+
 function purchase(id = "quote-1"): Purchase {
   return {
     id,

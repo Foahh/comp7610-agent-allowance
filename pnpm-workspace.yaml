@@ -42,6 +42,7 @@ catalog:
   "viem": "2.56.3"
   "vite": "npm:@voidzero-dev/vite-plus-core@0.3.0"
   "vite-plus": "0.3.0"
+  date-fns: ^4.4.0
 
 overrides:
   vite: "catalog:"

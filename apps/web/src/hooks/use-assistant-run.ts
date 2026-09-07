@@ -1,5 +1,6 @@
-import { useReducer } from "react"
 import type { ChatEvent, Purchase } from "@repo/schemas"
+
+import { useReducer } from "react"
 
 export type RunState = {
   busy: boolean
@@ -35,6 +36,7 @@ function runReducer(state: RunState, action: RunAction): RunState {
         user: action.user ?? "",
         startedAt: Date.now(),
       }
+
     case "finish":
       return {
         ...state,
@@ -49,7 +51,7 @@ function runReducer(state: RunState, action: RunAction): RunState {
     case "error":
       return { ...state, error: action.text }
     case "text":
-      return { ...state, answer: state.answer + action.text }
+      return { ...state, answer: `${state.answer}${action.text}` }
     case "purchase":
       return {
         ...state,
@@ -70,6 +72,7 @@ export function useAssistantRun(refresh: () => Promise<void>) {
 
   async function perform(operation: () => Promise<void>, user?: string) {
     dispatch({ type: "start", user })
+
     try {
       await operation()
     } catch (error) {

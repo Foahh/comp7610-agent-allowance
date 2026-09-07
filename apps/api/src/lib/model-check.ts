@@ -1,27 +1,32 @@
-import { generateText, streamText, tool, stepCountIs, Output } from "ai"
 import { createOpenAI } from "@ai-sdk/openai"
 import { valibotSchema } from "@ai-sdk/valibot"
-import * as v from "valibot"
 import { modelSettings } from "@repo/utils/config"
+import { generateText, streamText, tool, stepCountIs, Output } from "ai"
+import * as v from "valibot"
 
 export async function checkModels() {
   for (const role of ["buyer", "seller"] as const) {
     const settings = modelSettings(role)
+
     if (!settings.apiKey || !settings.model) {
-      throw new Error("Configure " + role + " model credentials first.")
+      throw new Error(`Configure ${role} model credentials first.`)
     }
+
     const model = createOpenAI(settings).chat(settings.model)
     let streamed = ""
+
     const response = streamText({
       model,
       prompt: "Reply with exactly OK.",
       maxOutputTokens: 16,
     })
+
     for await (const text of response.textStream) {
-      streamed += text
+      streamed = `${streamed}${text}`
     }
+
     if (!streamed.trim()) {
-      throw new Error(role + " returned no streamed text.")
+      throw new Error(`${role} returned no streamed text.`)
     }
 
     let invoked = false
@@ -40,8 +45,9 @@ export async function checkModels() {
         }),
       },
     })
+
     if (!invoked) {
-      throw new Error(role + " did not call the probe tool.")
+      throw new Error(`${role} did not call the probe tool.`)
     }
 
     const result = await generateText({
@@ -51,9 +57,11 @@ export async function checkModels() {
         schema: valibotSchema(v.object({ ok: v.boolean() })),
       }),
     })
+
     if (!result.output.ok) {
-      throw new Error(role + " failed the structured-output probe.")
+      throw new Error(`${role} failed the structured-output probe.`)
     }
-    console.log(role + ": streaming, tool calling and structured output passed")
+
+    console.log(`${role}: streaming, tool calling and structured output passed`)
   }
 }

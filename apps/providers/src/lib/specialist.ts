@@ -1,9 +1,11 @@
-import { generateText, Output, stepCountIs, tool } from "ai"
+import type { Task } from "@repo/schemas"
+
 import { createOpenAI } from "@ai-sdk/openai"
 import { valibotSchema } from "@ai-sdk/valibot"
-import * as v from "valibot"
-import type { Task } from "@repo/schemas"
 import { modelSettings } from "@repo/utils/config"
+import { generateText, Output, stepCountIs, tool } from "ai"
+import * as v from "valibot"
+
 import { dataset, writingTemplate } from "./catalog.ts"
 import {
   EXECUTE_TASK_SYSTEM_PROMPT,
@@ -20,16 +22,19 @@ export async function interpretTask(task: Task) {
         "The dataset covers Tokyo, Seoul and Taipei. Which comparison would help your task?",
     }
   }
+
   if (task.service === "writing" && !task.evidence.trim()) {
     return {
       clarification:
         "Please supply evidence or buy an analysis before requesting an evidence-based brief.",
     }
   }
+
   const settings = modelSettings("seller")
   if (!settings.apiKey || !settings.model) {
     throw new Error("Seller model is not configured.")
   }
+
   const provider = createOpenAI(settings)
   const result = await generateText({
     model: provider.chat(settings.model),
@@ -43,6 +48,7 @@ export async function interpretTask(task: Task) {
     maxOutputTokens: 120,
     abortSignal: AbortSignal.timeout(30000),
   })
+
   return result.output.needsClarification
     ? { clarification: result.output.message }
     : { deliverable: result.output.message }
@@ -50,9 +56,11 @@ export async function interpretTask(task: Task) {
 
 export async function executeTask(task: Task) {
   const settings = modelSettings("seller")
+
   if (!settings.apiKey || !settings.model) {
     throw new Error("Seller model is not configured.")
   }
+
   const provider = createOpenAI(settings)
   const result = await generateText({
     model: provider.chat(settings.model),
@@ -75,8 +83,10 @@ export async function executeTask(task: Task) {
     maxOutputTokens: 1500,
     abortSignal: AbortSignal.timeout(60000),
   })
+
   if (!result.text.trim()) {
     throw new Error("Specialist ended without a deliverable.")
   }
+
   return result.text
 }

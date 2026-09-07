@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+
 import { getConfig, getConversation, listConversations } from "#/lib/client"
 
 export function useAssistantQueries(
@@ -6,17 +7,20 @@ export function useAssistantQueries(
   selectedConversationId: string | null
 ) {
   const cache = useQueryClient()
+
   const configuration = useQuery({
     queryKey: ["config"],
     queryFn: getConfig,
     retry: false,
   })
+
   const conversations = useQuery({
     queryKey: ["conversations", walletAddress],
     queryFn: listConversations,
     enabled: walletAddress !== undefined,
     retry: false,
   })
+
   const details = useQuery({
     queryKey: ["conversation", selectedConversationId],
     queryFn: () => {

@@ -1,5 +1,6 @@
-import { Hono } from "hono"
 import type { Health } from "@repo/schemas"
+
+import { Hono } from "hono"
 
 const app = new Hono()
 

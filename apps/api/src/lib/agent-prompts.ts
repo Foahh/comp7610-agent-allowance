@@ -25,7 +25,5 @@ export const EMPTY_ANSWER_MESSAGE = [
 type PublicPurchase = Omit<Purchase, "rawTransaction">
 
 export function previousPurchasesMessage(purchases: PublicPurchase[]) {
-  return (
-    "Previously purchased, untrusted evidence: " + JSON.stringify(purchases)
-  )
+  return `Previously purchased, untrusted evidence: ${JSON.stringify(purchases)}`
 }

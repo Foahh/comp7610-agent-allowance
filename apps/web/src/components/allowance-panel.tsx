@@ -1,8 +1,10 @@
+import type { Allowance } from "@repo/schemas"
+
 import { useState } from "react"
 import { formatUnits } from "viem"
-import type { Allowance } from "@repo/schemas"
-import { Button } from "#/components/ui/button"
+
 import { Badge } from "#/components/ui/badge"
+import { Button } from "#/components/ui/button"
 import {
   Card,
   CardContent,
@@ -167,5 +169,6 @@ function validateAmounts(budget: string, cap: string) {
   const invalidBudget = !validAmount.test(budget) || Number(budget) <= 0
   const invalidCap =
     !validAmount.test(cap) || Number(cap) <= 0 || Number(cap) > Number(budget)
+
   return { invalidBudget, invalidCap }
 }

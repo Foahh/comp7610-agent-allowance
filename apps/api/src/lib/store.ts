@@ -1,3 +1,5 @@
+import type { Conversation, Message, Purchase } from "@repo/schemas"
+
 import {
   openDatabase,
   eq,
@@ -13,21 +15,23 @@ import {
   sessions,
 } from "@repo/db"
 import { createRecordQueries } from "@repo/db/records"
-import type { Conversation, Message, Purchase } from "@repo/schemas"
 
 export function openBuyerDatabase(filename?: string) {
   const connection = openDatabase(filename)
   const { db } = connection
   const records = createRecordQueries(db)
+
   function getPurchase(id: string): Purchase | undefined {
     const row = db.select().from(purchases).where(eq(purchases.id, id)).get()
     if (!row) {
       return undefined
     }
+
     const offer = records.getQuote(id)
     if (!offer) {
       throw new Error("Purchase quote is missing.")
     }
+
     return {
       ...row,
       offer,
@@ -43,10 +47,12 @@ export function openBuyerDatabase(filename?: string) {
       error: row.error ?? undefined,
     }
   }
+
   function savePurchase(purchase: Purchase) {
     db.transaction((tx) => {
       const transactionRecords = createRecordQueries(tx)
       transactionRecords.saveQuote(purchase.offer, purchase.conversationId)
+
       const row = {
         id: purchase.id,
         conversationId: purchase.conversationId,
@@ -66,11 +72,13 @@ export function openBuyerDatabase(filename?: string) {
         .values(row)
         .onConflictDoUpdate({ target: purchases.id, set: row })
         .run()
+
       if (purchase.delivery) {
         transactionRecords.saveDelivery(purchase.delivery)
       }
     })
   }
+
   function listPurchases(conversationId?: string, unresolved = false) {
     return db
       .select({ id: purchases.id })
@@ -89,12 +97,14 @@ export function openBuyerDatabase(filename?: string) {
       .all()
       .map((row) => getPurchase(row.id)!)
   }
+
   function saveConversation(conversation: Conversation) {
     db.insert(conversations)
       .values(conversation)
       .onConflictDoUpdate({ target: conversations.id, set: conversation })
       .run()
   }
+
   return {
     ...connection,
     ...records,
@@ -154,13 +164,16 @@ export function openBuyerDatabase(filename?: string) {
           .from(allowances)
           .where(eq(allowances.allowanceId, allowanceId))
           .get()
+
         if (bound && bound.conversationId !== conversation.id) {
           throw new Error("Allowance already belongs to another conversation.")
         }
+
         db.insert(allowances)
           .values({ allowanceId, conversationId: conversation.id })
           .onConflictDoNothing()
           .run()
+
         saveConversation({ ...conversation, allowanceId })
       })
     },

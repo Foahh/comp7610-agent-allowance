@@ -1,8 +1,10 @@
-import { toggleVariants } from "./toggle-variants.ts"
-import * as React from "react"
 import { type VariantProps } from "class-variance-authority"
-import { cn } from "#/lib/utils"
 import { Toggle as TogglePrimitive } from "radix-ui"
+import * as React from "react"
+
+import { cn } from "#/lib/utils"
+
+import { toggleVariants } from "./toggle-variants.ts"
 
 function Toggle({
   className,

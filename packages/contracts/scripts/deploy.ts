@@ -1,8 +1,8 @@
+import { getChain, publicClient } from "@repo/utils"
+import { readConfig, signer } from "@repo/utils/config"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { createWalletClient, http, type Abi, type Hex } from "viem"
-import { readConfig, signer } from "@repo/utils/config"
-import { getChain, publicClient } from "@repo/utils"
 
 const config = readConfig()
 const account = signer("deployer")
@@ -15,32 +15,33 @@ const wallet = createWalletClient({
 
 async function deploy(name: string, args: readonly unknown[] = []) {
   const path = fileURLToPath(
-    new URL(
-      "../artifacts/contracts/" + name + ".sol/" + name + ".json",
-      import.meta.url
-    )
+    new URL(`../artifacts/contracts/${name}.sol/${name}.json`, import.meta.url)
   )
   const artifact = JSON.parse(readFileSync(path, "utf8")) as {
     abi: Abi
     bytecode: Hex
   }
+
   const hash = await wallet.deployContract({ ...artifact, args })
   const receipt = await client.waitForTransactionReceipt({
     hash,
     confirmations: config.confirmations,
   })
+
   if (!receipt.contractAddress) {
     throw new Error("Deployment did not create a contract.")
   }
+
   return receipt.contractAddress
 }
 
 const token = await deploy("AllowanceTestToken")
-const vault = await deploy("AgentAllowanceVault", [token])
-mkdirSync(config.root + "data", { recursive: true })
+const vault = await deploy("AgentSpendVault", [token])
+
+mkdirSync(`${config.root}data`, { recursive: true })
 writeFileSync(
-  config.root + "data/deployment-" + config.chainId + ".json",
-  JSON.stringify(
+  `${config.root}data/deployment-${config.chainId}.json`,
+  `${JSON.stringify(
     {
       chainId: config.chainId,
       token,
@@ -51,6 +52,7 @@ writeFileSync(
     },
     null,
     2
-  ) + "\n"
+  )}\n`
 )
+
 console.log(JSON.stringify({ chainId: config.chainId, token, vault }, null, 2))

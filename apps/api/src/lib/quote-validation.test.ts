@@ -1,8 +1,10 @@
+import type { Allowance, Conversation, SignedQuote } from "@repo/schemas"
+import type { Address, Hex } from "viem"
+
+import { quoteId, serviceHash, taskHash } from "@repo/utils"
 import assert from "node:assert/strict"
 import { describe, test } from "vite-plus/test"
-import type { Address, Hex } from "viem"
-import type { Allowance, Conversation, SignedQuote } from "@repo/schemas"
-import { quoteId, serviceHash, taskHash } from "@repo/utils"
+
 import { assertPurchasableQuote } from "./quote-validation.ts"
 
 const owner = "0x0000000000000000000000000000000000000001" as Address
@@ -24,7 +26,7 @@ function createValidInput() {
     requestHash: taskHash(task),
     recipient: provider,
     amount: "1200000",
-    nonce: ("0x" + "1".repeat(64)) as Hex,
+    nonce: `0x${"1".repeat(64)}` as Hex,
     expiresAt: "1300",
   }
   const offer: SignedQuote = {
@@ -34,6 +36,7 @@ function createValidInput() {
     task,
     deliverable: "A cited comparison.",
   }
+
   const conversation: Conversation = {
     id: "conversation-1",
     owner,
@@ -42,6 +45,7 @@ function createValidInput() {
     allowanceId: "1",
     createdAt: 1,
   }
+
   const allowance: Allowance = {
     id: "1",
     owner,

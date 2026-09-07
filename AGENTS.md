@@ -29,7 +29,3 @@ release. Add a tool name to select part of the graph. For example, run
 ## Conventions
 
 - Use conventional commit prefixes such as `feat`, `fix`, `refactor`, and `chore`.
-- Follow https://hono.dev/docs/guides/best-practices for backend routing.
-- Instantiate Hono in a separate statement (`const app = new Hono()`). Do not chain methods directly onto the constructor.
-- Group endpoints by feature and compose them with `app.route()`. Keep handlers beside their route definitions rather than extracting controller classes.
-- Preserve Hono RPC inference by exporting or returning the typed result of route registration. Do not discard that result and export the original untyped instance.

@@ -1,5 +1,8 @@
-import { formatUnits, formatEther } from "viem"
 import type { Purchase } from "@repo/schemas"
+
+import { formatUnits, formatEther } from "viem"
+
+import { Badge } from "#/components/ui/badge"
 import {
   Card,
   CardHeader,
@@ -7,7 +10,6 @@ import {
   CardDescription,
   CardContent,
 } from "#/components/ui/card"
-import { Badge } from "#/components/ui/badge"
 
 export function PurchaseCard({
   purchase,
@@ -17,6 +19,7 @@ export function PurchaseCard({
   chainId: number
 }) {
   const { offer, paymentStatus, delivery } = purchase
+
   return (
     <Card>
       <CardHeader>
@@ -69,9 +72,7 @@ export function PurchaseCard({
                 <dd>
                   {chainId === 11155111 ? (
                     <a
-                      href={
-                        "https://sepolia.etherscan.io/tx/" + purchase.txHash
-                      }
+                      href={`https://sepolia.etherscan.io/tx/${purchase.txHash}`}
                       target="_blank"
                       rel="noreferrer"
                     >

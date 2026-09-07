@@ -1,4 +1,5 @@
 import type { AssistantController } from "#/hooks/use-assistant"
+
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group"
 
 export function ScenarioBar({ assistant }: { assistant: AssistantController }) {

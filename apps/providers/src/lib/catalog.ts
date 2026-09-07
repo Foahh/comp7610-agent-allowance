@@ -5,8 +5,7 @@ export const catalog: ServiceOffer[] = [
     id: "analysis",
     name: "City evidence analysis",
     description:
-      "Compare the specialist's labeled accommodation and transport " +
-      "synthetic dataset, with row references.",
+      "Compare the specialist's labeled accommodation and transport synthetic dataset, with row references.",
     amount: "1200000",
   },
   {
@@ -21,8 +20,7 @@ export const catalog: ServiceOffer[] = [
 export const dataset = {
   version: "exchange-cities-synthetic-v1",
   notice:
-    "Synthetic teaching dataset, not current accommodation prices or travel " +
-    "advice. All monthly amounts are illustrative USD.",
+    "Synthetic teaching dataset, not current accommodation prices or travel advice. All monthly amounts are illustrative USD.",
   rows: [
     {
       id: "TOK-01",

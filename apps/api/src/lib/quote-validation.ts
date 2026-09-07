@@ -1,7 +1,8 @@
-import type { Address } from "viem"
 import type { Allowance, Conversation, SignedQuote } from "@repo/schemas"
-import { quoteId, serviceHash, taskHash } from "@repo/utils"
 import type { Config } from "@repo/utils/config"
+import type { Address } from "viem"
+
+import { quoteId, serviceHash, taskHash } from "@repo/utils"
 
 type QuoteValidation = {
   conversation: Conversation
@@ -37,6 +38,7 @@ export function assertPurchasableQuote({
   if (!matchesAuthority || !matchesSignedWork) {
     throw new Error("Quote does not match the authorized task and allowance.")
   }
+
   if (allowance.revoked || BigInt(allowance.expiresAt) <= currentTimestamp) {
     throw new Error("Allowance is revoked or expired.")
   }
@@ -45,6 +47,7 @@ export function assertPurchasableQuote({
   }
 
   const amount = BigInt(offer.quote.amount)
+
   if (
     amount <= 0n ||
     amount > BigInt(allowance.perPurchase) ||

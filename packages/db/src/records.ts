@@ -1,6 +1,9 @@
-import { eq } from "drizzle-orm"
 import type { Delivery, SignedQuote } from "@repo/schemas"
+
+import { eq } from "drizzle-orm"
+
 import type { Database } from "./index.ts"
+
 import { quotes, deliveries, deliveryReferences } from "./schema.ts"
 
 export function createRecordQueries(
@@ -17,14 +20,17 @@ export function createRecordQueries(
       evidence: offer.task.evidence,
       deliverable: offer.deliverable,
     }
+
     // Signed offers are immutable snapshots.
     db.insert(quotes).values(row).onConflictDoNothing().run()
   }
+
   function getQuote(id: string): SignedQuote | undefined {
     const row = db.select().from(quotes).where(eq(quotes.id, id)).get()
     if (!row) {
       return undefined
     }
+
     return {
       id: row.id,
       signature: row.signature,
@@ -45,17 +51,21 @@ export function createRecordQueries(
       },
     }
   }
+
   function saveDelivery(delivery: Delivery) {
     db.transaction(() => {
       const { references, ...fields } = delivery
       const row = { ...fields, error: fields.error ?? null }
+
       db.insert(deliveries)
         .values(row)
         .onConflictDoUpdate({ target: deliveries.purchaseId, set: row })
         .run()
+
       db.delete(deliveryReferences)
         .where(eq(deliveryReferences.purchaseId, delivery.purchaseId))
         .run()
+
       if (references.length) {
         db.insert(deliveryReferences)
           .values(
@@ -69,6 +79,7 @@ export function createRecordQueries(
       }
     })
   }
+
   function getDelivery(id: string): Delivery | undefined {
     const row = db
       .select()
@@ -78,6 +89,7 @@ export function createRecordQueries(
     if (!row) {
       return undefined
     }
+
     return {
       ...row,
       error: row.error ?? undefined,
@@ -90,5 +102,6 @@ export function createRecordQueries(
         .map((row) => row.reference),
     }
   }
+
   return { saveQuote, getQuote, saveDelivery, getDelivery }
 }

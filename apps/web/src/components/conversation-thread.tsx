@@ -1,6 +1,16 @@
+import { SEPOLIA_CHAIN_ID } from "@repo/utils"
+
 import type { AssistantController } from "#/hooks/use-assistant"
-import { Message, MessageContent, MessageHeader } from "#/components/ui/message"
+
 import { Bubble, BubbleContent } from "#/components/ui/bubble"
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+} from "#/components/ui/empty"
+import { Marker, MarkerContent } from "#/components/ui/marker"
+import { Message, MessageContent, MessageHeader } from "#/components/ui/message"
 import {
   MessageScrollerProvider,
   MessageScroller,
@@ -9,15 +19,8 @@ import {
   MessageScrollerItem,
   MessageScrollerButton,
 } from "#/components/ui/message-scroller"
-import { Marker, MarkerContent } from "#/components/ui/marker"
-import {
-  Empty,
-  EmptyHeader,
-  EmptyTitle,
-  EmptyDescription,
-} from "#/components/ui/empty"
+
 import { PurchaseCard } from "./purchase-card.tsx"
-import { SEPOLIA_CHAIN_ID } from "@repo/utils"
 
 export function ConversationThread({
   assistant,
@@ -91,6 +94,7 @@ export function ConversationThread({
                   </MessageScrollerItem>
                 )
               }
+
               const message = entry.message
               return (
                 <MessageScrollerItem

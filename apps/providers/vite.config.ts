@@ -1,6 +1,6 @@
+import devServer from "@hono/vite-dev-server"
 import { fileURLToPath } from "node:url"
 import { defineConfig, loadEnv } from "vite-plus"
-import devServer from "@hono/vite-dev-server"
 
 const workspaceRoot = fileURLToPath(new URL("../../", import.meta.url))
 

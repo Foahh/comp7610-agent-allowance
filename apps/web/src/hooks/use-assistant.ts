@@ -1,5 +1,7 @@
-import { useState } from "react"
 import type { Conversation } from "@repo/schemas"
+
+import { useState } from "react"
+
 import {
   bindAllowance,
   createAuthChallenge,
@@ -14,6 +16,7 @@ import {
   updateAllowance,
   type ConnectedWallet,
 } from "#/lib/wallet"
+
 import { useAssistantQueries } from "./use-assistant-queries.ts"
 import { useAssistantRun } from "./use-assistant-run.ts"
 
@@ -23,6 +26,7 @@ const EXCHANGE_SEMESTER_PROMPT = [
   "Compare Tokyo, Seoul, and Taipei for an exchange semester, then prepare",
   "a recommendation brief.",
 ].join(" ")
+
 export function useAssistant() {
   const [wallet, setWallet] = useState<ConnectedWallet | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
@@ -40,6 +44,7 @@ export function useAssistant() {
         : "Exchange semester"
     const conversation = await requestConversation(title, nextScenario)
     setSelected(conversation.id)
+
     return conversation
   }
 
@@ -47,6 +52,7 @@ export function useAssistant() {
     if (!config) {
       return
     }
+
     void perform(async () => {
       const connected = await connectWallet(config)
       const challenge = await createAuthChallenge(connected.account.address)
@@ -63,6 +69,7 @@ export function useAssistant() {
   function preset(next: Scenario) {
     setScenario(next)
     setDraft(EXCHANGE_SEMESTER_PROMPT)
+
     if (wallet) {
       void perform(async () => {
         await createConversation(next)
@@ -74,6 +81,7 @@ export function useAssistant() {
     if (!wallet || !config || !selected) {
       return
     }
+
     void perform(async () => {
       const allowanceId = await fundAllowance(
         wallet,
@@ -90,6 +98,7 @@ export function useAssistant() {
     if (!wallet || !config || !details.data?.allowance) {
       return
     }
+
     void perform(async () => {
       dispatch({
         type: "status",
@@ -103,6 +112,7 @@ export function useAssistant() {
     if (!selected || !draft.trim()) {
       return
     }
+
     const message = draft.trim()
     setDraft("")
     void perform(async () => {
@@ -118,6 +128,7 @@ export function useAssistant() {
     if (!selected) {
       return
     }
+
     void perform(async () => {
       await recoverConversation(selected)
     })
@@ -126,6 +137,7 @@ export function useAssistant() {
   const purchases = new Map(
     (details.data?.purchases || []).map((item) => [item.id, item])
   )
+
   for (const item of run.purchases) {
     purchases.set(item.id, item)
   }

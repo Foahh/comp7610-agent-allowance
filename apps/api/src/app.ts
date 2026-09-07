@@ -1,16 +1,28 @@
+import type { Config } from "@repo/utils/config"
+
 import { Hono } from "hono"
 import { getCookie } from "hono/cookie"
 import { HTTPException } from "hono/http-exception"
-import type { Config } from "@repo/utils/config"
-import { createPayments } from "./payments.ts"
-import { createAuthRoutes } from "./routes/auth/index.ts"
-import { createConfigRoutes } from "./routes/config/index.ts"
+
+import type { BuyerStore } from "./lib/store.ts"
+
+import { createPayments } from "./lib/payments.ts"
+import { createAuthRoutes } from "./routes/auth.ts"
+import { createConfigRoutes } from "./routes/config.ts"
 import {
   createConversationRoutes,
   type AppEnv,
-} from "./routes/conversations/index.ts"
-import { createHealthRoutes } from "./routes/health/index.ts"
-import type { BuyerStore } from "./store.ts"
+} from "./routes/conversations.ts"
+import { healthRoutes } from "./routes/health.ts"
+
+const CONVERSATIONS_API_PATH = "/api/conversations"
+
+function isConversationApiPath(path: string) {
+  return (
+    path === CONVERSATIONS_API_PATH ||
+    path.startsWith(CONVERSATIONS_API_PATH + "/")
+  )
+}
 
 export function createApp(
   config: Config,
@@ -18,10 +30,12 @@ export function createApp(
   payments = createPayments(config, store)
 ) {
   const app = new Hono<AppEnv>()
+
   app.onError((error, context) => {
     const status = error instanceof HTTPException ? error.status : 400
     return context.json({ error: error.message.split("\n")[0] }, status)
   })
+
   app.use("/api/*", async (context, next) => {
     if (!["GET", "HEAD", "OPTIONS"].includes(context.req.method)) {
       if (context.req.header("origin") !== config.appOrigin) {
@@ -30,8 +44,9 @@ export function createApp(
     }
     await next()
   })
+
   app.use("/api/*", async (context, next) => {
-    if (!/^\/api\/conversations(\/|$)/.test(context.req.path)) {
+    if (!isConversationApiPath(context.req.path)) {
       return next()
     }
     const token = getCookie(context, "agent_session")
@@ -42,22 +57,15 @@ export function createApp(
     context.set("owner", session.owner)
     await next()
   })
-  const health = app.route(
-    "/api/health",
-    createHealthRoutes(() => store.checkConnection())
-  )
-  const configuration = health.route(
-    "/api/config",
-    createConfigRoutes(config, payments.account.address)
-  )
-  const authenticated = configuration.route(
-    "/api/auth",
-    createAuthRoutes(store, config)
-  )
-  return authenticated.route(
-    "/api/conversations",
-    createConversationRoutes(config, store, payments)
-  )
+
+  return app
+    .route("/api/health", healthRoutes)
+    .route("/api/config", createConfigRoutes(config, payments.account.address))
+    .route("/api/auth", createAuthRoutes(store, config))
+    .route(
+      "/api/conversations",
+      createConversationRoutes(config, store, payments)
+    )
 }
 
 export type AppType = ReturnType<typeof createApp>

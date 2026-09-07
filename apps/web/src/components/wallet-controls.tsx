@@ -1,5 +1,7 @@
 import { RiWallet3Line } from "@remixicon/react"
+
 import type { AssistantController } from "#/hooks/use-assistant"
+
 import { Button } from "#/components/ui/button"
 
 export function WalletControls({
@@ -9,9 +11,7 @@ export function WalletControls({
 }) {
   const { wallet, config, run } = assistant
   const label = wallet
-    ? wallet.account.address.slice(0, 6) +
-      "…" +
-      wallet.account.address.slice(-4)
+    ? `${wallet.account.address.slice(0, 6)}…${wallet.account.address.slice(-4)}`
     : "Connect wallet"
 
   return (

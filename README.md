@@ -1,4 +1,4 @@
-# Agent Allowance
+# Agent Spend Guard
 
 A demo where a buyer agent purchases specialist work with a per-conversation allowance enforced by a smart contract. ATT is a six-decimal teaching token with no monetary value; the included city data is synthetic.
 

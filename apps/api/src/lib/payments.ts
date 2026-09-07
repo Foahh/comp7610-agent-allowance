@@ -1,17 +1,10 @@
-import {
-  createWalletClient,
-  encodeFunctionData,
-  http,
-  keccak256,
-  recoverTypedDataAddress,
-  type Hex,
-} from "viem"
 import type {
   Allowance,
   Conversation,
   Purchase,
   SignedQuote,
 } from "@repo/schemas"
+
 import {
   getChain,
   publicClient,
@@ -20,7 +13,17 @@ import {
   vaultAbi,
 } from "@repo/utils"
 import { signer, type Config } from "@repo/utils/config"
+import {
+  createWalletClient,
+  encodeFunctionData,
+  http,
+  keccak256,
+  recoverTypedDataAddress,
+  type Hex,
+} from "viem"
+
 import type { BuyerStore } from "./store.ts"
+
 import { assertPurchasableQuote } from "./quote-validation.ts"
 
 export function createPayments(
@@ -40,10 +43,13 @@ export function createPayments(
   async function serialized<T>(operation: () => Promise<T>): Promise<T> {
     const previous = tail
     let release!: () => void
+
     tail = new Promise<void>((resolve) => {
       release = resolve
     })
+
     await previous
+
     try {
       return await operation()
     } finally {
@@ -69,6 +75,7 @@ export function createPayments(
       revoked,
       withdrawn,
     ] = value
+
     return {
       id,
       owner,
@@ -110,8 +117,10 @@ export function createPayments(
           })
           .catch(() => undefined)
       }
+
       purchase.paymentStatus = "pending"
       save(purchase)
+
       const confirmationStarted = performance.now()
       purchase.broadcastMs =
         (purchase.broadcastMs ?? 0) + confirmationStarted - start
@@ -120,6 +129,7 @@ export function createPayments(
         confirmations: config.confirmations,
         timeout: receiptTimeoutMs,
       })
+
       purchase.paymentStatus =
         receipt.status === "success" ? "confirmed" : "reverted"
       purchase.gasUsed = receipt.gasUsed.toString()
@@ -136,12 +146,14 @@ export function createPayments(
       purchase.error =
         "Payment outcome is not known yet. Recover this purchase before spending again."
     }
+
     return save(purchase)
   }
 
   async function purchase(conversation: Conversation, offer: SignedQuote) {
     return serialized(async () => {
       const existing = store.getPurchase(offer.id)
+
       if (existing) {
         if (existing.conversationId !== conversation.id) {
           throw new Error("Quote belongs to another conversation.")
@@ -150,8 +162,10 @@ export function createPayments(
       }
 
       const unresolved = store.listUnresolvedPurchases()
+
       for (const item of unresolved) {
         const recovered = await recover(item)
+
         if (recovered.paymentStatus === "pending") {
           throw new Error(
             "Another payment is unresolved. No new charge was created."
@@ -166,6 +180,7 @@ export function createPayments(
         paymentStatus: "rejected",
         createdAt: Date.now(),
       }
+
       try {
         const limit = await allowance(offer.quote.allowanceId)
         const now = (await client.getBlock()).timestamp
@@ -187,6 +202,7 @@ export function createPayments(
           quoteMessage(offer.quote),
           offer.signature as Hex,
         ] as const
+
         await client.simulateContract({
           account,
           address: config.vault,
@@ -194,6 +210,7 @@ export function createPayments(
           functionName: "purchase",
           args,
         })
+
         const request = await wallet.prepareTransactionRequest({
           type: "eip1559",
           to: config.vault,
@@ -203,22 +220,26 @@ export function createPayments(
             args,
           }),
         })
+
         const rawTransaction = await account.signTransaction({
           ...request,
           chainId: config.chainId,
         })
+
         record.rawTransaction = rawTransaction
         record.txHash = keccak256(rawTransaction)
         record.nonce = request.nonce
         record.paymentStatus = "prepared"
         // The durable journal precedes all broadcasting.
         save(record)
+
         return recover(record)
       } catch (error) {
         record.error =
           error instanceof Error
             ? error.message.split("\n")[0]
             : "Purchase rejected."
+
         return save(record)
       }
     })
@@ -241,5 +262,6 @@ export function publicPurchase(
   purchase: Purchase
 ): Omit<Purchase, "rawTransaction"> {
   const { rawTransaction: _, ...visible } = purchase
+
   return visible
 }

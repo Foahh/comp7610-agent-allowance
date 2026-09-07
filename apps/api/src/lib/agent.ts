@@ -1,8 +1,5 @@
-import { randomUUID } from "node:crypto"
 import { createOpenAI } from "@ai-sdk/openai"
 import { valibotSchema } from "@ai-sdk/valibot"
-import { streamText, tool, stepCountIs } from "ai"
-import * as v from "valibot"
 import {
   SignedQuoteSchema,
   TaskSchema,
@@ -12,17 +9,22 @@ import {
   type Purchase,
   type Task,
 } from "@repo/schemas"
-import { modelSettings, type Config } from "@repo/utils/config"
-import type { Payments } from "./payments.ts"
-import { publicPurchase } from "./payments.ts"
 import { taskHash } from "@repo/utils"
+import { modelSettings, type Config } from "@repo/utils/config"
+import { streamText, tool, stepCountIs } from "ai"
+import { randomUUID } from "node:crypto"
+import * as v from "valibot"
+
+import type { Payments } from "./payments.ts"
+import type { BuyerStore } from "./store.ts"
+
 import {
   BUYER_SYSTEM_PROMPT,
   EMPTY_ANSWER_MESSAGE,
   previousPurchasesMessage,
   STEP_LIMIT_MESSAGE,
 } from "./agent-prompts.ts"
-import type { BuyerStore } from "./store.ts"
+import { publicPurchase } from "./payments.ts"
 import { createProviderClient } from "./provider-client.ts"
 
 export function createAgent(
@@ -45,9 +47,11 @@ export function createAgent(
     ) {
       return purchase
     }
+
     const signature = await payments.account.signMessage({
-      message: "AgentAllowance delivery " + purchase.id,
+      message: `Agent Spend Guard delivery ${purchase.id}`,
     })
+
     try {
       purchase.delivery = await providerClient.deliver(purchase, signature)
     } catch {
@@ -62,6 +66,7 @@ export function createAgent(
           "Provider connection interrupted. Retry delivery without another payment.",
       }
     }
+
     store.savePurchase(purchase)
     await emit({ type: "purchase", purchase: publicPurchase(purchase) })
     return purchase
@@ -84,9 +89,11 @@ export function createAgent(
       }
       store.saveMessage(message)
     }
+
     remember("user", prompt)
+
     const sendText = async (text: string) => {
-      answer += text
+      answer = `${answer}${text}`
       await emit({ type: "text", text })
     }
 
@@ -98,16 +105,19 @@ export function createAgent(
             "Confirm a funded allowance in your wallet before purchasing.",
         }
       }
+
       await emit({
         type: "status",
         text: "Asking the specialist to define a deliverable and quote.",
       })
+
       const result = await providerClient.quote(conversation.allowanceId, task)
       if (!result.offer) {
         return {
           clarification: result.clarification || "Please clarify the task.",
         }
       }
+
       const offer = v.parse(SignedQuoteSchema, result.offer)
       // Do not trust a provider to substitute different work.
       if (taskHash(offer.task) !== taskHash(task)) {
@@ -120,9 +130,11 @@ export function createAgent(
     async function purchase(id: string) {
       const offer = store.getQuote(id)
       const permitted = store.hasQuote(id, conversation.id)
+
       if (!offer || !permitted) {
         throw new Error("Unknown quote for this conversation.")
       }
+
       const existing = store.getPurchase(id)
       if (!existing && purchaseCount >= 2) {
         return { error: "This run has reached its two-purchase limit." }
@@ -130,6 +142,7 @@ export function createAgent(
       if (!existing) {
         purchaseCount += 1
       }
+
       const paid = await payments.purchase(conversation, offer)
       await emit({ type: "purchase", purchase: publicPurchase(paid) })
       const result = await deliver(paid, emit)
@@ -144,6 +157,7 @@ export function createAgent(
         )
       }
       const provider = createOpenAI(settings)
+
       const tools = {
         discoverServices: tool({
           description:
@@ -185,6 +199,7 @@ export function createAgent(
       const paidContext = store
         .listPurchases(conversation.id)
         .map(publicPurchase)
+
       const result = streamText({
         model: provider.chat(settings.model),
         system: BUYER_SYSTEM_PROMPT,
@@ -210,7 +225,7 @@ export function createAgent(
         if (part.type === "tool-call") {
           await emit({
             type: "status",
-            text: "Assistant requested " + part.toolName + ".",
+            text: `Assistant requested ${part.toolName}.`,
           })
         }
         if (part.type === "error") {

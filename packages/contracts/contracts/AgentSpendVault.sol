@@ -11,7 +11,7 @@ import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract AgentAllowanceVault is EIP712, ReentrancyGuard {
+contract AgentSpendVault is EIP712, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     struct Allowance {
@@ -74,7 +74,7 @@ contract AgentAllowanceVault is EIP712, ReentrancyGuard {
     event AllowanceRevoked(uint256 indexed allowanceId);
     event UnusedWithdrawn(uint256 indexed allowanceId, uint256 amount);
 
-    constructor(address tokenAddress) EIP712("AgentAllowanceVault", "1") {
+    constructor(address tokenAddress) EIP712("AgentSpendVault", "1") {
         if (tokenAddress == address(0)) {
             revert InvalidAllowance();
         }

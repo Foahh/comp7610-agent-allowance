@@ -1,5 +1,7 @@
 import { RiArrowUpLine } from "@remixicon/react"
+
 import type { AssistantController } from "#/hooks/use-assistant"
+
 import {
   InputGroup,
   InputGroupAddon,

@@ -1,3 +1,5 @@
+import type { SignedQuote, Task } from "@repo/schemas"
+
 import {
   createPublicClient,
   hashTypedData,
@@ -11,7 +13,6 @@ import {
   type Hex,
 } from "viem"
 import { sepolia } from "viem/chains"
-import type { SignedQuote, Task } from "@repo/schemas"
 
 export const SEPOLIA_CHAIN_ID = 11155111
 
@@ -31,6 +32,7 @@ export const vaultAbi = parseAbi([
   "error LimitExceeded()",
   "error DuplicatePurchase()",
 ])
+
 export const tokenAbi = parseAbi([
   "function faucet()",
   "function approve(address spender,uint256 amount) returns (bool)",
@@ -68,7 +70,7 @@ export function quoteTypedData(
 ) {
   return {
     domain: {
-      name: "AgentAllowanceVault",
+      name: "AgentSpendVault",
       version: "1",
       chainId,
       verifyingContract: vault,
@@ -102,11 +104,13 @@ export function getChain(chainId: number) {
   if (chainId === SEPOLIA_CHAIN_ID) {
     return sepolia
   }
+
   throw new Error("Only Sepolia is supported.")
 }
 
 export function confirmationCount(chainId: number) {
   getChain(chainId)
+
   return 2
 }
 
