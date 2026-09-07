@@ -4,7 +4,7 @@ A demo where a buyer agent purchases specialist work with a per-conversation all
 
 ## Run locally
 
-Use Node 24. Install dependencies and copy the configuration:
+Install dependencies and copy the configuration:
 
 ```powershell
 vp install

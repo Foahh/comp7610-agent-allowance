@@ -85,7 +85,8 @@ export function AssistantWorkspace() {
           allowance={details?.allowance || null}
           connected={!!wallet && !!selected}
           busy={run.busy}
-          initialBudget={scenario === "insufficient" ? "1" : "5"}
+          initialBudget={scenario === "insufficient" ? "0.005" : "0.02"}
+          initialCap={scenario === "insufficient" ? "0.005" : "0.01"}
           onFund={assistant.fund}
           onAction={assistant.allowanceAction}
         />
@@ -93,9 +94,9 @@ export function AssistantWorkspace() {
           <p className="eyebrow">Available specialist</p>
           <h2>Exchange Evidence</h2>
           <p className="text-sm text-muted-foreground">
-            Analysis · 1.2 ATT
+            Analysis · 0.01 ATT
             <br />
-            Recommendation brief · 0.8 ATT
+            Recommendation brief · 0.005 ATT
           </p>
           <p className="text-sm text-muted-foreground">
             A separate agent interprets the brief, quotes the work, and delivers

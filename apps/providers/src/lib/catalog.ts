@@ -6,14 +6,14 @@ export const catalog: ServiceOffer[] = [
     name: "City evidence analysis",
     description:
       "Compare the specialist's labeled accommodation and transport synthetic dataset, with row references.",
-    amount: "1200000",
+    amount: "10000",
   },
   {
     id: "writing",
     name: "Recommendation brief",
     description:
       "Turn supplied evidence into a tailored recommendation with retained citations.",
-    amount: "800000",
+    amount: "5000",
   },
 ]
 

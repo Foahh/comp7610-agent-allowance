@@ -30,6 +30,7 @@ type Props = {
   connected: boolean
   busy: boolean
   initialBudget: string
+  initialCap: string
   onFund: (budget: string, cap: string) => void
   onAction: (action: "revokeAllowance" | "withdrawUnused") => void
 }
@@ -39,11 +40,12 @@ export function AllowancePanel({
   connected,
   busy,
   initialBudget,
+  initialCap,
   onFund,
   onAction,
 }: Props) {
   const [budget, setBudget] = useState(initialBudget)
-  const [cap, setCap] = useState(initialBudget === "1" ? "1" : "2")
+  const [cap, setCap] = useState(initialCap)
   const canCreate = !allowance || allowance.revoked
   const { invalidBudget, invalidCap } = validateAmounts(budget, cap)
 
