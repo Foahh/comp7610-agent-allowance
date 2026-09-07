@@ -1,43 +1,114 @@
-import { hc } from "hono/client"
-import type { AppType } from "@repo/api"
-import type {
-  Allowance,
-  Conversation,
-  Message,
-  Purchase,
-  ChatEvent,
-} from "@repo/schemas"
-import { ChatEventSchema } from "@repo/schemas"
+import type { Address } from "viem"
 import * as v from "valibot"
+import {
+  AddressSchema,
+  AllowanceSchema,
+  ChatEventSchema,
+  ConversationSchema,
+  MessageSchema,
+  PurchaseSchema,
+  type ChatEvent,
+  type Conversation,
+} from "@repo/schemas"
 
-export const rpc = hc<AppType>("/")
-export type AppConfig = {
-  chainId: number
-  token: `0x${string}`
-  vault: `0x${string}`
-  agent: `0x${string}`
-  provider: `0x${string}`
-  rpcUrl: string
-}
-export type ConversationDetails = {
-  conversation: Conversation
-  messages: Message[]
-  purchases: Purchase[]
-  allowance: Allowance | null
-}
+const AppAddressSchema = v.pipe(
+  AddressSchema,
+  v.transform((address) => address as Address)
+)
 
-export async function jsonRequest<T>(path: string, body?: unknown): Promise<T> {
+const AppConfigSchema = v.object({
+  chainId: v.number(),
+  token: AppAddressSchema,
+  vault: AppAddressSchema,
+  agent: AppAddressSchema,
+  provider: AppAddressSchema,
+  rpcUrl: v.string(),
+})
+
+const ConversationDetailsSchema = v.object({
+  conversation: ConversationSchema,
+  messages: v.array(MessageSchema),
+  purchases: v.array(PurchaseSchema),
+  allowance: v.nullable(AllowanceSchema),
+})
+
+const ChallengeSchema = v.object({
+  id: v.string(),
+  message: v.string(),
+})
+
+const ErrorResponseSchema = v.object({ error: v.string() })
+
+export type AppConfig = v.InferOutput<typeof AppConfigSchema>
+export type ConversationDetails = v.InferOutput<
+  typeof ConversationDetailsSchema
+>
+
+async function requestJson(path: string, body?: unknown): Promise<unknown> {
   const response = await fetch("/api" + path, {
     method: body === undefined ? "GET" : "POST",
     headers:
       body === undefined ? undefined : { "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-  const result = await response.json()
+  const result: unknown = await response.json()
   if (!response.ok) {
-    throw new Error(result.error || "Request failed.")
+    const error = v.safeParse(ErrorResponseSchema, result)
+    throw new Error(error.success ? error.output.error : "Request failed.")
   }
-  return result as T
+  return result
+}
+
+export async function getConfig() {
+  return v.parse(AppConfigSchema, await requestJson("/config"))
+}
+
+export async function listConversations() {
+  return v.parse(
+    v.array(ConversationSchema),
+    await requestJson("/conversations")
+  )
+}
+
+export async function getConversation(id: string) {
+  return v.parse(
+    ConversationDetailsSchema,
+    await requestJson("/conversations/" + id)
+  )
+}
+
+export async function createConversation(
+  title: string,
+  scenario: Conversation["scenario"]
+) {
+  return v.parse(
+    ConversationSchema,
+    await requestJson("/conversations", { title, scenario })
+  )
+}
+
+export async function createAuthChallenge(address: Address) {
+  return v.parse(
+    ChallengeSchema,
+    await requestJson("/auth/challenge", { address })
+  )
+}
+
+export async function verifyAuthChallenge(id: string, signature: string) {
+  await requestJson("/auth/verify", { id, signature })
+}
+
+export async function bindAllowance(
+  conversationId: string,
+  allowanceId: string
+) {
+  await requestJson("/conversations/" + conversationId + "/allowance", {
+    allowanceId,
+  })
+}
+
+export async function recoverConversation(conversationId: string) {
+  await requestJson("/conversations/" + conversationId + "/recover", {})
 }
 
 export async function sendMessage(
@@ -51,8 +122,11 @@ export async function sendMessage(
     body: JSON.stringify({ text, requestId: crypto.randomUUID() }),
   })
   if (!response.ok) {
-    const result = await response.json()
-    throw new Error(result.error || "Unable to start the conversation.")
+    const result: unknown = await response.json()
+    const error = v.safeParse(ErrorResponseSchema, result)
+    throw new Error(
+      error.success ? error.output.error : "Unable to start the conversation."
+    )
   }
   if (!response.body) {
     throw new Error("Streaming is unavailable.")
@@ -70,7 +144,7 @@ export async function sendMessage(
         .decode(chunk.value, { stream: true })
         .replaceAll("\r\n", "\n")
       const frames = buffer.split("\n\n")
-      buffer = frames.pop() || ""
+      buffer = frames.pop() ?? ""
       for (const frame of frames) {
         const data = frame
           .split("\n")

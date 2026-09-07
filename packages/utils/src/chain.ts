@@ -13,6 +13,9 @@ import {
 import { hardhat, sepolia } from "viem/chains"
 import type { SignedQuote, Task } from "@repo/schemas"
 
+export const LOCAL_CHAIN_ID = 31337
+export const SEPOLIA_CHAIN_ID = 11155111
+
 export const vaultAbi = parseAbi([
   "function createAllowance(address agent,address provider,uint256 budget,uint256 perPurchase,uint256 expiresAt) returns (uint256)",
   "function allowances(uint256) view returns (address owner,address agent,address provider,uint256 budget,uint256 perPurchase,uint256 spent,uint256 expiresAt,bool revoked,uint256 withdrawn)",
@@ -97,13 +100,18 @@ export function serviceHash(service: string) {
 }
 
 export function getChain(chainId: number) {
-  if (chainId === 31337) {
+  if (chainId === LOCAL_CHAIN_ID) {
     return hardhat
   }
-  if (chainId === 11155111) {
+  if (chainId === SEPOLIA_CHAIN_ID) {
     return sepolia
   }
   throw new Error("Only local Hardhat and Sepolia are supported.")
+}
+
+export function confirmationCount(chainId: number) {
+  getChain(chainId)
+  return chainId === LOCAL_CHAIN_ID ? 1 : 2
 }
 
 export function publicClient(

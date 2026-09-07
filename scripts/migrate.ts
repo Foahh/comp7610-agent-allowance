@@ -8,8 +8,7 @@ for (const role of ["buyer", "provider"]) {
       ? process.env.DATABASE_PATH
       : process.env.PROVIDER_DATABASE_PATH
   const store = openDatabase(
-    configuredPath ||
-      config.root + "data/" + role + "-" + config.chainId + ".sqlite"
+    configuredPath || `${config.root}data/${role}-${config.chainId}.sqlite`
   )
   store.close()
   console.log(role + " migrations applied")

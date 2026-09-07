@@ -4,13 +4,11 @@ import { Button } from "#/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert"
 import { Spinner } from "#/components/ui/spinner"
 import { AllowancePanel } from "./allowance-panel.tsx"
+import { ChatComposer } from "./chat-composer.tsx"
 import { ConversationThread } from "./conversation-thread.tsx"
-import {
-  ChatComposer,
-  ScenarioBar,
-  WalletControls,
-  WorkspaceHeader,
-} from "./workspace-chrome.tsx"
+import { ScenarioBar } from "./scenario-bar.tsx"
+import { WalletControls } from "./wallet-controls.tsx"
+import { WorkspaceHeader } from "./workspace-header.tsx"
 
 export function AssistantWorkspace() {
   const assistant = useAssistant()

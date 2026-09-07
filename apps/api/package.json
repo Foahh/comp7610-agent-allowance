@@ -13,16 +13,11 @@
   "dependencies": {
     "@ai-sdk/openai": "catalog:",
     "@ai-sdk/valibot": "catalog:",
-    "@hono/node-server": "catalog:",
     "@hono/standard-validator": "catalog:",
     "@repo/db": "workspace:*",
     "@repo/schemas": "workspace:*",
     "@repo/utils": "workspace:*",
-    "@x402/core": "catalog:",
-    "@x402/evm": "catalog:",
-    "@x402/fetch": "catalog:",
     "ai": "catalog:",
-    "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "valibot": "catalog:",
     "viem": "catalog:"

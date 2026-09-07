@@ -7,8 +7,11 @@ import { eq } from "drizzle-orm"
 import * as schema from "./schema.ts"
 
 export type TableName = keyof typeof schema
+export type EntityTables = Partial<Record<TableName, unknown>>
 
-export function openDatabase(
+export function openDatabase<
+  Tables extends EntityTables = Record<TableName, unknown>,
+>(
   filename = process.env.DATABASE_PATH ||
     resolve(projectRoot(), "data/buyer.sqlite")
 ) {
@@ -45,8 +48,13 @@ export function openDatabase(
 
   const db = drizzle({ client: sqlite })
 
-  function put<T>(tableName: TableName, id: string, scope: string, value: T) {
-    const table = schema[tableName]
+  function put<Name extends keyof Tables & TableName>(
+    tableName: Name,
+    id: string,
+    scope: string,
+    value: Tables[Name]
+  ) {
+    const table = schema[tableName] as typeof schema.conversations
     const row = {
       id,
       scope,
@@ -62,24 +70,33 @@ export function openDatabase(
       .run()
   }
 
-  function get<T>(tableName: TableName, id: string): T | undefined {
-    const table = schema[tableName]
+  function get<Name extends keyof Tables & TableName>(
+    tableName: Name,
+    id: string
+  ): Tables[Name] | undefined {
+    const table = schema[tableName] as typeof schema.conversations
     const row = db.select().from(table).where(eq(table.id, id)).get()
-    return row ? (JSON.parse(row.data) as T) : undefined
+    return row ? (JSON.parse(row.data) as Tables[Name]) : undefined
   }
 
-  function list<T>(tableName: TableName, scope?: string): T[] {
-    const table = schema[tableName]
+  function list<Name extends keyof Tables & TableName>(
+    tableName: Name,
+    scope?: string
+  ): Tables[Name][] {
+    const table = schema[tableName] as typeof schema.conversations
     const query = db.select().from(table)
     const rows =
       scope === undefined
         ? query.orderBy(table.createdAt).all()
         : query.where(eq(table.scope, scope)).orderBy(table.createdAt).all()
-    return rows.map((row) => JSON.parse(row.data) as T)
+    return rows.map((row) => JSON.parse(row.data) as Tables[Name])
   }
 
-  function remove(tableName: TableName, id: string) {
-    const table = schema[tableName]
+  function remove<Name extends keyof Tables & TableName>(
+    tableName: Name,
+    id: string
+  ) {
+    const table = schema[tableName] as typeof schema.conversations
     db.delete(table).where(eq(table.id, id)).run()
   }
 
@@ -98,4 +115,5 @@ export function openDatabase(
   }
 }
 
-export type Store = ReturnType<typeof openDatabase>
+export type Store<Tables extends EntityTables = Record<TableName, unknown>> =
+  ReturnType<typeof openDatabase<Tables>>

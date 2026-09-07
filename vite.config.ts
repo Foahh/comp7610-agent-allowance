@@ -2,7 +2,7 @@ import { defineConfig } from "vite-plus"
 
 export default defineConfig({
   test: {
-    include: ["packages/contracts/test/**/*.test.ts"],
+    include: ["**/*.test.ts"],
     testTimeout: 60000,
     fileParallelism: false,
   },

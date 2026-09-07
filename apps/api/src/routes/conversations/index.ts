@@ -4,24 +4,22 @@ import { HTTPException } from "hono/http-exception"
 import { streamSSE } from "hono/streaming"
 import { sValidator as validator } from "@hono/standard-validator"
 import * as v from "valibot"
-import type { Store } from "@repo/db"
 import {
   AmountSchema,
   ScenarioSchema,
   type Conversation,
-  type Message,
-  type Purchase,
   type ChatEvent,
 } from "@repo/schemas"
 import type { Config } from "@repo/utils/config"
 import { createAgent } from "../../agent.ts"
 import { publicPurchase, type Payments } from "../../payments.ts"
+import type { BuyerStore } from "../../store.ts"
 
 export type AppEnv = { Variables: { owner: string } }
 
 export function createConversationRoutes(
   config: Config,
-  store: Store,
+  store: BuyerStore,
   payments: Payments
 ) {
   const router = new Hono<AppEnv>()
@@ -29,7 +27,7 @@ export function createConversationRoutes(
   const active = new Set<string>()
 
   function owned(id: string, owner: string) {
-    const conversation = store.get<Conversation>("conversations", id)
+    const conversation = store.get("conversations", id)
     if (!conversation || conversation.owner !== owner) {
       throw new HTTPException(404, { message: "Conversation not found." })
     }
@@ -37,9 +35,7 @@ export function createConversationRoutes(
   }
 
   const listing = router.get("/", (context) =>
-    context.json(
-      store.list<Conversation>("conversations", context.get("owner"))
-    )
+    context.json(store.list("conversations", context.get("owner")))
   )
   const creating = listing.post(
     "/",
@@ -76,10 +72,8 @@ export function createConversationRoutes(
     const conversation = owned(context.req.param("id"), context.get("owner"))
     return context.json({
       conversation,
-      messages: store.list<Message>("messages", conversation.id),
-      purchases: store
-        .list<Purchase>("purchases", conversation.id)
-        .map(publicPurchase),
+      messages: store.list("messages", conversation.id),
+      purchases: store.list("purchases", conversation.id).map(publicPurchase),
       allowance: conversation.allowanceId
         ? await payments.allowance(conversation.allowanceId)
         : null,
@@ -105,10 +99,7 @@ export function createConversationRoutes(
       ) {
         throw new Error("Allowance ownership, agent, or provider mismatch.")
       }
-      const bound = store.get<{ conversationId: string }>(
-        "allowances",
-        allowanceId
-      )
+      const bound = store.get("allowances", allowanceId)
       if (bound && bound.conversationId !== conversation.id) {
         throw new Error("Allowance already belongs to another conversation.")
       }
@@ -187,7 +178,7 @@ export function createConversationRoutes(
     active.add(conversation.id)
     try {
       await payments.recoverAll()
-      for (const item of store.list<Purchase>("purchases", conversation.id)) {
+      for (const item of store.list("purchases", conversation.id)) {
         await agent.deliver(item, async () => {})
       }
       return context.json({ ok: true })

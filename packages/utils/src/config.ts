@@ -4,6 +4,7 @@ import { projectRoot } from "./project-root.ts"
 export { projectRoot } from "./project-root.ts"
 import { mnemonicToAccount, privateKeyToAccount } from "viem/accounts"
 import { getAddress, type Hex } from "viem"
+import { confirmationCount, LOCAL_CHAIN_ID, SEPOLIA_CHAIN_ID } from "./chain.ts"
 
 const root = projectRoot()
 const envPath = root + ".env"
@@ -12,8 +13,8 @@ if (existsSync(envPath)) {
 }
 
 export function readConfig() {
-  const chainId = Number(process.env.CHAIN_ID || 31337)
-  if (![31337, 11155111].includes(chainId)) {
+  const chainId = Number(process.env.CHAIN_ID || LOCAL_CHAIN_ID)
+  if (![LOCAL_CHAIN_ID, SEPOLIA_CHAIN_ID].includes(chainId)) {
     throw new Error("Unsupported chain.")
   }
 
@@ -30,11 +31,11 @@ export function readConfig() {
     root,
     chainId,
     rpcUrl: process.env.RPC_URL || "http://127.0.0.1:8545",
-    confirmations: chainId === 31337 ? 1 : 2,
+    confirmations: confirmationCount(chainId),
     provider: getAddress(
       process.env.PROVIDER_ADDRESS ||
         deployment?.provider ||
-        (chainId === 31337
+        (chainId === LOCAL_CHAIN_ID
           ? signer("provider", chainId).address
           : "0x0000000000000000000000000000000000000000")
     ),
@@ -63,7 +64,7 @@ export function signer(
   if (key) {
     return privateKeyToAccount(key as Hex)
   }
-  if (chainId !== 31337) {
+  if (chainId !== LOCAL_CHAIN_ID) {
     throw new Error("Set " + role.toUpperCase() + "_PRIVATE_KEY for Sepolia.")
   }
 

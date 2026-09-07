@@ -1,10 +1,10 @@
-import { openDatabase } from "@repo/db"
 import { readConfig } from "@repo/utils/config"
 import { createApp } from "./app.ts"
 import { createPayments } from "./payments.ts"
+import { openBuyerDatabase } from "./store.ts"
 
 const config = readConfig()
-const database = openDatabase(
+const database = openBuyerDatabase(
   process.env.DATABASE_PATH ||
     config.root + "data/buyer-" + config.chainId + ".sqlite"
 )

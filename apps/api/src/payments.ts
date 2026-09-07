@@ -6,7 +6,6 @@ import {
   recoverTypedDataAddress,
   type Hex,
 } from "viem"
-import type { Store } from "@repo/db"
 import type {
   Allowance,
   Conversation,
@@ -16,18 +15,17 @@ import type {
 import {
   getChain,
   publicClient,
-  quoteId,
   quoteMessage,
   quoteTypedData,
-  serviceHash,
-  taskHash,
   vaultAbi,
 } from "@repo/utils"
 import { signer, type Config } from "@repo/utils/config"
+import type { BuyerStore } from "./store.ts"
+import { assertPurchasableQuote } from "./quote-validation.ts"
 
 export function createPayments(
   config: Config,
-  store: Store,
+  store: BuyerStore,
   receiptTimeoutMs = 30000
 ) {
   const client = publicClient(config.chainId, config.rpcUrl)
@@ -143,7 +141,7 @@ export function createPayments(
 
   async function purchase(conversation: Conversation, offer: SignedQuote) {
     return serialized(async () => {
-      const existing = store.get<Purchase>("purchases", offer.id)
+      const existing = store.get("purchases", offer.id)
       if (existing) {
         if (existing.conversationId !== conversation.id) {
           throw new Error("Quote belongs to another conversation.")
@@ -152,7 +150,7 @@ export function createPayments(
       }
 
       const unresolved = store
-        .list<Purchase>("purchases")
+        .list("purchases")
         .filter(
           (item) =>
             item.paymentStatus === "pending" ||
@@ -181,37 +179,15 @@ export function createPayments(
           ...quoteTypedData(offer.quote, config.chainId, config.vault),
           signature: offer.signature as Hex,
         })
-        if (
-          conversation.allowanceId !== offer.quote.allowanceId ||
-          limit.owner.toLowerCase() !== conversation.owner.toLowerCase() ||
-          limit.agent.toLowerCase() !== account.address.toLowerCase() ||
-          recovered.toLowerCase() !== limit.provider.toLowerCase() ||
-          offer.quote.recipient.toLowerCase() !==
-            limit.provider.toLowerCase() ||
-          quoteId(offer.quote, config.chainId, config.vault) !== offer.id ||
-          taskHash(offer.task) !== offer.quote.requestHash ||
-          serviceHash(offer.task.service) !== offer.quote.service
-        ) {
-          throw new Error(
-            "Quote does not match the authorized task and allowance."
-          )
-        }
-        if (limit.revoked || BigInt(limit.expiresAt) <= now) {
-          throw new Error("Allowance is revoked or expired.")
-        }
-        if (BigInt(offer.quote.expiresAt) <= now) {
-          throw new Error("Quote expired.")
-        }
-        const amount = BigInt(offer.quote.amount)
-        if (
-          amount <= 0n ||
-          amount > BigInt(limit.perPurchase) ||
-          amount > BigInt(limit.remaining)
-        ) {
-          throw new Error(
-            "Purchase exceeds the per-purchase or remaining allowance."
-          )
-        }
+        assertPurchasableQuote({
+          conversation,
+          offer,
+          allowance: limit,
+          agentAddress: account.address,
+          recoveredProvider: recovered,
+          currentTimestamp: now,
+          config,
+        })
 
         const args = [
           quoteMessage(offer.quote),
@@ -256,7 +232,7 @@ export function createPayments(
 
   async function recoverAll() {
     return serialized(async () => {
-      for (const item of store.list<Purchase>("purchases")) {
+      for (const item of store.list("purchases")) {
         await recover(item)
       }
     })

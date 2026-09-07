@@ -6,7 +6,13 @@ import {
   type Address,
   type EIP1193Provider,
 } from "viem"
-import { getChain, publicClient, tokenAbi, vaultAbi } from "@repo/utils"
+import {
+  confirmationCount,
+  getChain,
+  publicClient,
+  tokenAbi,
+  vaultAbi,
+} from "@repo/utils"
 import type { AppConfig } from "./client.ts"
 
 declare global {
@@ -53,7 +59,7 @@ export async function fundAllowance(
     throw new Error("Amounts support at most six decimal places.")
   }
   const client = publicClient(config.chainId, config.rpcUrl)
-  const confirmations = config.chainId === 31337 ? 1 : 2
+  const confirmations = confirmationCount(config.chainId)
   if ((await client.getBalance({ address: wallet.account.address })) === 0n) {
     throw new Error("Your wallet needs test ETH to pay gas.")
   }
@@ -155,7 +161,7 @@ export async function updateAllowance(
     config.rpcUrl
   ).waitForTransactionReceipt({
     hash,
-    confirmations: config.chainId === 31337 ? 1 : 2,
+    confirmations: confirmationCount(config.chainId),
   })
   if (receipt.status !== "success") {
     throw new Error("Allowance action failed.")

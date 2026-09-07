@@ -75,7 +75,9 @@ contract AgentAllowanceVault is EIP712, ReentrancyGuard {
     event UnusedWithdrawn(uint256 indexed allowanceId, uint256 amount);
 
     constructor(address tokenAddress) EIP712("AgentAllowanceVault", "1") {
-        if (tokenAddress == address(0)) revert InvalidAllowance();
+        if (tokenAddress == address(0)) {
+            revert InvalidAllowance();
+        }
         token = IERC20(tokenAddress);
     }
 
@@ -93,20 +95,22 @@ contract AgentAllowanceVault is EIP712, ReentrancyGuard {
             perPurchase == 0 ||
             perPurchase > budget ||
             expiresAt <= block.timestamp
-        ) revert InvalidAllowance();
+        ) {
+            revert InvalidAllowance();
+        }
 
         allowanceId = nextAllowanceId++;
-        allowances[allowanceId] = Allowance(
-            msg.sender,
-            agent,
-            provider,
-            budget,
-            perPurchase,
-            0,
-            expiresAt,
-            false,
-            0
-        );
+        allowances[allowanceId] = Allowance({
+            owner: msg.sender,
+            agent: agent,
+            provider: provider,
+            budget: budget,
+            perPurchase: perPurchase,
+            spent: 0,
+            expiresAt: expiresAt,
+            revoked: false,
+            withdrawn: 0
+        });
         token.safeTransferFrom(msg.sender, address(this), budget);
         emit AllowanceCreated(
             allowanceId,
@@ -143,7 +147,9 @@ contract AgentAllowanceVault is EIP712, ReentrancyGuard {
     ) external nonReentrant {
         Allowance storage allowance = allowances[quote.allowanceId];
 
-        if (msg.sender != allowance.agent) revert Unauthorized();
+        if (msg.sender != allowance.agent) {
+            revert Unauthorized();
+        }
         if (allowance.revoked || block.timestamp >= allowance.expiresAt) {
             revert InactiveAllowance();
         }
@@ -151,17 +157,24 @@ contract AgentAllowanceVault is EIP712, ReentrancyGuard {
             quote.amount == 0 ||
             block.timestamp >= quote.expiresAt ||
             quote.recipient != allowance.provider
-        ) revert InvalidQuote();
+        ) {
+            revert InvalidQuote();
+        }
 
         bytes32 purchaseId = quoteDigest(quote);
-        if (ECDSA.recover(purchaseId, signature) != allowance.provider)
+        if (ECDSA.recover(purchaseId, signature) != allowance.provider) {
             revert InvalidQuote();
-        if (purchases[purchaseId]) revert DuplicatePurchase();
+        }
+        if (purchases[purchaseId]) {
+            revert DuplicatePurchase();
+        }
         if (
             quote.amount > allowance.perPurchase ||
             quote.amount >
             allowance.budget - allowance.spent - allowance.withdrawn
-        ) revert LimitExceeded();
+        ) {
+            revert LimitExceeded();
+        }
 
         // Accounting and replay protection share the transfer's atomic transaction.
         // Failed transfers roll back both; competing purchases cannot overspend.
@@ -180,7 +193,9 @@ contract AgentAllowanceVault is EIP712, ReentrancyGuard {
 
     function revokeAllowance(uint256 allowanceId) external {
         Allowance storage allowance = allowances[allowanceId];
-        if (msg.sender != allowance.owner) revert Unauthorized();
+        if (msg.sender != allowance.owner) {
+            revert Unauthorized();
+        }
 
         allowance.revoked = true;
         emit AllowanceRevoked(allowanceId);
@@ -188,7 +203,9 @@ contract AgentAllowanceVault is EIP712, ReentrancyGuard {
 
     function withdrawUnused(uint256 allowanceId) external nonReentrant {
         Allowance storage allowance = allowances[allowanceId];
-        if (msg.sender != allowance.owner) revert Unauthorized();
+        if (msg.sender != allowance.owner) {
+            revert Unauthorized();
+        }
         if (!allowance.revoked && block.timestamp < allowance.expiresAt) {
             revert InactiveAllowance();
         }
@@ -196,7 +213,9 @@ contract AgentAllowanceVault is EIP712, ReentrancyGuard {
         uint256 remaining = allowance.budget -
             allowance.spent -
             allowance.withdrawn;
-        if (remaining == 0) revert NothingToWithdraw();
+        if (remaining == 0) {
+            revert NothingToWithdraw();
+        }
 
         allowance.withdrawn += remaining;
         token.safeTransfer(allowance.owner, remaining);

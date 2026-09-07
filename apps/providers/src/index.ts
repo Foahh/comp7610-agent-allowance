@@ -1,9 +1,9 @@
-import { openDatabase } from "@repo/db"
 import { readConfig } from "@repo/utils/config"
 import { createProviderApp } from "./app.ts"
+import { openProviderDatabase } from "./store.ts"
 
 const config = readConfig()
-const store = openDatabase(
+const store = openProviderDatabase(
   process.env.PROVIDER_DATABASE_PATH ||
     config.root + "data/provider-" + config.chainId + ".sqlite"
 )

@@ -2,10 +2,17 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { createWalletClient, http, type Abi, type Hex } from "viem"
 import { readConfig, signer } from "@repo/utils/config"
-import { getChain, publicClient } from "@repo/utils"
+import {
+  getChain,
+  LOCAL_CHAIN_ID,
+  publicClient,
+  SEPOLIA_CHAIN_ID,
+} from "@repo/utils"
 
 const config = readConfig()
-const targetChain = process.argv.includes("--sepolia") ? 11155111 : 31337
+const targetChain = process.argv.includes("--sepolia")
+  ? SEPOLIA_CHAIN_ID
+  : LOCAL_CHAIN_ID
 if (config.chainId !== targetChain) {
   throw new Error(
     "Set CHAIN_ID=" + targetChain + " for this deployment command."

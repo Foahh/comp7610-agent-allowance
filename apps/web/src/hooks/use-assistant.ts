@@ -1,11 +1,12 @@
-import { useReducer, useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
-import type { Conversation, Purchase } from "@repo/schemas"
+import { useState } from "react"
+import type { Conversation } from "@repo/schemas"
 import {
-  jsonRequest,
+  bindAllowance,
+  createAuthChallenge,
+  createConversation as requestConversation,
+  recoverConversation,
   sendMessage,
-  type AppConfig,
-  type ConversationDetails,
+  verifyAuthChallenge,
 } from "#/lib/client"
 import {
   connectWallet,
@@ -13,127 +14,31 @@ import {
   updateAllowance,
   type ConnectedWallet,
 } from "#/lib/wallet"
+import { useAssistantQueries } from "./use-assistant-queries.ts"
+import { useAssistantRun } from "./use-assistant-run.ts"
 
 type Scenario = Conversation["scenario"]
-type RunState = {
-  busy: boolean
-  status: string
-  error: string
-  user: string
-  answer: string
-  purchases: Purchase[]
-  startedAt: number
-}
-type Action =
-  | { type: "start"; user?: string }
-  | { type: "finish" }
-  | { type: "status"; text: string }
-  | { type: "error"; text: string }
-  | { type: "text"; text: string }
-  | { type: "purchase"; purchase: Purchase }
 
-const initial: RunState = {
-  busy: false,
-  status: "",
-  error: "",
-  user: "",
-  answer: "",
-  purchases: [],
-  startedAt: 0,
-}
-function reducer(state: RunState, action: Action): RunState {
-  switch (action.type) {
-    case "start":
-      return {
-        ...initial,
-        busy: true,
-        user: action.user || "",
-        startedAt: Date.now(),
-      }
-    case "finish":
-      return {
-        ...state,
-        busy: false,
-        status: "",
-        user: "",
-        answer: "",
-        purchases: [],
-      }
-    case "status":
-      return { ...state, status: action.text }
-    case "error":
-      return { ...state, error: action.text }
-    case "text":
-      return { ...state, answer: state.answer + action.text }
-    case "purchase":
-      return {
-        ...state,
-        purchases: [
-          ...state.purchases.filter((item) => item.id !== action.purchase.id),
-          action.purchase,
-        ],
-      }
-  }
-}
-
+const EXCHANGE_SEMESTER_PROMPT = [
+  "Compare Tokyo, Seoul, and Taipei for an exchange semester, then prepare",
+  "a recommendation brief.",
+].join(" ")
 export function useAssistant() {
-  const cache = useQueryClient()
   const [wallet, setWallet] = useState<ConnectedWallet | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [scenario, setScenario] = useState<Scenario>("success")
   const [draft, setDraft] = useState("")
-  const [run, dispatch] = useReducer(reducer, initial)
-
-  const configuration = useQuery({
-    queryKey: ["config"],
-    queryFn: () => jsonRequest<AppConfig>("/config"),
-    retry: false,
-  })
+  const { configuration, conversations, details, refresh } =
+    useAssistantQueries(wallet?.account.address, selected)
+  const { run, dispatch, perform } = useAssistantRun(refresh)
   const config = configuration.data
-  const conversations = useQuery({
-    queryKey: ["conversations", wallet?.account.address],
-    queryFn: () => jsonRequest<Conversation[]>("/conversations"),
-    enabled: !!wallet,
-    retry: false,
-  })
-  const details = useQuery({
-    queryKey: ["conversation", selected],
-    queryFn: () =>
-      jsonRequest<ConversationDetails>("/conversations/" + selected),
-    enabled: !!selected && !!wallet,
-    retry: false,
-  })
-
-  async function refresh() {
-    await Promise.all([
-      cache.invalidateQueries({ queryKey: ["conversations"] }),
-      cache.invalidateQueries({ queryKey: ["conversation"] }),
-    ])
-  }
-
-  async function perform(operation: () => Promise<void>, user?: string) {
-    dispatch({ type: "start", user })
-    try {
-      await operation()
-    } catch (error) {
-      dispatch({
-        type: "error",
-        text: error instanceof Error ? error.message : "Action failed.",
-      })
-    } finally {
-      await refresh()
-      dispatch({ type: "finish" })
-    }
-  }
 
   async function createConversation(nextScenario: Scenario) {
-    const conversation = await jsonRequest<Conversation>("/conversations", {
-      title:
-        nextScenario === "insufficient"
-          ? "Allowance boundary"
-          : "Exchange semester",
-      scenario: nextScenario,
-    })
+    const title =
+      nextScenario === "insufficient"
+        ? "Allowance boundary"
+        : "Exchange semester"
+    const conversation = await requestConversation(title, nextScenario)
     setSelected(conversation.id)
     return conversation
   }
@@ -144,16 +49,11 @@ export function useAssistant() {
     }
     void perform(async () => {
       const connected = await connectWallet(config)
-      const challenge = await jsonRequest<{ id: string; message: string }>(
-        "/auth/challenge",
-        {
-          address: connected.account.address,
-        }
-      )
+      const challenge = await createAuthChallenge(connected.account.address)
       const signature = await connected.signMessage({
         message: challenge.message,
       })
-      await jsonRequest("/auth/verify", { id: challenge.id, signature })
+      await verifyAuthChallenge(challenge.id, signature)
       setWallet(connected)
       setSelected(null)
       await createConversation(scenario)
@@ -162,9 +62,7 @@ export function useAssistant() {
 
   function preset(next: Scenario) {
     setScenario(next)
-    setDraft(
-      "Compare Tokyo, Seoul, and Taipei for an exchange semester, then prepare a recommendation brief."
-    )
+    setDraft(EXCHANGE_SEMESTER_PROMPT)
     if (wallet) {
       void perform(async () => {
         await createConversation(next)
@@ -184,9 +82,7 @@ export function useAssistant() {
         cap,
         (text) => dispatch({ type: "status", text })
       )
-      await jsonRequest("/conversations/" + selected + "/allowance", {
-        allowanceId,
-      })
+      await bindAllowance(selected, allowanceId)
     })
   }
 
@@ -223,7 +119,7 @@ export function useAssistant() {
       return
     }
     void perform(async () => {
-      await jsonRequest("/conversations/" + selected + "/recover", {})
+      await recoverConversation(selected)
     })
   }
 
