@@ -1,0 +1,34 @@
+{
+  "name": "@repo/agent-allowance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp run --parallel --filter ./apps/* dev",
+    "build": "vp run -r build",
+    "check": "vp check",
+    "ready": "vp check && vp run -r build",
+    "db:generate": "vp run @repo/db#db:generate",
+    "db:migrate": "vp run @repo/db#db:migrate",
+    "prepare": "vp config",
+    "doctor": "vpx react-doctor@latest"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "react-doctor": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.3.4",
+      "onFail": "download"
+    }
+  },
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "packageManager": "pnpm@12.3.4"
+}

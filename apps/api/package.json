@@ -1,0 +1,36 @@
+{
+  "name": "@repo/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/app.ts"
+  },
+  "scripts": {
+    "dev": "vp dev",
+    "build": "tsc && vp build"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "catalog:",
+    "@ai-sdk/valibot": "catalog:",
+    "@hono/node-server": "catalog:",
+    "@hono/standard-validator": "catalog:",
+    "@repo/db": "workspace:*",
+    "@repo/schemas": "workspace:*",
+    "@x402/core": "catalog:",
+    "@x402/evm": "catalog:",
+    "@x402/fetch": "catalog:",
+    "ai": "catalog:",
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
+    "valibot": "catalog:",
+    "viem": "catalog:"
+  },
+  "devDependencies": {
+    "@hono/vite-dev-server": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

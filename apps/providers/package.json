@@ -1,0 +1,27 @@
+{
+  "name": "@repo/providers",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "tsc && vp build"
+  },
+  "dependencies": {
+    "@hono/node-server": "catalog:",
+    "@hono/standard-validator": "catalog:",
+    "@repo/schemas": "workspace:*",
+    "@x402/core": "catalog:",
+    "@x402/evm": "catalog:",
+    "@x402/hono": "catalog:",
+    "hono": "catalog:",
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "@hono/vite-dev-server": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
