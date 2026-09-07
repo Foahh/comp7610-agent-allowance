@@ -3,8 +3,6 @@ import { defineConfig } from "vite-plus"
 export default defineConfig({
   test: {
     include: ["**/*.test.ts"],
-    testTimeout: 60000,
-    fileParallelism: false,
   },
   staged: { "*": "vp check --fix" },
   fmt: {

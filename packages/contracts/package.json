@@ -4,11 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "vp exec hardhat compile",
-    "test": "vp run build && vp test",
-    "node": "vp exec hardhat node --hostname 127.0.0.1",
     "deploy": "vp exec node scripts/deploy.ts",
-    "deploy:local": "vp exec node scripts/deploy.ts --local",
-    "deploy:sepolia": "vp exec node scripts/deploy.ts --sepolia"
+    "deploy:sepolia": "vp exec node scripts/deploy.ts"
   },
   "dependencies": {
     "@openzeppelin/contracts": "catalog:",

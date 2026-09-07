@@ -4,24 +4,14 @@ A demo where a buyer agent purchases specialist work with a per-conversation all
 
 ## Run locally
 
-Use Node 24. In one terminal:
+Use Node 24. Install dependencies and copy the configuration:
 
 ```powershell
 vp install
 Copy-Item .env.example .env
-vp run @repo/contracts#build
-vp run chain
 ```
 
-In another terminal:
-
-```powershell
-vp run deploy:local
-vp run db:migrate
-vp run dev
-```
-
-Open http://127.0.0.1:3000/ and connect a funded Hardhat browser wallet to chain `31337`. The buyer and provider APIs run on ports `3001` and `3002`.
+Configure AI and Sepolia below, then start the application. Open http://127.0.0.1:3000/. The buyer and provider APIs run on ports `3001` and `3002`.
 
 ## Configure AI
 
@@ -48,13 +38,10 @@ Connect the browser wallet to Sepolia. The owner key stays in that wallet; the p
 
 ## Validate
 
-With the local chain running:
-
 ```powershell
 vp check
 vp run @repo/contracts#build
 vp test
-vp run test:contracts
 vp run -r build
 vp exec react-doctor apps/web --verbose --scope changed
 ```

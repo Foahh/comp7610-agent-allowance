@@ -12,9 +12,6 @@
     "db:migrate": "vp exec node scripts/migrate.ts",
     "prepare": "vp config",
     "doctor": "vp exec react-doctor",
-    "test:contracts": "vp run @repo/contracts#test",
-    "chain": "vp run @repo/contracts#node",
-    "deploy:local": "vp run @repo/contracts#deploy:local",
     "models:check": "vp exec node scripts/check-models.ts",
     "deploy:sepolia": "vp run @repo/contracts#deploy:sepolia"
   },

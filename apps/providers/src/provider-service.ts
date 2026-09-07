@@ -22,7 +22,7 @@ import type { ProviderStore } from "./store.ts"
 
 export function createProviderService(config: Config, store: ProviderStore) {
   const client = publicClient(config.chainId, config.rpcUrl)
-  const account = signer("provider", config.chainId)
+  const account = signer("provider")
   const runningDeliveries = new Map<string, Promise<Delivery>>()
 
   async function createQuote(allowanceId: string, task: Task) {

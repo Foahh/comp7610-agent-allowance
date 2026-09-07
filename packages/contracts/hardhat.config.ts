@@ -6,7 +6,6 @@ export default defineConfig({
     settings: { optimizer: { enabled: true, runs: 200 } },
   },
   networks: {
-    local: { type: "edr-simulated", chainType: "l1", chainId: 31337 },
     sepolia: {
       type: "http",
       chainType: "l1",

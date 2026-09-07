@@ -8,6 +8,6 @@ Default files are `data/buyer-<chainId>.sqlite` and `data/provider-<chainId>.sql
 
 Keep one buyer process per agent signer and database. Run contract tests separately from interactive purchases against shared local accounts.
 
-Application restarts preserve data. Hardhat restarts reset the chain: stop the apps, archive the previous local databases and deployment file, redeploy, and restart with fresh databases. Existing purchase history may contain results from earlier versions; start a new conversation when validating live-model behavior.
+Application restarts preserve data. The contracts run on Sepolia independently of the local application. Existing purchase history may contain results from earlier versions; start a new conversation when validating live-model behavior.
 
 Numbered SQL files in `packages/db/migrations` are applied at startup and by `vp run db:migrate`. If using `db:generate`, review the SQL and add the intended changes as a new numbered runtime migration.

@@ -29,7 +29,7 @@ export function createPayments(
   receiptTimeoutMs = 30000
 ) {
   const client = publicClient(config.chainId, config.rpcUrl)
-  const account = signer("agent", config.chainId)
+  const account = signer("agent")
   const wallet = createWalletClient({
     account,
     chain: getChain(config.chainId),

@@ -9,7 +9,7 @@ const owner = "0x0000000000000000000000000000000000000001" as Address
 const agent = "0x0000000000000000000000000000000000000002" as Address
 const provider = "0x0000000000000000000000000000000000000003" as Address
 const vault = "0x0000000000000000000000000000000000000004" as Address
-const chainId = 31337
+const chainId = 11155111
 const currentTimestamp = 1_000n
 
 function createValidInput() {

@@ -17,7 +17,7 @@ import {
   EmptyDescription,
 } from "#/components/ui/empty"
 import { PurchaseCard } from "./purchase-card.tsx"
-import { LOCAL_CHAIN_ID } from "@repo/utils"
+import { SEPOLIA_CHAIN_ID } from "@repo/utils"
 
 export function ConversationThread({
   assistant,
@@ -86,7 +86,7 @@ export function ConversationThread({
                   <MessageScrollerItem key={entry.id} messageId={entry.id}>
                     <PurchaseCard
                       purchase={entry.purchase}
-                      chainId={assistant.config?.chainId ?? LOCAL_CHAIN_ID}
+                      chainId={assistant.config?.chainId ?? SEPOLIA_CHAIN_ID}
                     />
                   </MessageScrollerItem>
                 )

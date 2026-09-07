@@ -10,10 +10,9 @@ import {
   type Transport,
   type Hex,
 } from "viem"
-import { hardhat, sepolia } from "viem/chains"
+import { sepolia } from "viem/chains"
 import type { SignedQuote, Task } from "@repo/schemas"
 
-export const LOCAL_CHAIN_ID = 31337
 export const SEPOLIA_CHAIN_ID = 11155111
 
 export const vaultAbi = parseAbi([
@@ -100,18 +99,15 @@ export function serviceHash(service: string) {
 }
 
 export function getChain(chainId: number) {
-  if (chainId === LOCAL_CHAIN_ID) {
-    return hardhat
-  }
   if (chainId === SEPOLIA_CHAIN_ID) {
     return sepolia
   }
-  throw new Error("Only local Hardhat and Sepolia are supported.")
+  throw new Error("Only Sepolia is supported.")
 }
 
 export function confirmationCount(chainId: number) {
   getChain(chainId)
-  return chainId === LOCAL_CHAIN_ID ? 1 : 2
+  return 2
 }
 
 export function publicClient(

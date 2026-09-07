@@ -2,9 +2,9 @@ import { existsSync, readFileSync } from "node:fs"
 import { loadEnvFile } from "node:process"
 import { projectRoot } from "./project-root.ts"
 export { projectRoot } from "./project-root.ts"
-import { mnemonicToAccount, privateKeyToAccount } from "viem/accounts"
+import { privateKeyToAccount } from "viem/accounts"
 import { getAddress, type Hex } from "viem"
-import { confirmationCount, LOCAL_CHAIN_ID, SEPOLIA_CHAIN_ID } from "./chain.ts"
+import { confirmationCount, SEPOLIA_CHAIN_ID } from "./chain.ts"
 
 const root = projectRoot()
 const envPath = root + ".env"
@@ -13,8 +13,8 @@ if (existsSync(envPath)) {
 }
 
 export function readConfig() {
-  const chainId = Number(process.env.CHAIN_ID || LOCAL_CHAIN_ID)
-  if (![LOCAL_CHAIN_ID, SEPOLIA_CHAIN_ID].includes(chainId)) {
+  const chainId = Number(process.env.CHAIN_ID || SEPOLIA_CHAIN_ID)
+  if (chainId !== SEPOLIA_CHAIN_ID) {
     throw new Error("Unsupported chain.")
   }
 
@@ -30,14 +30,13 @@ export function readConfig() {
   return {
     root,
     chainId,
-    rpcUrl: process.env.RPC_URL || "http://127.0.0.1:8545",
+    rpcUrl:
+      process.env.RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com",
     confirmations: confirmationCount(chainId),
     provider: getAddress(
       process.env.PROVIDER_ADDRESS ||
         deployment?.provider ||
-        (chainId === LOCAL_CHAIN_ID
-          ? signer("provider", chainId).address
-          : "0x0000000000000000000000000000000000000000")
+        "0x0000000000000000000000000000000000000000"
     ),
     token: getAddress(
       process.env.TOKEN_ADDRESS ||
@@ -56,26 +55,12 @@ export function readConfig() {
 
 export type Config = ReturnType<typeof readConfig>
 
-export function signer(
-  role: "agent" | "provider" | "deployer",
-  chainId: number
-) {
+export function signer(role: "agent" | "provider" | "deployer") {
   const key = process.env[role.toUpperCase() + "_PRIVATE_KEY"]
-  if (key) {
-    return privateKeyToAccount(key as Hex)
-  }
-  if (chainId !== LOCAL_CHAIN_ID) {
+  if (!key) {
     throw new Error("Set " + role.toUpperCase() + "_PRIVATE_KEY for Sepolia.")
   }
-
-  // Public Hardhat development mnemonic. Never selected on a public network.
-  const indexes = { deployer: 0, agent: 1, provider: 2 }
-  return mnemonicToAccount(
-    "test test test test test test test test test test test junk",
-    {
-      addressIndex: indexes[role],
-    }
-  )
+  return privateKeyToAccount(key as Hex)
 }
 
 export function modelSettings(role: "buyer" | "seller") {
