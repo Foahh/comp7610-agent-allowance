@@ -3,6 +3,13 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/noto-serif";
 @import "@fontsource-variable/noto-sans";
+@import "katex/dist/katex.min.css";
+
+@source "../node_modules/streamdown/dist/*.js";
+@source "../node_modules/@streamdown/code/dist/*.js";
+@source "../node_modules/@streamdown/cjk/dist/*.js";
+@source "../node_modules/@streamdown/math/dist/*.js";
+@source "../node_modules/@streamdown/mermaid/dist/*.js";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -200,12 +207,15 @@
   flex: 1;
   min-height: 0;
 }
-.message-text {
-  white-space: pre-wrap;
+.message-text,
+.message-markdown {
   font-family: var(--font-serif);
   font-size: 16px;
   line-height: 1.8;
   overflow-wrap: anywhere;
+}
+.message-text {
+  white-space: pre-wrap;
 }
 .composer {
   display: flex;

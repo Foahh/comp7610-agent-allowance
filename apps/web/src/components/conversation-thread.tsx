@@ -2,23 +2,18 @@ import { SEPOLIA_CHAIN_ID } from "@repo/utils"
 
 import type { AssistantController } from "#/hooks/use-assistant"
 
-import { Bubble, BubbleContent } from "#/components/ui/bubble"
 import {
-  Empty,
-  EmptyHeader,
-  EmptyTitle,
-  EmptyDescription,
-} from "#/components/ui/empty"
-import { Marker, MarkerContent } from "#/components/ui/marker"
-import { Message, MessageContent, MessageHeader } from "#/components/ui/message"
+  Conversation,
+  ConversationContent,
+  ConversationEmptyState,
+  ConversationScrollButton,
+} from "#/components/ai-elements/conversation"
 import {
-  MessageScrollerProvider,
-  MessageScroller,
-  MessageScrollerViewport,
-  MessageScrollerContent,
-  MessageScrollerItem,
-  MessageScrollerButton,
-} from "#/components/ui/message-scroller"
+  Message,
+  MessageContent,
+  MessageResponse,
+} from "#/components/ai-elements/message"
+import { Shimmer } from "#/components/ai-elements/shimmer"
 
 import { PurchaseCard } from "./purchase-card.tsx"
 
@@ -64,79 +59,55 @@ export function ConversationThread({
   ].sort((first, second) => first.createdAt - second.createdAt)
 
   return (
-    <MessageScrollerProvider autoScroll>
-      <MessageScroller>
-        <MessageScrollerViewport>
-          <MessageScrollerContent className="px-5 py-8 md:px-10">
-            {!messages.length && (
-              <MessageScrollerItem messageId="welcome">
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyTitle>What would you like to work on?</EmptyTitle>
-                    <EmptyDescription>
-                      Compare evidence, commission a brief, and keep every
-                      purchase within your allowance. Connect a wallet to start
-                      a conversation; funding is optional until you buy a
-                      service.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              </MessageScrollerItem>
-            )}
-            {timeline.map((entry) => {
-              if (entry.kind === "purchase") {
-                return (
-                  <MessageScrollerItem key={entry.id} messageId={entry.id}>
-                    <PurchaseCard
-                      purchase={entry.purchase}
-                      chainId={assistant.config?.chainId ?? SEPOLIA_CHAIN_ID}
-                    />
-                  </MessageScrollerItem>
-                )
-              }
+    <Conversation className="h-full" aria-label="Conversation">
+      <ConversationContent className="px-5 py-8 md:px-10">
+        {!messages.length && (
+          <ConversationEmptyState
+            title="What would you like to work on?"
+            description="Compare evidence, commission a brief, and keep every purchase within your allowance. Connect a wallet to start a conversation; funding is optional until you buy a service."
+          />
+        )}
+        {timeline.map((entry) => {
+          if (entry.kind === "purchase") {
+            return (
+              <PurchaseCard
+                key={entry.id}
+                purchase={entry.purchase}
+                chainId={assistant.config?.chainId ?? SEPOLIA_CHAIN_ID}
+              />
+            )
+          }
 
-              const message = entry.message
-              return (
-                <MessageScrollerItem
-                  key={message.id}
-                  messageId={message.id}
-                  scrollAnchor={message.role === "user"}
-                >
-                  <Message align={message.role === "user" ? "end" : "start"}>
-                    <MessageContent>
-                      <MessageHeader>
-                        {message.role === "user" ? "You" : "Your assistant"}
-                      </MessageHeader>
-                      <Bubble
-                        variant={
-                          message.role === "user" ? "secondary" : "ghost"
-                        }
-                        align={message.role === "user" ? "end" : "start"}
-                      >
-                        <BubbleContent>
-                          <div className="message-text">{message.content}</div>
-                        </BubbleContent>
-                      </Bubble>
-                    </MessageContent>
-                  </Message>
-                </MessageScrollerItem>
-              )
-            })}
-            {assistant.run.status && (
-              <MessageScrollerItem messageId="status">
-                <Marker>
-                  <MarkerContent>
-                    <span role="status" className="shimmer">
-                      {assistant.run.status}
-                    </span>
-                  </MarkerContent>
-                </Marker>
-              </MessageScrollerItem>
-            )}
-          </MessageScrollerContent>
-        </MessageScrollerViewport>
-        <MessageScrollerButton />
-      </MessageScroller>
-    </MessageScrollerProvider>
+          const message = entry.message
+          return (
+            <Message key={message.id} from={message.role}>
+              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase group-[.is-user]:text-right">
+                {message.role === "user" ? "You" : "Your assistant"}
+              </p>
+              <MessageContent>
+                {message.role === "assistant" ? (
+                  <MessageResponse
+                    className="message-markdown"
+                    isAnimating={
+                      message.id === "stream-answer" && assistant.run.busy
+                    }
+                  >
+                    {message.content}
+                  </MessageResponse>
+                ) : (
+                  <div className="message-text">{message.content}</div>
+                )}
+              </MessageContent>
+            </Message>
+          )
+        })}
+        {assistant.run.status && (
+          <div role="status" className="text-sm">
+            <Shimmer>{assistant.run.status}</Shimmer>
+          </div>
+        )}
+      </ConversationContent>
+      <ConversationScrollButton aria-label="Scroll to latest message" />
+    </Conversation>
   )
 }
