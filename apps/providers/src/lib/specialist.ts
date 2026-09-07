@@ -38,7 +38,10 @@ export async function interpretTask(task: Task) {
   const result = await generateText({
     model,
     system: INTERPRET_TASK_SYSTEM_PROMPT,
-    prompt: JSON.stringify(task),
+    prompt: JSON.stringify({
+      task,
+      ...(task.service === "analysis" ? { dataset } : {}),
+    }),
     output: Output.object({
       schema: valibotSchema(
         v.object({ needsClarification: v.boolean(), message: v.string() })
