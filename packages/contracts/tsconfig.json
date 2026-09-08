@@ -3,5 +3,5 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["hardhat.config.ts", "scripts"]
+  "include": ["hardhat.config.ts", "scripts", "test"]
 }

@@ -17,7 +17,6 @@ contract AgentSpendVault is EIP712, ReentrancyGuard {
     struct Allowance {
         address owner;
         address agent;
-        address provider;
         uint256 budget;
         uint256 perPurchase;
         uint256 spent;
@@ -45,6 +44,12 @@ contract AgentSpendVault is EIP712, ReentrancyGuard {
     uint256 public nextAllowanceId = 1;
     mapping(uint256 => Allowance) public allowances;
     mapping(bytes32 => bool) public purchases;
+    mapping(uint256 => mapping(address => bool)) public approvedSellers;
+    mapping(uint256 => address[]) private sellersByAllowance;
+
+    function allowanceSellers(uint256 allowanceId) external view returns (address[] memory) {
+        return sellersByAllowance[allowanceId];
+    }
 
     error InvalidAllowance();
     error Unauthorized();
@@ -58,7 +63,7 @@ contract AgentSpendVault is EIP712, ReentrancyGuard {
         uint256 indexed allowanceId,
         address indexed owner,
         address agent,
-        address provider,
+        address[] sellers,
         uint256 budget,
         uint256 perPurchase,
         uint256 expiresAt
@@ -74,7 +79,7 @@ contract AgentSpendVault is EIP712, ReentrancyGuard {
     event AllowanceRevoked(uint256 indexed allowanceId);
     event UnusedWithdrawn(uint256 indexed allowanceId, uint256 amount);
 
-    constructor(address tokenAddress) EIP712("AgentSpendVault", "1") {
+    constructor(address tokenAddress) EIP712("AgentSpendVault", "2") {
         if (tokenAddress == address(0)) {
             revert InvalidAllowance();
         }
@@ -83,14 +88,15 @@ contract AgentSpendVault is EIP712, ReentrancyGuard {
 
     function createAllowance(
         address agent,
-        address provider,
+        address[] calldata sellers,
         uint256 budget,
         uint256 perPurchase,
         uint256 expiresAt
     ) external nonReentrant returns (uint256 allowanceId) {
         if (
             agent == address(0) ||
-            provider == address(0) ||
+            sellers.length == 0 ||
+            sellers.length > 16 ||
             budget == 0 ||
             perPurchase == 0 ||
             perPurchase > budget ||
@@ -100,10 +106,18 @@ contract AgentSpendVault is EIP712, ReentrancyGuard {
         }
 
         allowanceId = nextAllowanceId++;
+        for (uint256 i = 0; i < sellers.length; i++) {
+            address seller = sellers[i];
+            if (seller == address(0) || approvedSellers[allowanceId][seller]) {
+                revert InvalidAllowance();
+            }
+            approvedSellers[allowanceId][seller] = true;
+            sellersByAllowance[allowanceId].push(seller);
+        }
+
         allowances[allowanceId] = Allowance({
             owner: msg.sender,
             agent: agent,
-            provider: provider,
             budget: budget,
             perPurchase: perPurchase,
             spent: 0,
@@ -116,7 +130,7 @@ contract AgentSpendVault is EIP712, ReentrancyGuard {
             allowanceId,
             msg.sender,
             agent,
-            provider,
+            sellers,
             budget,
             perPurchase,
             expiresAt
@@ -156,13 +170,13 @@ contract AgentSpendVault is EIP712, ReentrancyGuard {
         if (
             quote.amount == 0 ||
             block.timestamp >= quote.expiresAt ||
-            quote.recipient != allowance.provider
+            !approvedSellers[quote.allowanceId][quote.recipient]
         ) {
             revert InvalidQuote();
         }
 
         bytes32 purchaseId = quoteDigest(quote);
-        if (ECDSA.recover(purchaseId, signature) != allowance.provider) {
+        if (ECDSA.recover(purchaseId, signature) != quote.recipient) {
             revert InvalidQuote();
         }
         if (purchases[purchaseId]) {
