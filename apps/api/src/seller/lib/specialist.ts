@@ -75,9 +75,11 @@ export async function interpretTask(
     )
   })
 
-  return result.output.needsClarification
-    ? { clarification: result.output.message }
-    : { deliverable: result.output.message }
+  if (result.output.needsClarification) {
+    return { clarification: result.output.message }
+  }
+
+  return { deliverable: result.output.message }
 }
 
 export async function executeTask(

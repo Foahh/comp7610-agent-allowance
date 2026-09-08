@@ -62,7 +62,11 @@ export function createListingQueries(db: Database) {
       .where(eq(listingHeads.id, id))
       .get()
 
-    return head ? getVersion(id, head.version, head.status) : undefined
+    if (!head) {
+      return undefined
+    }
+
+    return getVersion(id, head.version, head.status)
   }
 
   function save(id: string, listing: Listing) {
@@ -152,13 +156,16 @@ export function createSellerQueries(db: Database) {
   return {
     ...createListingQueries(db),
     models: {
-      get: (id: string) =>
-        db
+      get(id: string) {
+        return db
           .select()
           .from(modelConnections)
           .where(eq(modelConnections.id, id))
-          .get(),
-      list: () => db.select().from(modelConnections).all(),
+          .get()
+      },
+      list() {
+        return db.select().from(modelConnections).all()
+      },
       save(id: string, model: StoredModel) {
         db.insert(modelConnections)
           .values({ ...model, id })
@@ -167,9 +174,12 @@ export function createSellerQueries(db: Database) {
       },
     },
     assets: {
-      get: (id: string) =>
-        db.select().from(assets).where(eq(assets.id, id)).get(),
-      list: () => db.select().from(assets).all(),
+      get(id: string) {
+        return db.select().from(assets).where(eq(assets.id, id)).get()
+      },
+      list() {
+        return db.select().from(assets).all()
+      },
       save(id: string, asset: Asset) {
         db.insert(assets)
           .values({ ...asset, id })
@@ -177,8 +187,13 @@ export function createSellerQueries(db: Database) {
       },
     },
     settings: {
-      get: (id: string) =>
-        db.select().from(sellerProfiles).where(eq(sellerProfiles.id, id)).get(),
+      get(id: string) {
+        return db
+          .select()
+          .from(sellerProfiles)
+          .where(eq(sellerProfiles.id, id))
+          .get()
+      },
       save(
         id: string,
         profile: Omit<typeof sellerProfiles.$inferInsert, "id">
@@ -190,12 +205,13 @@ export function createSellerQueries(db: Database) {
       },
     },
     requests: {
-      get: (key: string) =>
-        db
+      get(key: string) {
+        return db
           .select()
           .from(quoteRequests)
           .where(eq(quoteRequests.requestKey, key))
-          .get(),
+          .get()
+      },
       save(key: string, request: { id: string; taskHash: string }) {
         db.insert(quoteRequests)
           .values({ ...request, requestKey: key })
@@ -203,9 +219,12 @@ export function createSellerQueries(db: Database) {
       },
     },
     jobs: {
-      get: (id: string) =>
-        db.select().from(sellerJobs).where(eq(sellerJobs.id, id)).get(),
-      list: () => db.select().from(sellerJobs).all(),
+      get(id: string) {
+        return db.select().from(sellerJobs).where(eq(sellerJobs.id, id)).get()
+      },
+      list() {
+        return db.select().from(sellerJobs).all()
+      },
       save(id: string, job: typeof sellerJobs.$inferInsert) {
         db.insert(sellerJobs)
           .values({ ...job, id })
@@ -260,9 +279,15 @@ export function createConnectionQueries(db: Database) {
         .where(eq(sellerConnections.id, id))
         .get()
 
-      return row ? read(row) : undefined
+      if (!row) {
+        return undefined
+      }
+
+      return read(row)
     },
-    list: () => db.select().from(sellerConnections).all().map(read),
+    list() {
+      return db.select().from(sellerConnections).all().map(read)
+    },
     save(id: string, connection: SellerConnection) {
       const { identity, listings, error, ...fields } = connection
       const { protocol: _protocol, ...identityFields } = identity
@@ -296,12 +321,13 @@ export function createBuyerMarketplaceQueries(db: Database) {
   return {
     connections: createConnectionQueries(db),
     destinations: {
-      get: (id: string) =>
-        db
+      get(id: string) {
+        return db
           .select()
           .from(purchaseDestinations)
           .where(eq(purchaseDestinations.id, id))
-          .get(),
+          .get()
+      },
       save(id: string, destination: { endpoint: string }) {
         db.insert(purchaseDestinations)
           .values({ id, ...destination })
@@ -310,8 +336,13 @@ export function createBuyerMarketplaceQueries(db: Database) {
       },
     },
     files: {
-      get: (id: string) =>
-        db.select().from(purchasedFiles).where(eq(purchasedFiles.id, id)).get(),
+      get(id: string) {
+        return db
+          .select()
+          .from(purchasedFiles)
+          .where(eq(purchasedFiles.id, id))
+          .get()
+      },
       save(id: string, file: { path: string }) {
         db.insert(purchasedFiles)
           .values({ id, ...file })

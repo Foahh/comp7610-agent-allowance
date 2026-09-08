@@ -17,6 +17,12 @@ import { publicPurchase } from "../lib/payments.ts"
 import { createSellerClient } from "../lib/seller-client.ts"
 import { createAdminRoutes } from "../seller/routes/admin.ts"
 
+const SellerEndpointSchema = v.object({ endpoint: v.string() })
+const SellerStatusSchema = v.object({ enabled: v.boolean() })
+const PurchaseRequestSchema = v.object({ quoteId: HexSchema })
+
+async function ignoreAgentEvent() {}
+
 export function createMarketplaceRoutes(
   config: Config,
   store: BuyerStore,
@@ -43,7 +49,7 @@ export function createMarketplaceRoutes(
     .get("/connections", (context) => context.json(sellers.connections.list()))
     .post(
       "/connections",
-      validator("json", v.object({ endpoint: v.string() })),
+      validator("json", SellerEndpointSchema),
       async (context) =>
         context.json(
           await sellers.connect(context.req.valid("json").endpoint),
@@ -55,7 +61,7 @@ export function createMarketplaceRoutes(
     )
     .put(
       "/connections/:id",
-      validator("json", v.object({ enabled: v.boolean() })),
+      validator("json", SellerStatusSchema),
       (context) => {
         const connection = sellers.connections.get(context.req.param("id"))
 
@@ -92,13 +98,13 @@ export function createMarketplaceRoutes(
     )
     .post(
       "/conversations/:id/purchases",
-      validator("json", v.object({ quoteId: HexSchema })),
+      validator("json", PurchaseRequestSchema),
       async (context) =>
         context.json(
           await agent.purchase(
             conversation(context.req.param("id"), context.get("owner")),
             context.req.valid("json").quoteId,
-            async () => {}
+            ignoreAgentEvent
           )
         )
     )
@@ -118,7 +124,7 @@ export function createMarketplaceRoutes(
         publicPurchase(
           await agent.deliver(
             store.getPurchase(purchase.id)!,
-            async () => {},
+            ignoreAgentEvent,
             true
           )
         )

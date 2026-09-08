@@ -24,6 +24,24 @@ import { marketplaceRequest, formText } from "#/lib/marketplace"
 
 export const Route = createFileRoute("/sellers")({ component: SellersPage })
 
+type ConnectionAction = {
+  id: string
+  action: "refresh" | "toggle" | "remove"
+  enabled?: boolean
+}
+
+function updateConnection({ id, action, enabled }: ConnectionAction) {
+  if (action === "refresh") {
+    return marketplaceRequest(`connections/${id}/refresh`, {})
+  }
+
+  if (action === "toggle") {
+    return marketplaceRequest(`connections/${id}`, { enabled }, "PUT")
+  }
+
+  return marketplaceRequest(`connections/${id}`, undefined, "DELETE")
+}
+
 function SellersPage() {
   const connections = useMarketplace("connections")
   const [selection, setSelection] = useState<{
@@ -33,27 +51,7 @@ function SellersPage() {
   const connect = useMarketplaceAction((endpoint: string) =>
     marketplaceRequest("connections", { endpoint })
   )
-  const update = useMarketplaceAction(
-    ({
-      id,
-      action,
-      enabled,
-    }: {
-      id: string
-      action: "refresh" | "toggle" | "remove"
-      enabled?: boolean
-    }) => {
-      if (action === "refresh") {
-        return marketplaceRequest(`connections/${id}/refresh`, {})
-      }
-
-      return marketplaceRequest(
-        `connections/${id}`,
-        action === "toggle" ? { enabled } : undefined,
-        action === "toggle" ? "PUT" : "DELETE"
-      )
-    }
-  )
+  const update = useMarketplaceAction(updateConnection)
 
   return (
     <MarketplacePage

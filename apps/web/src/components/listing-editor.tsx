@@ -17,6 +17,18 @@ import { NativeSelect, NativeSelectOption } from "#/components/ui/native-select"
 import { useMarketplaceAction } from "#/hooks/use-marketplace"
 import { marketplaceRequest, formText } from "#/lib/marketplace"
 
+const TOKEN_PRICE_PATTERN = /^\d+(\.\d{1,6})?$/
+const LISTING_TYPES: ListingInput["type"][] = [
+  "text",
+  "link",
+  "file",
+  "ai-service",
+]
+
+function listingTypeLabel(type: ListingInput["type"]) {
+  return type === "ai-service" ? "AI service" : type
+}
+
 export function ListingEditor({
   listing,
   models,
@@ -36,10 +48,21 @@ export function ListingEditor({
   const [assetIds, setAssetIds] = useState(listing?.assetIds || [])
   const selectedAssets = new Set(assetIds)
   const readableAssets = assets.filter((asset) => asset.readable)
+
+  function setAssetSelected(assetId: string, selected: boolean) {
+    setAssetIds((currentAssetIds) => {
+      if (selected) {
+        return [...currentAssetIds, assetId]
+      }
+
+      return currentAssetIds.filter((id) => id !== assetId)
+    })
+  }
+
   const save = useMarketplaceAction(async (form: FormData) => {
     const price = formText(form, "price")
 
-    if (!/^\d+(\.\d{1,6})?$/.test(price) || parseUnits(price, 6) <= 0n) {
+    if (!TOKEN_PRICE_PATTERN.test(price) || parseUnits(price, 6) <= 0n) {
       throw new Error(
         "Enter a positive ATT price with at most six decimal places."
       )
@@ -61,11 +84,11 @@ export function ListingEditor({
       assetIds: type === "ai-service" ? assetIds : [],
     }
 
-    return marketplaceRequest(
-      listing ? `seller/listings/${listing.id}` : "seller/listings",
-      input,
-      listing ? "PUT" : "POST"
-    )
+    if (listing) {
+      return marketplaceRequest(`seller/listings/${listing.id}`, input, "PUT")
+    }
+
+    return marketplaceRequest("seller/listings", input)
   })
 
   return (
@@ -94,9 +117,9 @@ export function ListingEditor({
                   setType(event.target.value as ListingInput["type"])
                 }
               >
-                {["text", "link", "file", "ai-service"].map((value) => (
+                {LISTING_TYPES.map((value) => (
                   <NativeSelectOption key={value} value={value}>
-                    {value === "ai-service" ? "AI service" : value}
+                    {listingTypeLabel(value)}
                   </NativeSelectOption>
                 ))}
               </NativeSelect>
@@ -224,11 +247,7 @@ export function ListingEditor({
                         id={`knowledge-${asset.id}`}
                         checked={selectedAssets.has(asset.id)}
                         onCheckedChange={(checked) =>
-                          setAssetIds(
-                            checked
-                              ? [...assetIds, asset.id]
-                              : assetIds.filter((id) => id !== asset.id)
-                          )
+                          setAssetSelected(asset.id, checked)
                         }
                       />
                       <FieldLabel htmlFor={`knowledge-${asset.id}`}>

@@ -21,7 +21,18 @@ import { createMarketplace } from "./seller/lib/marketplace.ts"
 import { createSellerService } from "./seller/lib/seller-service.ts"
 import { createProtocolRoutes } from "./seller/routes/protocol.ts"
 
-const loopbackAddresses = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"])
+const LOOPBACK_ADDRESSES = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"])
+const READ_ONLY_METHODS = new Set(["GET", "HEAD", "OPTIONS"])
+const PUBLIC_API_PATHS = new Set(["/api/config", "/api/health"])
+const AUTH_API_PATH = "/api/auth"
+
+function isAuthenticationPath(path: string) {
+  return path === AUTH_API_PATH || path.startsWith(`${AUTH_API_PATH}/`)
+}
+
+function isPublicApiPath(path: string) {
+  return PUBLIC_API_PATHS.has(path) || isAuthenticationPath(path)
+}
 
 export function createApp(
   config: Config,
@@ -46,14 +57,14 @@ export function createApp(
     const bindings = context.env?.server || context.env
     const remoteAddress = bindings?.incoming?.socket.remoteAddress
 
-    if (remoteAddress && !loopbackAddresses.has(remoteAddress)) {
+    if (remoteAddress && !LOOPBACK_ADDRESSES.has(remoteAddress)) {
       return context.json(
         { error: "Management is available only from this installation." },
         403
       )
     }
 
-    if (!["GET", "HEAD", "OPTIONS"].includes(context.req.method)) {
+    if (!READ_ONLY_METHODS.has(context.req.method)) {
       if (context.req.header("origin") !== config.appOrigin) {
         return context.json({ error: "Untrusted request origin." }, 403)
       }
@@ -63,10 +74,7 @@ export function createApp(
   })
 
   app.use("/api/*", async (context, next) => {
-    if (
-      ["/api/config", "/api/health"].includes(context.req.path) ||
-      context.req.path.startsWith("/api/auth/")
-    ) {
+    if (isPublicApiPath(context.req.path)) {
       return next()
     }
 

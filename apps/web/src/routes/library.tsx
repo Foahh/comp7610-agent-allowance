@@ -7,6 +7,12 @@ import { Button } from "#/components/ui/button"
 import { Card, CardContent } from "#/components/ui/card"
 import { useMarketplace } from "#/hooks/use-marketplace"
 
+const HTTP_URL_PATTERN = /^https?:\/\//i
+
+function isHttpUrl(value: string) {
+  return HTTP_URL_PATTERN.test(value)
+}
+
 export const Route = createFileRoute("/library")({ component: LibraryPage })
 
 function LibraryPage() {
@@ -38,7 +44,7 @@ function LibraryPage() {
             <CardContent className="flex flex-col gap-4 pt-6">
               <PurchaseCard purchase={purchase} chainId={11155111} />
               {purchase.offer.listing.type === "link" &&
-              /^https?:\/\//i.test(purchase.delivery!.content) ? (
+              isHttpUrl(purchase.delivery!.content) ? (
                 <a
                   href={purchase.delivery!.content}
                   target="_blank"
