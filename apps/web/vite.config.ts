@@ -18,13 +18,13 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
     ],
     server: {
-      host: "127.0.0.1",
+      host: "localhost",
       port: 3000,
       strictPort: true,
-      proxy: { "/api": `http://127.0.0.1:${apiPort}` },
+      proxy: { "/api": `http://localhost:${apiPort}` },
     },
     preview: {
-      host: "127.0.0.1",
+      host: "localhost",
       port: 3000,
       strictPort: true,
     },

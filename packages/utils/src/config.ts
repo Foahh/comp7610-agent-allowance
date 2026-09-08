@@ -51,8 +51,8 @@ export function readConfig() {
         deployment?.vault ||
         "0x0000000000000000000000000000000000000000"
     ),
-    providerUrl: process.env.PROVIDER_URL || "http://127.0.0.1:3002",
-    appOrigin: process.env.APP_ORIGIN || "http://127.0.0.1:3000",
+    providerUrl: process.env.PROVIDER_URL || "http://localhost:3002",
+    appOrigin: process.env.APP_ORIGIN || "http://localhost:3000",
   }
 }
 

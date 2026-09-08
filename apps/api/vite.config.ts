@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
       build({ entry: "src/index.ts", port, shutdownTimeoutMs: 5000 }),
       devServer({ entry: "src/index.ts" }),
     ],
-    server: { host: "127.0.0.1", port, strictPort: true },
+    server: { host: "localhost", port, strictPort: true },
     ssr: { noExternal: [/^@repo\//] },
     build: {
       target: "node24",
