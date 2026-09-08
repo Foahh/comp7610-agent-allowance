@@ -12,7 +12,7 @@ Copy your wallet address and get free Sepolia ETH from the [Google Cloud faucet]
 
 ## 2. Prepare the AI service
 
-Visit the [DeepSeek platform](https://platform.deepseek.com/usage), add credit, and get an API key. You will enter it in the application later.
+Visit the [DeepSeek platform](https://platform.deepseek.com/usage), add credit, and get an API key.
 
 ## 3. Get the project
 
@@ -23,49 +23,43 @@ cd comp7610-agent-allowance
 
 Open the project folder in your preferred IDE.
 
-## 4. Configure environment variables
-
-Copy `.env.example` to `.env` and set `OWNER_ADDRESS` to your browser-wallet address. Keep the other defaults for now.
-
-```dotenv
-OWNER_ADDRESS=0x...
-```
-
-If your group already has shared contracts, fill in `TOKEN_ADDRESS` and `VAULT_ADDRESS` too.
-
-## 5. Install dependencies
+## 4. Install dependencies
 
 Follow the [Vite+ installation guide](https://viteplus.dev/guide/), then open a new terminal in the project root:
 
 ```sh
 vp install
-vp run accounts
 ```
 
-The application generates backend keys locally and displays their public addresses. Send Sepolia ETH to the `agent` and `deployer` addresses. No private keys need to be entered in `.env`.
+## 5. Prepare the smart contracts
 
-## 6. Deploy the smart contracts
+If your group already has a deployment JSON from this release, use that file and skip deployment.
+
+Otherwise, copy `.env.contract.example` to `.env.contract`, then run:
 
 ```sh
 vp run @repo/contracts#build
 vp run deploy:sepolia
 ```
 
-Addresses are saved to `data/deployment-11155111.json`. Skip deployment if you configured shared contracts; participants trading together must use the same contracts.
+If prompted, send Sepolia ETH to the displayed deployer address and rerun the deployment command. Share the resulting `data/deployment-11155111.json` with your group.
 
-## 7. Start the application
+## 6. Start the application
 
 ```sh
-vp run db:init
 vp run dev
 ```
 
-Open `http://localhost:3000`. Keep the terminal running. For later sessions, just run `vp run dev`.
+Open the URL printed in the terminal and keep the terminal running. The launcher handles ports and database setup automatically.
 
-## 8. Start using the application
+Connect your wallet and sign in. Import the deployment JSON, click **Validate network and contracts**, then **Save this deployment**. Participants trading together must use the same contracts.
 
-Connect the wallet configured in `OWNER_ADDRESS` and sign in.
+## 7. Configure DeepSeek
 
 In **Settings**, add your DeepSeek endpoint, model name, and API key. Click **Check connection** and select the buyer's default model.
 
-Publish a product in **My listings**, or add another participant's API URL in **Connected sellers**. In **Chat**, select sellers, claim test ATT when prompted, and authorize a spending allowance to start buying.
+## 8. Start using the application
+
+Add another participant's complete seller endpoint in **Connected sellers**. Create a chat, claim test ATT when prompted, and authorize a spending budget. Confirm purchases in your wallet.
+
+To sell, click **Authorize seller signer** in Settings, then publish a product in **My listings**.

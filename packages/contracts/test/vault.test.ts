@@ -1,4 +1,8 @@
+import { buyerTypedData, quoteTypedData } from "@repo/utils"
 import { createHardhatRuntimeEnvironment } from "hardhat/hre"
+import { mkdtempSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import {
   createPublicClient,
@@ -13,8 +17,15 @@ import { hardhat } from "viem/chains"
 import { beforeAll, afterAll, beforeEach, expect, test } from "vite-plus/test"
 
 const root = fileURLToPath(new URL("../", import.meta.url))
+const directory = mkdtempSync(join(tmpdir(), "vault-tests-"))
 const hre = await createHardhatRuntimeEnvironment(
-  { solidity: "0.8.30" },
+  {
+    solidity: "0.8.30",
+    paths: {
+      artifacts: join(directory, "artifacts"),
+      cache: join(directory, "cache"),
+    },
+  },
   {},
   root
 )
@@ -22,7 +33,7 @@ const network = await hre.network.create()
 const transport = custom(network.provider)
 const client = createPublicClient({ chain: hardhat, transport })
 const wallet = createWalletClient({ chain: hardhat, transport })
-const [owner, agent, seller, otherSeller, outsider] =
+const [owner, buyerSigner, seller, otherSeller, outsider] =
   await wallet.getAddresses()
 let vault: Address
 let token: Address
@@ -34,7 +45,10 @@ beforeAll(async () => {
   await hre.solidity.build(await hre.solidity.getRootFilePaths())
 })
 
-afterAll(async () => network.close())
+afterAll(async () => {
+  await network.close()
+  rmSync(directory, { recursive: true, force: true })
+})
 
 async function deploy(name: string, args: readonly unknown[] = []) {
   const artifact = await hre.artifacts.readArtifact(name)
@@ -77,7 +91,8 @@ beforeEach(async () => {
   await write("AllowanceTestToken", token, "approve", [vault, 100_000_000n])
   expiresAt = (await client.getBlock()).timestamp + 3600n
   await write("AgentSpendVault", vault, "createAllowance", [
-    agent,
+    buyerSigner,
+    buyerSigner,
     [seller, otherSeller],
     5_000_000n,
     2_000_000n,
@@ -104,7 +119,7 @@ async function offer(
     account: recipient,
     domain: {
       name: "AgentSpendVault",
-      version: "1",
+      version: "2",
       chainId: hardhat.id,
       verifyingContract: vault,
     },
@@ -125,15 +140,117 @@ async function offer(
   return { quote, signature }
 }
 
-async function buy(value: Awaited<ReturnType<typeof offer>>, caller = agent!) {
+async function buy(
+  value: Awaited<ReturnType<typeof offer>>,
+  authorizer = buyerSigner!
+) {
+  const buyerSignature = await wallet.signTypedData({
+    account: authorizer,
+    ...buyerTypedData(serializedQuote(value.quote), hardhat.id, vault),
+  })
   return write(
     "AgentSpendVault",
     vault,
     "purchase",
-    [value.quote, value.signature],
-    caller
+    [value.quote, value.signature, buyerSignature],
+    outsider
   )
 }
+
+function serializedQuote(quote: Awaited<ReturnType<typeof offer>>["quote"]) {
+  return {
+    ...quote,
+    allowanceId: quote.allowanceId.toString(),
+    amount: quote.amount.toString(),
+    expiresAt: quote.expiresAt.toString(),
+  }
+}
+
+test("relayed purchases require buyer authorization bound to the exact quote and vault", async () => {
+  const value = await offer(100n)
+  const signature = await wallet.signTypedData({
+    account: buyerSigner!,
+    ...buyerTypedData(serializedQuote(value.quote), hardhat.id, vault),
+  })
+  const submit = (buyerSignature: Hex, quote = value.quote) =>
+    write(
+      "AgentSpendVault",
+      vault,
+      "purchase",
+      [quote, value.signature, buyerSignature],
+      outsider
+    )
+  await expect(submit(value.signature)).rejects.toThrow()
+  const wrongVault = await wallet.signTypedData({
+    account: buyerSigner!,
+    ...buyerTypedData(serializedQuote(value.quote), hardhat.id, token),
+  })
+  await expect(submit(wrongVault)).rejects.toThrow()
+  await expect(
+    submit(signature, { ...value.quote, amount: 101n })
+  ).rejects.toThrow()
+  await submit(signature)
+  await expect(submit(signature)).rejects.toThrow()
+  const state = (await read("allowances", [allowanceId])) as bigint[]
+  expect(state[4]).toBe(100n)
+})
+
+test("seller delegation pays the owner and revocation rejects outstanding quotes", async () => {
+  await write(
+    "AgentSpendVault",
+    vault,
+    "setSellerSigner",
+    [otherSeller, expiresAt],
+    seller
+  )
+  async function delegatedOffer() {
+    const value = await offer(100n)
+    const sellerSignature = await wallet.signTypedData({
+      account: otherSeller!,
+      ...quoteTypedData(serializedQuote(value.quote), hardhat.id, vault),
+    })
+    const buyerSignature = await wallet.signTypedData({
+      account: buyerSigner!,
+      ...buyerTypedData(serializedQuote(value.quote), hardhat.id, vault),
+    })
+    return [value.quote, sellerSignature, buyerSignature]
+  }
+  await write(
+    "AgentSpendVault",
+    vault,
+    "purchase",
+    await delegatedOffer(),
+    outsider
+  )
+  const { abi } = await hre.artifacts.readArtifact("AllowanceTestToken")
+  expect(
+    await client.readContract({
+      address: token,
+      abi,
+      functionName: "balanceOf",
+      args: [seller],
+    })
+  ).toBe(100n)
+  expect(
+    await client.readContract({
+      address: token,
+      abi,
+      functionName: "balanceOf",
+      args: [otherSeller],
+    })
+  ).toBe(0n)
+  const outstanding = await delegatedOffer()
+  await write(
+    "AgentSpendVault",
+    vault,
+    "setSellerSigner",
+    [otherSeller, 0n],
+    seller
+  )
+  await expect(
+    write("AgentSpendVault", vault, "purchase", outstanding, outsider)
+  ).rejects.toThrow()
+})
 
 test("shares an inclusive budget across approved sellers and rejects cumulative excess", async () => {
   await buy(await offer())
@@ -144,7 +261,7 @@ test("shares an inclusive budget across approved sellers and rejects cumulative 
   expect(allowance[4]).toBe(5_000_000n)
 })
 
-test("rejects unapproved sellers, unauthorized callers, and per-purchase excess without application checks", async () => {
+test("rejects unapproved sellers, unauthorized buyer signatures, and per-purchase excess without application checks", async () => {
   await expect(buy(await offer(1n, outsider))).rejects.toThrow()
   await expect(buy(await offer(), owner)).rejects.toThrow()
   await expect(buy(await offer(2_000_001n))).rejects.toThrow()
@@ -187,7 +304,8 @@ test("rejects expired allowances and invalid seller sets", async () => {
   for (const sellers of [[], [seller, seller], Array(17).fill(seller)]) {
     await expect(
       write("AgentSpendVault", vault, "createAllowance", [
-        agent,
+        buyerSigner,
+        buyerSigner,
         sellers,
         5n,
         2n,
@@ -209,7 +327,8 @@ test("failed token transfers roll back accounting and quote consumption", async 
   vault = await deploy("AgentSpendVault", [token])
   await write("RejectingTestToken", token, "approve", [vault, 5_000_000n])
   await write("AgentSpendVault", vault, "createAllowance", [
-    agent,
+    buyerSigner,
+    buyerSigner,
     [seller],
     5_000_000n,
     2_000_000n,
@@ -232,18 +351,29 @@ test("competing purchases cannot spend the same remaining funds", async () => {
   const first = await offer(1_000_000n)
   const second = await offer(1_000_000n, otherSeller)
   const { abi } = await hre.artifacts.readArtifact("AgentSpendVault")
-  const nonce = await client.getTransactionCount({ address: agent! })
+  const nonce = await client.getTransactionCount({ address: buyerSigner! })
   await network.provider.request({ method: "evm_setAutomine", params: [false] })
   try {
     const hashes: Hex[] = []
     for (const [index, value] of [first, second].entries()) {
       hashes.push(
         await wallet.writeContract({
-          account: agent!,
+          account: buyerSigner!,
           address: vault,
           abi,
           functionName: "purchase",
-          args: [value.quote, value.signature],
+          args: [
+            value.quote,
+            value.signature,
+            await wallet.signTypedData({
+              account: buyerSigner!,
+              ...buyerTypedData(
+                serializedQuote(value.quote),
+                hardhat.id,
+                vault
+              ),
+            }),
+          ],
           nonce: nonce + index,
           gas: 300000n,
         })

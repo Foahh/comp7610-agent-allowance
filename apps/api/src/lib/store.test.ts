@@ -71,9 +71,7 @@ function purchase(id = "quote-1"): Purchase {
     offer: offer(id),
     paymentStatus: "prepared",
     txHash: "0xab",
-    rawTransaction: "0xabcdef",
-    nonce: 0,
-    paymentMs: 1.25,
+    authorization: { signature: "0xabcdef", fromBlock: "123" },
     createdAt: 10,
   }
 }
@@ -102,7 +100,10 @@ describe("relational storage", () => {
       )
       assert.deepEqual(store.listMessages(conversation.id), [])
       assert.equal(store.getAllowance("1")?.conversationId, conversation.id)
-      assert.equal(store.getPurchase("quote-1")?.rawTransaction, "0xabcdef")
+      assert.equal(
+        store.getPurchase("quote-1")?.authorization?.signature,
+        "0xabcdef"
+      )
       assert.equal(store.listUnresolvedPurchases().length, 1)
       store.deleteConversation(conversation.id)
     } finally {
@@ -119,14 +120,13 @@ describe("relational storage", () => {
       const record = purchase()
       store.savePurchase(record)
       const row = store.db.select().from(purchases).get()!
-      assert.equal(row.rawTransaction, record.rawTransaction)
-      assert.equal(row.nonce, 0)
-      assert.equal(row.paymentMs, 1.25)
+      assert.equal(row.buyerSignature, record.authorization?.signature)
+      assert.equal(row.authorizationFromBlock, "123")
       assert.equal("data" in row, false)
       store.close()
       store = openBuyerDatabase(path)
       const restored = store.getPurchase(record.id)!
-      assert.equal(restored.rawTransaction, record.rawTransaction)
+      assert.deepEqual(restored.authorization, record.authorization)
       assert.equal(restored.offer.quote.amount, (2n ** 255n).toString())
       assert.deepEqual(restored.offer, record.offer)
       assert.deepEqual(

@@ -9,7 +9,7 @@ import type { SellerStore } from "./seller/lib/store.ts"
 
 import { createAgent } from "./lib/agent.ts"
 import { createPayments } from "./lib/payments.ts"
-import { createAuthRoutes } from "./routes/auth.ts"
+import { createAuthRoutes, activeSession } from "./routes/auth.ts"
 import { createConfigRoutes } from "./routes/config.ts"
 import {
   createConversationRoutes,
@@ -38,7 +38,8 @@ export function createApp(
   config: Config,
   store: BuyerStore,
   payments = createPayments(config, store),
-  sellerStore: SellerStore = store
+  sellerStore: SellerStore = store,
+  sessionStore: BuyerStore = store
 ) {
   const app = new Hono<AppEnv>()
   const market = createMarketplace(config, sellerStore)
@@ -78,8 +79,8 @@ export function createApp(
       return next()
     }
 
-    const token = getCookie(context, "agent_session")
-    const session = token ? store.getSession(token) : undefined
+    const token = getCookie(context, config.cookieName)
+    const session = activeSession(sessionStore, config, token)
 
     if (
       !session ||
@@ -96,7 +97,7 @@ export function createApp(
     .route("/v1", createProtocolRoutes(config, market, service, sellerStore))
     .route("/api/health", healthRoutes)
     .route("/api/config", createConfigRoutes(config, payments.account.address))
-    .route("/api/auth", createAuthRoutes(store, config))
+    .route("/api/auth", createAuthRoutes(sessionStore, config))
     .route(
       "/api/marketplace",
       createMarketplaceRoutes(config, store, payments, agent, market, service)

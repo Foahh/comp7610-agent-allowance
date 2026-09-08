@@ -14,20 +14,27 @@ import {
 } from "viem"
 import { sepolia, hardhat } from "viem/chains"
 
+export const VAULT_VERSION = "2" as const
+
 export const LOCAL_CHAIN_ID = 31337
 
 export const SEPOLIA_CHAIN_ID = 11155111
 
 export const vaultAbi = parseAbi([
-  "function createAllowance(address agent,address[] sellers,uint256 budget,uint256 perPurchase,uint256 expiresAt) returns (uint256)",
-  "function allowances(uint256) view returns (address owner,address agent,uint256 budget,uint256 perPurchase,uint256 spent,uint256 expiresAt,bool revoked,uint256 withdrawn)",
-  "function purchase((uint256 allowanceId,bytes32 service,bytes32 requestHash,address recipient,uint256 amount,bytes32 nonce,uint256 expiresAt) quote,bytes signature)",
+  "function version() pure returns (uint256)",
+  "function token() view returns (address)",
+  "function sellerSigners(address,address) view returns (uint256)",
+  "function setSellerSigner(address signer,uint256 expiresAt)",
+  "function deliverySigners(uint256) view returns (address)",
+  "function createAllowance(address buyerSigner,address deliverySigner,address[] sellers,uint256 budget,uint256 perPurchase,uint256 expiresAt) returns (uint256)",
+  "function purchase((uint256 allowanceId,bytes32 service,bytes32 requestHash,address recipient,uint256 amount,bytes32 nonce,uint256 expiresAt) quote,bytes sellerSignature,bytes buyerSignature)",
+  "function allowances(uint256) view returns (address owner,address buyerSigner,uint256 budget,uint256 perPurchase,uint256 spent,uint256 expiresAt,bool revoked,uint256 withdrawn)",
   "function quoteDigest((uint256 allowanceId,bytes32 service,bytes32 requestHash,address recipient,uint256 amount,bytes32 nonce,uint256 expiresAt) quote) view returns (bytes32)",
   "function allowanceSellers(uint256) view returns (address[])",
   "function purchases(bytes32) view returns (bool)",
   "function revokeAllowance(uint256 allowanceId)",
   "function withdrawUnused(uint256 allowanceId)",
-  "event AllowanceCreated(uint256 indexed allowanceId,address indexed owner,address agent,address[] sellers,uint256 budget,uint256 perPurchase,uint256 expiresAt)",
+  "event AllowanceCreated(uint256 indexed allowanceId,address indexed owner,address buyerSigner,address[] sellers,uint256 budget,uint256 perPurchase,uint256 expiresAt)",
   "event Purchased(bytes32 indexed purchaseId,uint256 indexed allowanceId,address indexed recipient,uint256 amount,bytes32 service,bytes32 requestHash)",
   "error Unauthorized()",
   "error InactiveAllowance()",
@@ -74,13 +81,31 @@ export function quoteTypedData(
   return {
     domain: {
       name: "AgentSpendVault",
-      version: "1",
+      version: VAULT_VERSION,
       chainId,
       verifyingContract: vault,
     },
     types: quoteTypes,
     primaryType: "Quote" as const,
     message: quoteMessage(quote),
+  }
+}
+
+export function buyerTypedData(
+  quote: SignedQuote["quote"],
+  chainId: number,
+  vault: Address
+) {
+  return {
+    domain: {
+      name: "AgentSpendVault",
+      version: VAULT_VERSION,
+      chainId,
+      verifyingContract: vault,
+    },
+    types: { BuyerAuthorization: [{ name: "quoteDigest", type: "bytes32" }] },
+    primaryType: "BuyerAuthorization" as const,
+    message: { quoteDigest: quoteId(quote, chainId, vault) },
   }
 }
 
@@ -121,7 +146,9 @@ export function getChain(chainId: number) {
     return hardhat
   }
 
-  throw new Error("Choose the local development chain or Sepolia.")
+  throw new Error(
+    "Unsupported chain. The application uses Sepolia; local chains are reserved for automated tests."
+  )
 }
 
 export function confirmationCount(chainId: number) {
@@ -136,7 +163,7 @@ export function publicClient(
 ): PublicClient<Transport, ReturnType<typeof getChain>> {
   return createPublicClient({
     chain: getChain(chainId),
-    transport: http(rpcUrl),
+    transport: http(rpcUrl, { timeout: 15000, retryCount: 1 }),
     ...(chainId === LOCAL_CHAIN_ID
       ? { pollingInterval: 50, cacheTime: 0 }
       : {}),
@@ -153,8 +180,20 @@ export function listingHash(listing: {
   )
 }
 
-export function identityMessage(nonce: string, endpoint: string) {
-  return `Agent Spend Guard seller identity\nEndpoint: ${endpoint}\nNonce: ${nonce}`
+export function identityMessage(
+  nonce: string,
+  endpoint: string,
+  identity: {
+    protocol: string
+    address: string
+    chainId: number
+    vault: string
+    token: string
+    name: string
+    description: string
+  }
+) {
+  return `Agent Spend Guard seller identity v2\n${JSON.stringify([nonce, endpoint, identity.protocol, identity.address.toLowerCase(), identity.chainId, identity.vault.toLowerCase(), identity.token.toLowerCase(), identity.name, identity.description])}`
 }
 
 export function deliveryMessage(

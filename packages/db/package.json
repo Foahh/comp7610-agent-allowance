@@ -10,8 +10,7 @@
     "./marketplace": "./src/marketplace.ts"
   },
   "scripts": {
-    "build": "vp pack",
-    "db:init": "vp exec node ../../scripts/init-db.ts"
+    "build": "vp pack"
   },
   "dependencies": {
     "@repo/schemas": "workspace:*",

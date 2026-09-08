@@ -25,15 +25,14 @@ test("normal configuration stays on Sepolia even when obsolete local settings ex
 
 test("backend keys are generated once and encrypted without private-key environment configuration", () => {
   directory = mkdtempSync(join(tmpdir(), "generated-credentials-"))
-  vi.stubEnv("CREDENTIALS_DIRECTORY", directory)
-  vi.stubEnv("SETTINGS_ENCRYPTION_KEY", "")
+  const config = { ...readConfig(), credentialsDir: directory }
   vi.stubEnv("AGENT_PRIVATE_KEY", "obsolete-and-ignored")
 
-  const first = signer("agent")
-  const encrypted = readFileSync(join(directory, "agent.key"), "utf8")
+  const first = signer("buyer", config)
+  const encrypted = readFileSync(join(directory, "buyer.key"), "utf8")
 
-  expect(signer("agent").address).toBe(first.address)
-  expect(signer("seller").address).not.toBe(first.address)
+  expect(signer("buyer", config).address).toBe(first.address)
+  expect(signer("seller", config).address).not.toBe(first.address)
   expect(encrypted.split(".")).toHaveLength(3)
   expect(readFileSync(join(directory, "encryption.key"), "utf8")).toHaveLength(
     64

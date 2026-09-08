@@ -51,9 +51,9 @@ export function ProfileForm({
             Signing address: {identity.data?.address || "Unavailable"}
           </p>
           <p className="text-muted-foreground">
-            Buyer agent · fund this address with Sepolia ETH:
+            Buyer signer · no ETH funding required:
           </p>
-          <p className="break-all">{config?.agent}</p>
+          <p className="break-all">{config?.buyerSigner}</p>
           <RequestState error={identity.error} />
         </div>
         <form

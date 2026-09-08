@@ -1,7 +1,20 @@
 import type { Conversation, SignedQuote } from "@repo/schemas"
 import type { Config } from "@repo/utils/config"
 
-import { listingHash, quoteId, quoteTypedData, taskHash } from "@repo/utils"
+import { createBuyerMarketplaceQueries } from "@repo/db/marketplace"
+import {
+  listingHash,
+  quoteId,
+  quoteTypedData,
+  taskHash,
+  vaultAbi,
+} from "@repo/utils"
+import {
+  encodeAbiParameters,
+  encodeEventTopics,
+  parseAbiParameters,
+  type Hex,
+} from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test"
 
@@ -11,23 +24,22 @@ import { openBuyerDatabase } from "./store.ts"
 const rpc = vi.hoisted(() => ({
   readContract: vi.fn(),
   getBlock: vi.fn(),
-  simulateContract: vi.fn(),
-  getTransactionReceipt: vi.fn(),
-  sendRawTransaction: vi.fn(),
+  getBlockNumber: vi.fn(),
+  getLogs: vi.fn(),
   waitForTransactionReceipt: vi.fn(),
 }))
-const prepare = vi.hoisted(() => vi.fn())
+const submit = vi.hoisted(() => vi.fn())
 vi.mock("@repo/utils", async (original) => ({
   ...(await original<typeof import("@repo/utils")>()),
   publicClient: () => rpc,
 }))
-vi.mock("viem", async (original) => ({
-  ...(await original<typeof import("viem")>()),
-  createWalletClient: () => ({ prepareTransactionRequest: prepare }),
+vi.mock("@repo/utils/http", async (original) => ({
+  ...(await original<typeof import("@repo/utils/http")>()),
+  endpointRequest: submit,
 }))
 
-const agentKey = `0x${"5".padStart(64, "0")}` as const
-const account = privateKeyToAccount(agentKey)
+const buyerKey = `0x${"5".padStart(64, "0")}` as const
+const account = privateKeyToAccount(buyerKey)
 const seller = privateKeyToAccount(`0x${"6".padStart(64, "0")}`)
 vi.mock("@repo/utils/config", async (original) => ({
   ...(await original<typeof import("@repo/utils/config")>()),
@@ -36,6 +48,8 @@ vi.mock("@repo/utils/config", async (original) => ({
 
 const vault = "0x0000000000000000000000000000000000000009"
 const config = {
+  credentialsDir: "",
+  cookieName: "test",
   local: false,
   localInstallation: 0,
   chainId: 11155111,
@@ -58,15 +72,44 @@ const conversation: Conversation = {
   createdAt: 1,
 }
 
-const confirmed = { status: "success", gasUsed: 100n, effectiveGasPrice: 1n }
+const txHash = `0x${"a".repeat(64)}` as Hex
+function confirmed(value: SignedQuote) {
+  return {
+    status: "success",
+    gasUsed: 100n,
+    effectiveGasPrice: 1n,
+    logs: [
+      {
+        address: vault,
+        topics: encodeEventTopics({
+          abi: vaultAbi,
+          eventName: "Purchased",
+          args: {
+            purchaseId: value.id as Hex,
+            allowanceId: 1n,
+            recipient: seller.address,
+          },
+        }),
+        data: encodeAbiParameters(
+          parseAbiParameters("uint256,bytes32,bytes32"),
+          [
+            BigInt(value.quote.amount),
+            value.quote.service as Hex,
+            value.quote.requestHash as Hex,
+          ]
+        ),
+      },
+    ],
+  }
+}
 let store: ReturnType<typeof openBuyerDatabase>
 let payments: ReturnType<typeof createPayments>
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  vi.resetAllMocks()
   store = openBuyerDatabase(":memory:")
   store.saveConversation(conversation)
-  payments = createPayments(config, store, 1)
+  payments = createPayments(config, store)
   rpc.readContract.mockImplementation(({ functionName }) =>
     Promise.resolve(
       functionName === "allowanceSellers"
@@ -84,18 +127,17 @@ beforeEach(() => {
     )
   )
   rpc.getBlock.mockResolvedValue({ timestamp: 1000n })
-  rpc.simulateContract.mockResolvedValue({})
-  rpc.getTransactionReceipt.mockRejectedValue(new Error("Not found"))
-  rpc.sendRawTransaction.mockResolvedValue("0x01")
+  rpc.getBlockNumber.mockResolvedValue(123n)
+  rpc.getLogs.mockResolvedValue([])
   rpc.waitForTransactionReceipt.mockRejectedValue(new Error("Timeout"))
-  prepare.mockImplementation(async (input) => ({
-    ...input,
-    chainId: config.chainId,
-    nonce: 0,
-    gas: 100000n,
-    maxFeePerGas: 2n,
-    maxPriorityFeePerGas: 1n,
-  }))
+  submit.mockImplementation(async (_endpoint, path, options) => {
+    const id = path.split("/")[3]
+    // A restart must retain the authorization before it leaves this process.
+    expect(store.getPurchase(id)?.authorization?.signature).toBe(
+      JSON.parse(options.body).signature
+    )
+    return { txHash }
+  })
 })
 
 afterEach(() => {
@@ -137,8 +179,9 @@ async function offer(requestId = "request"): Promise<SignedQuote> {
     expiresAt: "1500",
   }
 
-  return {
-    id: quoteId(quote, config.chainId, vault),
+  const id = quoteId(quote, config.chainId, vault)
+  const result = {
+    id,
     listing,
     task,
     quote,
@@ -147,42 +190,68 @@ async function offer(requestId = "request"): Promise<SignedQuote> {
       quoteTypedData(quote, config.chainId, vault)
     ),
   }
+  store.saveQuote(result, conversation.id)
+  createBuyerMarketplaceQueries(store.db).destinations.save(id, {
+    endpoint: "https://seller.example",
+  })
+  return result
 }
 
-test("timeout persists signed bytes and restart recovery rebroadcasts the same transaction", async () => {
+test("a lost submission response recovers the exact authorized payment after restart", async () => {
   const value = await offer()
+  submit.mockRejectedValueOnce(new Error("Reply lost"))
   const first = await payments.purchase(conversation, value)
   expect(first.paymentStatus).toBe("pending")
-  expect(first.rawTransaction).toBeTruthy()
-  const restarted = createPayments(config, store, 1)
-  rpc.waitForTransactionReceipt.mockResolvedValue(confirmed)
+  expect(first.authorization?.signature).toBeTruthy()
+  expect(first.txHash).toBeUndefined()
+  const restarted = createPayments(config, store)
+  rpc.getLogs.mockResolvedValue([{ transactionHash: txHash }])
+  rpc.waitForTransactionReceipt.mockResolvedValue(confirmed(value))
   const recovered = await restarted.purchase(conversation, value)
   expect(recovered.paymentStatus).toBe("confirmed")
-  expect(recovered.txHash).toBe(first.txHash)
-  expect(prepare).toHaveBeenCalledOnce()
-  const submissions = rpc.sendRawTransaction.mock.calls.map(
-    ([input]) => input.serializedTransaction
-  )
-  expect(new Set(submissions).size).toBe(1)
+  expect(recovered.authorization).toEqual(first.authorization)
+  expect(recovered.txHash).toBe(txHash)
+  expect(submit).toHaveBeenCalledOnce()
 })
 
-test("an unresolved payment blocks a different quote without signing again", async () => {
+test("an unresolved authorization blocks a different quote without submitting again", async () => {
   await payments.purchase(conversation, await offer())
   await expect(
     payments.purchase(conversation, await offer("other"))
   ).rejects.toThrow("unresolved")
-  expect(prepare).toHaveBeenCalledOnce()
+  expect(submit).toHaveBeenCalledOnce()
 })
 
 test("concurrent purchases for one static version share the successful payment", async () => {
-  rpc.waitForTransactionReceipt.mockResolvedValue(confirmed)
   const first = await offer()
   const second = await offer("second")
+  rpc.waitForTransactionReceipt.mockResolvedValue(confirmed(first))
   const results = await Promise.all([
     payments.purchase(conversation, first),
     payments.purchase(conversation, second),
   ])
   expect(results[0]!.id).toBe(results[1]!.id)
-  expect(prepare).toHaveBeenCalledOnce()
+  expect(submit).toHaveBeenCalledOnce()
   expect(store.listPurchases()).toHaveLength(1)
+})
+
+test("a successful transaction without the exact purchase event never confirms payment", async () => {
+  rpc.waitForTransactionReceipt.mockResolvedValue({
+    status: "success",
+    logs: [],
+    gasUsed: 1n,
+    effectiveGasPrice: 1n,
+  })
+  const result = await payments.purchase(conversation, await offer())
+  expect(result.paymentStatus).toBe("pending")
+  expect(result.error).toContain("did not pay the exact quote")
+})
+
+test("logout prevents creating a purchase authorization", async () => {
+  const ended = createPayments(config, store, () => false)
+  await expect(ended.purchase(conversation, await offer())).rejects.toThrow(
+    "Session ended"
+  )
+  expect(store.listPurchases()).toHaveLength(0)
+  expect(submit).not.toHaveBeenCalled()
 })

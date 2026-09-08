@@ -19,6 +19,7 @@ import type { Marketplace } from "./marketplace.ts"
 import type { SellerStore } from "./store.ts"
 
 import { executeTask, interpretTask } from "./specialist.ts"
+import { createSubmitter } from "./submitter.ts"
 
 export function createSellerService(
   config: Config,
@@ -27,6 +28,8 @@ export function createSellerService(
 ) {
   const client = publicClient(config.chainId, config.rpcUrl)
   const account = signer("seller", config)
+  const recipient = config.owner
+  const submitter = createSubmitter(config, store)
   const { requests, jobs } = createSellerQueries(store.db)
 
   const quoteFlights = new Map<
@@ -85,7 +88,7 @@ export function createSellerService(
 
     if (
       !allowed.some(
-        (address) => address.toLowerCase() === account.address.toLowerCase()
+        (address) => address.toLowerCase() === recipient.toLowerCase()
       )
     ) {
       throw new Error(
@@ -94,7 +97,11 @@ export function createSellerService(
     }
 
     const snapshot = market.snapshot(listing)
-    const interpretation = await interpretTask(task, snapshot)
+    const interpretation = await interpretTask(
+      task,
+      snapshot,
+      config.credentialsDir
+    )
 
     if ("clarification" in interpretation) {
       return interpretation
@@ -105,7 +112,7 @@ export function createSellerService(
       allowanceId,
       service: listingHash(publicItem),
       requestHash: taskHash(task, interpretation.deliverable),
-      recipient: account.address,
+      recipient,
       amount: listing.amount,
       nonce: `0x${randomBytes(32).toString("hex")}` as Hex,
       expiresAt: ((await client.getBlock()).timestamp + 600n).toString(),
@@ -161,7 +168,16 @@ export function createSellerService(
       signature: signature as Hex,
     })
 
-    if (address.toLowerCase() !== allowance[1].toLowerCase()) {
+    const deliverySigner = await client.readContract({
+      address: config.vault,
+      abi: vaultAbi,
+      functionName: "deliverySigners",
+      args: [BigInt(offer.quote.allowanceId)],
+    })
+    if (
+      address.toLowerCase() !== deliverySigner.toLowerCase() &&
+      address.toLowerCase() !== allowance[0].toLowerCase()
+    ) {
       throw new Error("Only the authorized buyer can retrieve this purchase.")
     }
 
@@ -242,7 +258,8 @@ export function createSellerService(
         delivery.content = await executeTask(
           offer.task,
           job.snapshot,
-          offer.deliverable
+          offer.deliverable,
+          config.credentialsDir
         )
         delivery.modelMs = performance.now() - modelStarted
         delivery.references = job.snapshot.assets.map((asset) => asset.name)
@@ -312,7 +329,16 @@ export function createSellerService(
     }))
   }
 
-  return { account, createQuote, authorize, deliver, file, orders }
+  return {
+    account,
+    recipient,
+    submitter,
+    createQuote,
+    authorize,
+    deliver,
+    file,
+    orders,
+  }
 }
 
 export type SellerService = ReturnType<typeof createSellerService>

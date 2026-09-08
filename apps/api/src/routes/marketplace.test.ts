@@ -56,24 +56,35 @@ async function session() {
   const signature = await owner.signMessage({ message: challenge.message })
   const verified = await app.request(
     "/api/auth/verify",
-    json({ id: challenge.id, signature })
+    json(
+      { id: challenge.id, signature },
+      response.headers.get("set-cookie")!.split(";")[0]
+    )
   )
   expect(verified.status).toBe(200)
 
   return verified.headers.get("set-cookie")!.split(";")[0]!
 }
 
-test("only the configured owner authenticates; challenges are one-use", async () => {
+test("a scoped runtime admits only its account; challenges are browser-bound and one-use", async () => {
   expect(
     (await app.request("/api/auth/challenge", json({ address: other.address })))
       .status
   ).toBe(403)
-  const challenge = (await (
-    await app.request("/api/auth/challenge", json({ address: owner.address }))
-  ).json()) as { id: string; message: string }
+  const response = await app.request(
+    "/api/auth/challenge",
+    json({ address: owner.address })
+  )
+  const challenge = (await response.json()) as { id: string; message: string }
   const signature = await owner.signMessage({ message: challenge.message })
   const verify = () =>
-    app.request("/api/auth/verify", json({ id: challenge.id, signature }))
+    app.request(
+      "/api/auth/verify",
+      json(
+        { id: challenge.id, signature },
+        response.headers.get("set-cookie")!.split(";")[0]
+      )
+    )
   expect((await verify()).status).toBe(200)
   expect((await verify()).status).toBe(401)
 })

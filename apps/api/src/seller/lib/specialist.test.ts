@@ -32,7 +32,7 @@ const snapshot = {
 } as unknown as ExecutionSnapshot
 
 test("missing service inputs clarify without a model call or payable deliverable", async () => {
-  expect(await interpretTask(task, snapshot)).toEqual({
+  expect(await interpretTask(task, snapshot, "")).toEqual({
     clarification: "Provide your evidence.",
   })
   expect(generateText).not.toHaveBeenCalled()
@@ -40,10 +40,14 @@ test("missing service inputs clarify without a model call or payable deliverable
 
 test("static items quote their deliverable without invoking a model", async () => {
   expect(
-    await interpretTask(task, {
-      ...snapshot,
-      listing: { ...snapshot.listing, type: "text" },
-    })
+    await interpretTask(
+      task,
+      {
+        ...snapshot,
+        listing: { ...snapshot.listing, type: "text" },
+      },
+      ""
+    )
   ).toEqual({ deliverable: "A brief" })
   expect(generateText).not.toHaveBeenCalled()
 })

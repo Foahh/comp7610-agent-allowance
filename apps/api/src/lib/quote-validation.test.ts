@@ -71,7 +71,7 @@ function createValidInput() {
   const allowance: Allowance = {
     id: "1",
     owner,
-    agent,
+    buyerSigner: agent,
     sellers: [seller],
     budget: "5000000",
     perPurchase: "2000000",
@@ -86,7 +86,7 @@ function createValidInput() {
     conversation,
     offer,
     allowance,
-    agentAddress: agent,
+    buyerAddress: agent,
     recoveredSeller: seller,
     currentTimestamp,
     config: { chainId, vault },

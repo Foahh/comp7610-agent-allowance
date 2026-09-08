@@ -4,7 +4,12 @@ import { eq } from "drizzle-orm"
 
 import type { Database } from "./index.ts"
 
-import { quotes, deliveries, deliveryReferences } from "./schema.ts"
+import {
+  quotes,
+  deliveries,
+  deliveryReferences,
+  operationRecords,
+} from "./schema.ts"
 
 export function createRecordQueries(
   db: Pick<Database, "select" | "insert" | "delete" | "transaction">
@@ -106,5 +111,23 @@ export function createRecordQueries(
     }
   }
 
-  return { saveQuote, getQuote, saveDelivery, getDelivery }
+  return {
+    saveQuote,
+    getQuote,
+    saveDelivery,
+    getDelivery,
+    getOperation(id: string) {
+      return db
+        .select()
+        .from(operationRecords)
+        .where(eq(operationRecords.id, id))
+        .get()?.value
+    },
+    saveOperation(id: string, value: unknown) {
+      db.insert(operationRecords)
+        .values({ id, value })
+        .onConflictDoUpdate({ target: operationRecords.id, set: { value } })
+        .run()
+    },
+  }
 }

@@ -9,7 +9,14 @@ import type {
 import type { Config } from "@repo/utils/config"
 
 import { serve } from "@hono/node-server"
-import { getChain, publicClient, tokenAbi, vaultAbi } from "@repo/utils"
+import {
+  getChain,
+  publicClient,
+  tokenAbi,
+  vaultAbi,
+  buyerTypedData,
+  quoteMessage,
+} from "@repo/utils"
 import { readConfig, signer } from "@repo/utils/config"
 import { createHardhatRuntimeEnvironment } from "hardhat/hre"
 import { randomUUID } from "node:crypto"
@@ -27,7 +34,13 @@ import { openSellerDatabase } from "./seller/lib/store.ts"
 
 const directory = mkdtempSync(join(tmpdir(), "marketplace-integration-"))
 const hre = await createHardhatRuntimeEnvironment(
-  { solidity: "0.8.30" },
+  {
+    solidity: "0.8.30",
+    paths: {
+      artifacts: join(directory, "artifacts"),
+      cache: join(directory, "cache"),
+    },
+  },
   {},
   join(readConfig().root, "packages/contracts")
 )
@@ -67,6 +80,7 @@ async function installation(index: number) {
     vault,
     appOrigin: `http://localhost:${4000 + index}`,
     dataDir: join(directory, index.toString()),
+    credentialsDir: join(directory, index.toString(), "credentials"),
   }
   const store = openBuyerDatabase(join(config.dataDir, "buyer.sqlite"))
   const sellerStore = openSellerDatabase(join(config.dataDir, "seller.sqlite"))
@@ -85,12 +99,34 @@ async function installation(index: number) {
   }
 
   const endpoint = `http://127.0.0.1:${address.port}`
+  config.sellerPublicUrl = endpoint
   const ownerWallet = createWalletClient({
     account: config.owner,
     chain: getChain(31337),
     transport,
   })
   let cookie = ""
+  const registration = await ownerWallet.writeContract({
+    address: vault,
+    abi: vaultAbi,
+    functionName: "setSellerSigner",
+    args: [
+      signer("seller", config).address,
+      (await client.getBlock()).timestamp + 86400n,
+    ],
+  })
+  await client.waitForTransactionReceipt({ hash: registration })
+  sellerStore.saveOperation("relay-enabled", true)
+  await fetch(rpcUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "hardhat_setBalance",
+      params: [payments.account.address, "0x0"],
+    }),
+  })
 
   async function request<T>(
     path: string,
@@ -128,7 +164,11 @@ async function installation(index: number) {
   })
   await request("/api/auth/verify", { id: challenge.id, signature })
 
-  async function allowance(seller: Address, conversation: Conversation) {
+  async function allowance(
+    seller: Address,
+    conversation: Conversation,
+    automatic = true
+  ) {
     const faucet = await ownerWallet.writeContract({
       address: token,
       abi: tokenAbi,
@@ -147,6 +187,7 @@ async function installation(index: number) {
       abi: vaultAbi,
       functionName: "createAllowance",
       args: [
+        automatic ? payments.account.address : config.owner,
         payments.account.address,
         [seller],
         5_000_000n,
@@ -205,7 +246,7 @@ afterAll(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-test("independent API installations buy static items with real local payments and reuse without paying twice", async () => {
+test("independent installations buy with unfunded buyer signers and seller-paid gas, without duplicate charges", async () => {
   const [buyer, seller] = installations
   const listingInput: ListingInput = {
     name: "Private guide",
@@ -252,9 +293,7 @@ test("independent API installations buy static items with real local payments an
     "/api/marketplace/connections",
     { endpoint: seller!.endpoint }
   )
-  expect(connection.identity.address).toBe(
-    signer("seller", seller!.config).address
-  )
+  expect(connection.identity.address).toBe(seller!.config.owner)
   expect(JSON.stringify(connection)).not.toContain("Paid reference")
   const conversation = await buyer!.request<Conversation>(
     "/api/conversations",
@@ -280,6 +319,11 @@ test("independent API installations buy static items with real local payments an
       { quoteId: quote.offer.id }
     )
     expect(purchase.paymentStatus).toBe("confirmed")
+    expect(
+      await client.getBalance({
+        address: signer("buyer", buyer!.config).address,
+      })
+    ).toBe(0n)
     expect(purchase.delivery?.status).toBe("completed")
     expect(
       await client.readContract({
@@ -349,4 +393,89 @@ test("independent API installations buy static items with real local payments an
     { quoteId: reverseQuote.offer.id }
   )
   expect(reversePurchase.delivery?.content).toBe("Paid reference")
+}, 30000)
+
+test("wallet confirmation persists authorization before payment and retrieves delivery using its delegated reader", async () => {
+  const [buyer, seller] = installations
+  const listing = await seller!.request<Listing>(
+    "/api/marketplace/seller/listings",
+    {
+      name: "Manual purchase",
+      description: "",
+      preview: "",
+      type: "text",
+      amount: "10000",
+      content: "Manual delivery",
+      assetId: "",
+      modelId: "",
+      instructions: "",
+      requiredInputs: "",
+      deliverable: "One guide",
+      scope: "",
+      assetIds: [],
+    }
+  )
+  await seller!.request(
+    `/api/marketplace/seller/listings/${listing.id}/publish`,
+    { active: true }
+  )
+  const connections = await buyer!.request<SellerConnection[]>(
+    "/api/marketplace/connections"
+  )
+  let connection = connections.find(
+    (item) => item.endpoint === seller!.endpoint
+  )
+  if (!connection) {
+    connection = await buyer!.request<SellerConnection>(
+      "/api/marketplace/connections",
+      { endpoint: seller!.endpoint }
+    )
+  }
+  await buyer!.request(
+    `/api/marketplace/connections/${connection.id}/refresh`,
+    {}
+  )
+  const conversation = await buyer!.request<Conversation>(
+    "/api/conversations",
+    { title: "Manual mode" }
+  )
+  await buyer!.allowance(seller!.config.owner, conversation, false)
+  const { offer } = await buyer!.request<{ offer: SignedQuote }>(
+    `/api/marketplace/conversations/${conversation.id}/quotes`,
+    {
+      service: listing.id,
+      version: 1,
+      sellerId: connection.id,
+      brief: "",
+      evidence: "",
+      requestId: randomUUID(),
+    }
+  )
+  const prepared = await buyer!.request<Purchase>(
+    `/api/marketplace/conversations/${conversation.id}/purchases`,
+    { quoteId: offer.id }
+  )
+  expect(prepared.paymentStatus).toBe("prepared")
+  expect(prepared.authorization?.signature).toBeUndefined()
+  const signature = await buyer!.ownerWallet.signTypedData(
+    buyerTypedData(offer.quote, 31337, vault)
+  )
+  await buyer!.request(`/api/marketplace/purchases/${offer.id}/authorize`, {
+    signature,
+  })
+  expect(buyer!.store.getPurchase(offer.id)?.authorization?.signature).toBe(
+    signature
+  )
+  const txHash = await buyer!.ownerWallet.writeContract({
+    address: vault,
+    abi: vaultAbi,
+    functionName: "purchase",
+    args: [quoteMessage(offer.quote), offer.signature as Hex, signature],
+  })
+  const paid = await buyer!.request<Purchase>(
+    `/api/marketplace/purchases/${offer.id}/transaction`,
+    { txHash }
+  )
+  expect(paid.paymentStatus).toBe("confirmed")
+  expect(paid.delivery?.content).toBe("Manual delivery")
 }, 30000)

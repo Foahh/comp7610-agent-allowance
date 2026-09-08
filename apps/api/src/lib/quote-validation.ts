@@ -8,7 +8,7 @@ type QuoteValidation = {
   conversation: Conversation
   offer: SignedQuote
   allowance: Allowance
-  agentAddress: Address
+  buyerAddress: Address
   recoveredSeller: Address
   currentTimestamp: bigint
   config: Pick<Config, "chainId" | "vault">
@@ -18,7 +18,7 @@ export function assertPurchasableQuote({
   conversation,
   offer,
   allowance,
-  agentAddress,
+  buyerAddress,
   recoveredSeller,
   currentTimestamp,
   config,
@@ -26,7 +26,7 @@ export function assertPurchasableQuote({
   const matchesAuthority =
     conversation.allowanceId === offer.quote.allowanceId &&
     allowance.owner.toLowerCase() === conversation.owner.toLowerCase() &&
-    allowance.agent.toLowerCase() === agentAddress.toLowerCase() &&
+    allowance.buyerSigner.toLowerCase() === buyerAddress.toLowerCase() &&
     recoveredSeller.toLowerCase() === offer.quote.recipient.toLowerCase() &&
     allowance.sellers.some(
       (seller) => seller.toLowerCase() === offer.quote.recipient.toLowerCase()

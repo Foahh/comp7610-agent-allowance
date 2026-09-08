@@ -18,12 +18,10 @@ import {
 } from "@repo/db"
 import { createRecordQueries } from "@repo/db/records"
 
-export function openBuyerDatabase(filename?: string, scope = "") {
+export function openBuyerDatabase(filename: string) {
   const connection = openDatabase(filename)
   const { db } = connection
   const records = createRecordQueries(db)
-
-  const allowanceKey = (id: string) => `${scope}${id}`
 
   function getPurchase(id: string): Purchase | undefined {
     const row = db.select().from(purchases).where(eq(purchases.id, id)).get()
@@ -38,18 +36,21 @@ export function openBuyerDatabase(filename?: string, scope = "") {
       throw new Error("Purchase quote is missing.")
     }
 
+    const { buyerSignature, authorizationFromBlock, ...purchaseRow } = row
     return {
-      ...row,
+      ...purchaseRow,
+      authorization:
+        authorizationFromBlock === null
+          ? undefined
+          : {
+              fromBlock: authorizationFromBlock,
+              signature: buyerSignature ?? undefined,
+            },
       offer,
       delivery: records.getDelivery(id),
       txHash: row.txHash ?? undefined,
-      rawTransaction: row.rawTransaction ?? undefined,
-      nonce: row.nonce ?? undefined,
       gasUsed: row.gasUsed ?? undefined,
       gasWei: row.gasWei ?? undefined,
-      paymentMs: row.paymentMs ?? undefined,
-      broadcastMs: row.broadcastMs ?? undefined,
-      confirmationMs: row.confirmationMs ?? undefined,
       error: row.error ?? undefined,
     }
   }
@@ -65,13 +66,10 @@ export function openBuyerDatabase(filename?: string, scope = "") {
         paymentStatus: purchase.paymentStatus,
         createdAt: purchase.createdAt,
         txHash: purchase.txHash ?? null,
-        rawTransaction: purchase.rawTransaction ?? null,
-        nonce: purchase.nonce ?? null,
+        buyerSignature: purchase.authorization?.signature ?? null,
+        authorizationFromBlock: purchase.authorization?.fromBlock ?? null,
         gasUsed: purchase.gasUsed ?? null,
         gasWei: purchase.gasWei ?? null,
-        paymentMs: purchase.paymentMs ?? null,
-        broadcastMs: purchase.broadcastMs ?? null,
-        confirmationMs: purchase.confirmationMs ?? null,
         error: purchase.error ?? null,
       }
       tx.insert(purchases)
@@ -190,7 +188,7 @@ export function openBuyerDatabase(filename?: string, scope = "") {
       return db
         .select()
         .from(allowances)
-        .where(eq(allowances.allowanceId, allowanceKey(allowanceId)))
+        .where(eq(allowances.allowanceId, allowanceId))
         .get()
     },
     bindAllowance(conversation: Conversation, allowanceId: string) {
@@ -198,7 +196,7 @@ export function openBuyerDatabase(filename?: string, scope = "") {
         const bound = db
           .select()
           .from(allowances)
-          .where(eq(allowances.allowanceId, allowanceKey(allowanceId)))
+          .where(eq(allowances.allowanceId, allowanceId))
           .get()
 
         if (bound && bound.conversationId !== conversation.id) {
@@ -207,7 +205,7 @@ export function openBuyerDatabase(filename?: string, scope = "") {
 
         db.insert(allowances)
           .values({
-            allowanceId: allowanceKey(allowanceId),
+            allowanceId: allowanceId,
             conversationId: conversation.id,
           })
           .onConflictDoNothing()
@@ -234,6 +232,16 @@ export function openBuyerDatabase(filename?: string, scope = "") {
     },
     removeChallenge(id: string) {
       db.delete(challenges).where(eq(challenges.id, id)).run()
+    },
+    consumeChallenge(id: string) {
+      return db
+        .delete(challenges)
+        .where(eq(challenges.id, id))
+        .returning()
+        .get()
+    },
+    removeOwnerSessions(owner: string) {
+      db.delete(sessions).where(eq(sessions.owner, owner)).run()
     },
     saveSession(session: typeof sessions.$inferInsert) {
       db.insert(sessions).values(session).run()

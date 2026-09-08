@@ -33,7 +33,7 @@ export function createProtocolRoutes(
       protocol: "agent-spend/2" as const,
       name,
       description,
-      address: service.account.address,
+      address: service.recipient,
       chainId: config.chainId,
       vault: config.vault,
       token: config.token,
@@ -41,6 +41,20 @@ export function createProtocolRoutes(
   }
 
   return app
+    .post(
+      "/purchases/:id/submit",
+      validator(
+        "json",
+        v.object({ signature: v.pipe(HexSchema, v.maxLength(8192)) })
+      ),
+      async (context) =>
+        context.json(
+          await service.submitter.submit(
+            context.req.param("id"),
+            context.req.valid("json").signature as `0x${string}`
+          )
+        )
+    )
     .get("/identity", (context) => context.json(identity()))
     .post(
       "/identity",
@@ -53,11 +67,20 @@ export function createProtocolRoutes(
       ),
       async (context) => {
         const { nonce, endpoint } = context.req.valid("json")
+        if (endpointUrl(endpoint) !== endpointUrl(config.sellerPublicUrl)) {
+          return context.json(
+            {
+              error:
+                "Use this seller's advertised endpoint, or ask its owner to update Settings.",
+            },
+            400
+          )
+        }
 
         return context.json({
           identity: identity(),
           signature: await service.account.signMessage({
-            message: identityMessage(nonce, endpointUrl(endpoint)),
+            message: identityMessage(nonce, endpointUrl(endpoint), identity()),
           }),
         })
       }

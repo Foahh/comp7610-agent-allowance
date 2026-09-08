@@ -1,17 +1,19 @@
 import type { Config } from "@repo/utils/config"
 import type { Address } from "viem"
 
+import { VAULT_VERSION } from "@repo/utils"
 import { Hono } from "hono"
 
-export function createConfigRoutes(config: Config, agentAddress: Address) {
+export function createConfigRoutes(config: Config, buyerAddress: Address) {
   const app = new Hono()
 
   return app.get("/", (context) =>
     context.json({
       chainId: config.chainId,
+      vaultVersion: VAULT_VERSION,
       vault: config.vault,
       token: config.token,
-      agent: agentAddress,
+      buyerSigner: buyerAddress,
       owner: config.owner,
       sellerEndpoint: config.sellerPublicUrl,
       // Never send a credential-bearing RPC URL to the browser.

@@ -79,6 +79,9 @@ export const DeliverySchema = v.object({
 })
 
 export const PurchaseSchema = v.object({
+  authorization: v.optional(
+    v.object({ signature: v.optional(HexSchema), fromBlock: AmountSchema })
+  ),
   id: HexSchema,
   conversationId: v.string(),
   offer: SignedQuoteSchema,
@@ -90,13 +93,8 @@ export const PurchaseSchema = v.object({
     "rejected",
   ]),
   txHash: v.optional(HexSchema),
-  rawTransaction: v.optional(HexSchema),
-  nonce: v.optional(v.number()),
   gasUsed: v.optional(AmountSchema),
   gasWei: v.optional(AmountSchema),
-  paymentMs: v.optional(v.number()),
-  broadcastMs: v.optional(v.number()),
-  confirmationMs: v.optional(v.number()),
   delivery: v.optional(DeliverySchema),
   error: v.optional(v.string()),
   createdAt: v.number(),
@@ -105,7 +103,7 @@ export const PurchaseSchema = v.object({
 export const AllowanceSchema = v.object({
   id: AmountSchema,
   owner: AddressSchema,
-  agent: AddressSchema,
+  buyerSigner: AddressSchema,
   sellers: v.array(AddressSchema),
   budget: AmountSchema,
   perPurchase: AmountSchema,

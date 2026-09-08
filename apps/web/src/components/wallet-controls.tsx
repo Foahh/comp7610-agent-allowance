@@ -15,7 +15,7 @@ export function WalletControls({
   const { wallet, config, run } = assistant
   const Icon = highlighted ? RiArrowRightLine : RiWallet3Line
   const label = wallet
-    ? `${wallet.account.address.slice(0, 6)}…${wallet.account.address.slice(-4)}`
+    ? `Switch ${wallet.account.address.slice(0, 6)}…${wallet.account.address.slice(-4)}`
     : "Connect wallet"
 
   return (

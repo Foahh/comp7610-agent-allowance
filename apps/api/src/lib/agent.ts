@@ -25,7 +25,6 @@ import {
   EMPTY_ANSWER_MESSAGE,
   STEP_LIMIT_MESSAGE,
 } from "./agent-prompts.ts"
-import { publicPurchase } from "./payments.ts"
 import { createSellerClient } from "./seller-client.ts"
 
 type Emit = (event: ChatEvent) => Promise<void>
@@ -57,7 +56,7 @@ export function createAgent(
     }
 
     store.savePurchase(purchase)
-    await emit({ type: "purchase", purchase: publicPurchase(purchase) })
+    await emit({ type: "purchase", purchase: purchase })
 
     return purchase
   }
@@ -86,7 +85,7 @@ export function createAgent(
         )
 
       if (existing) {
-        return { purchase: publicPurchase(existing) }
+        return { purchase: existing }
       }
     }
 
@@ -118,9 +117,9 @@ export function createAgent(
     }
 
     const paid = await payments.purchase(conversation, offer)
-    await emit({ type: "purchase", purchase: publicPurchase(paid) })
+    await emit({ type: "purchase", purchase: paid })
 
-    return publicPurchase(await deliver(paid, emit))
+    return await deliver(paid, emit)
   }
 
   async function retrieve(id: string, emit: Emit) {
@@ -150,7 +149,7 @@ export function createAgent(
       }
     }
 
-    return { ...publicPurchase(purchase), fileText }
+    return { ...purchase, fileText }
   }
 
   async function run(conversation: Conversation, prompt: string, emit: Emit) {

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { loadEnvFile } from "node:process"
-import { getAddress, zeroAddress, type Hex } from "viem"
+import { zeroAddress, type Hex, type Address } from "viem"
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts"
 
 import { confirmationCount, SEPOLIA_CHAIN_ID } from "./chain.ts"
@@ -24,13 +24,6 @@ if (existsSync(envPath)) {
 
 export function readConfig() {
   const chainId = SEPOLIA_CHAIN_ID
-  const deploymentPath = join(root, "data", `deployment-${chainId}.json`)
-  const deployment = existsSync(deploymentPath)
-    ? (JSON.parse(readFileSync(deploymentPath, "utf8")) as {
-        token: string
-        vault: string
-      })
-    : undefined
   const apiPort = Number(process.env.API_PORT || 3001)
 
   return {
@@ -39,19 +32,19 @@ export function readConfig() {
     local: false,
     localInstallation: 0,
     chainId,
-    rpcUrl:
-      process.env.RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com",
+    rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
     confirmations: confirmationCount(chainId),
-    owner: getAddress(process.env.OWNER_ADDRESS || zeroAddress),
-    dataDir: process.env.DATA_DIRECTORY || join(root, "data", "sepolia"),
+    // Assigned only from a verified session by the account runtime.
+    owner: zeroAddress as Address,
+    dataDir:
+      process.env.DATA_DIRECTORY || join(root, "data", "instances", "default"),
+    credentialsDir: "",
+    cookieName: process.env.SESSION_COOKIE_NAME || "spend_session_default",
     sellerPublicUrl:
-      process.env.PUBLIC_API_URL || `http://localhost:${apiPort}`,
-    token: getAddress(
-      process.env.TOKEN_ADDRESS || deployment?.token || zeroAddress
-    ),
-    vault: getAddress(
-      process.env.VAULT_ADDRESS || deployment?.vault || zeroAddress
-    ),
+      process.env.PUBLIC_API_URL ||
+      `http://127.0.0.1:${process.env.SELLER_PORT || apiPort + 1}`,
+    token: zeroAddress as Address,
+    vault: zeroAddress as Address,
     appOrigin:
       process.env.APP_ORIGIN ||
       `http://localhost:${process.env.WEB_PORT || 3000}`,
@@ -61,21 +54,26 @@ export function readConfig() {
 export type Config = ReturnType<typeof readConfig>
 
 export function signer(
-  role: "agent" | "seller" | "deployer",
-  config?: Pick<Config, "local" | "localInstallation">
+  role: "buyer" | "seller",
+  config: Pick<Config, "local" | "localInstallation"> & {
+    credentialsDir: string
+  }
 ) {
-  if (process.env.VITEST === "true" && config?.local) {
+  if (process.env.VITEST === "true" && config.local) {
     return localAccount(role, config.localInstallation)
   }
 
-  const path = join(credentialsDirectory(), `${role}.key`)
+  const directory = credentialsDirectory(config.credentialsDir)
+  const path = join(directory, `${role}.key`)
 
   if (!existsSync(path)) {
-    writeFileSync(path, encryptSecret(generatePrivateKey()), {
+    writeFileSync(path, encryptSecret(generatePrivateKey(), directory), {
       flag: "wx",
       mode: 0o600,
     })
   }
 
-  return privateKeyToAccount(decryptSecret(readFileSync(path, "utf8")) as Hex)
+  return privateKeyToAccount(
+    decryptSecret(readFileSync(path, "utf8"), directory) as Hex
+  )
 }

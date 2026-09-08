@@ -21,6 +21,8 @@ import {
 import { Input } from "#/components/ui/input"
 import { Separator } from "#/components/ui/separator"
 
+import { useWorkspaceAssistant } from "./assistant-context"
+
 const amount = (value: string) => formatUnits(BigInt(value), 6)
 
 type Props = {
@@ -46,6 +48,7 @@ export function AllowancePanel({
   onFund,
   onAction,
 }: Props) {
+  const { automatic, setAutomatic } = useWorkspaceAssistant()
   const canCreate = !allowance || allowance.revoked
   const { invalidBudget, invalidCap } = validateAmounts(budget, cap)
 
@@ -60,6 +63,27 @@ export function AllowancePanel({
         {allowance && <AllowanceSummary allowance={allowance} />}
         {canCreate && (
           <FieldGroup>
+            <label className="flex items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={automatic}
+                disabled={busy}
+                onChange={(event) => setAutomatic(event.target.checked)}
+              />
+              <span>
+                Automatic purchases within this allowance. Your unfunded buyer
+                signer may spend the budget with the approved sellers. An
+                opted-in seller pays gas; otherwise a wallet confirmation is
+                required.
+              </span>
+            </label>
+            {!automatic && (
+              <p className="text-sm text-muted-foreground">
+                Confirm each purchase in your browser wallet and pay its gas.
+                Your backend signer can retrieve paid deliveries, but cannot
+                purchase with this allowance.
+              </p>
+            )}
             <Field data-invalid={invalidBudget}>
               <FieldLabel htmlFor="budget">
                 <span>

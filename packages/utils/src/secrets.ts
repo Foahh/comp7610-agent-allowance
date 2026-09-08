@@ -2,34 +2,27 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { projectRoot } from "./project-root.ts"
-
 const encryptionKeyPattern = /^[0-9a-fA-F]{64}$/
 
-export function credentialsDirectory() {
-  const directory =
-    process.env.CREDENTIALS_DIRECTORY ||
-    join(projectRoot(), "data", "credentials", "0")
+export function credentialsDirectory(directory: string) {
+  if (!directory) {
+    throw new Error("Select an account workspace before accessing credentials.")
+  }
   mkdirSync(directory, { recursive: true })
-
   return directory
 }
 
-function encryptionKey() {
-  const keyPath = join(credentialsDirectory(), "encryption.key")
+function encryptionKey(scope: string) {
+  const keyPath = join(credentialsDirectory(scope), "encryption.key")
 
-  const testKey = process.env.VITEST
-    ? process.env.SETTINGS_ENCRYPTION_KEY
-    : undefined
-
-  if (!testKey && !existsSync(keyPath)) {
+  if (!existsSync(keyPath)) {
     writeFileSync(keyPath, randomBytes(32).toString("hex"), {
       flag: "wx",
       mode: 0o600,
     })
   }
 
-  const value = testKey?.trim() || readFileSync(keyPath, "utf8").trim()
+  const value = readFileSync(keyPath, "utf8").trim()
 
   if (!encryptionKeyPattern.test(value)) {
     throw new Error(
@@ -40,9 +33,9 @@ function encryptionKey() {
   return Buffer.from(value, "hex")
 }
 
-export function encryptSecret(value: string) {
+export function encryptSecret(value: string, scope: string) {
   const iv = randomBytes(12)
-  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv)
+  const cipher = createCipheriv("aes-256-gcm", encryptionKey(scope), iv)
   const ciphertext = Buffer.concat([
     cipher.update(value, "utf8"),
     cipher.final(),
@@ -53,7 +46,7 @@ export function encryptSecret(value: string) {
     .join(".")
 }
 
-export function decryptSecret(value: string) {
+export function decryptSecret(value: string, scope: string) {
   const [iv, tag, ciphertext] = value
     .split(".")
     .map((part) => Buffer.from(part, "base64"))
@@ -62,7 +55,7 @@ export function decryptSecret(value: string) {
     throw new Error("Invalid encrypted model credential.")
   }
 
-  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), iv)
+  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(scope), iv)
   decipher.setAuthTag(tag)
 
   return Buffer.concat([

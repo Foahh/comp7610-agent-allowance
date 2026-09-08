@@ -1,9 +1,13 @@
+import type { Purchase } from "@repo/schemas"
+
 import {
   confirmationCount,
   getChain,
   publicClient,
   tokenAbi,
   vaultAbi,
+  buyerTypedData,
+  quoteMessage,
 } from "@repo/utils"
 import {
   createWalletClient,
@@ -15,6 +19,8 @@ import {
 } from "viem"
 
 import type { AppConfig } from "./client.ts"
+
+import { marketplaceRequest } from "./marketplace.ts"
 
 const tokenAmountPattern = /^\d+(\.\d{1,6})?$/
 
@@ -50,14 +56,30 @@ export async function connectWallet(config: AppConfig) {
 
 export type ConnectedWallet = Awaited<ReturnType<typeof connectWallet>>
 
+export async function assertWallet(wallet: ConnectedWallet, config: AppConfig) {
+  const [selected] = await wallet.getAddresses()
+  if (
+    selected?.toLowerCase() !== wallet.account.address.toLowerCase() ||
+    (config.owner !== "0x0000000000000000000000000000000000000000" &&
+      selected.toLowerCase() !== config.owner.toLowerCase()) ||
+    (await wallet.getChainId()) !== config.chainId
+  ) {
+    throw new Error(
+      "Wallet account or network changed. Sign in again on Sepolia."
+    )
+  }
+}
+
 export async function fundAllowance(
   wallet: ConnectedWallet,
   config: AppConfig,
   total: string,
   maximum: string,
   sellers: Address[],
-  onStatus: (text: string) => void
+  onStatus: (text: string) => void,
+  automatic = false
 ) {
+  await assertWallet(wallet, config)
   if (sellers.length === 0 || sellers.length > 16) {
     throw new Error(
       "Select between one and sixteen sellers for this allowance."
@@ -88,6 +110,7 @@ export async function fundAllowance(
 
   if (balance < budget) {
     onStatus("Claiming demonstration ATT in your wallet.")
+    await assertWallet(wallet, config)
     const hash = await wallet.writeContract({
       address: config.token,
       abi: tokenAbi,
@@ -116,6 +139,7 @@ export async function fundAllowance(
   }
 
   onStatus("Approve the token budget in your wallet.")
+  await assertWallet(wallet, config)
   const approval = await wallet.writeContract({
     address: config.token,
     abi: tokenAbi,
@@ -132,13 +156,22 @@ export async function fundAllowance(
   }
 
   const now = (await client.getBlock()).timestamp
+  const allowanceBuyer = automatic ? config.buyerSigner : wallet.account.address
 
   onStatus("Confirm creation of this conversation's allowance.")
+  await assertWallet(wallet, config)
   const creation = await wallet.writeContract({
     address: config.vault,
     abi: vaultAbi,
     functionName: "createAllowance",
-    args: [config.agent, sellers, budget, cap, now + 86400n],
+    args: [
+      allowanceBuyer,
+      config.buyerSigner,
+      sellers,
+      budget,
+      cap,
+      now + 86400n,
+    ],
   })
   const receipt = await client.waitForTransactionReceipt({
     hash: creation,
@@ -176,6 +209,7 @@ export async function updateAllowance(
   id: string,
   action: "revokeAllowance" | "withdrawUnused"
 ) {
+  await assertWallet(wallet, config)
   const hash = await wallet.writeContract({
     address: config.vault as Address,
     abi: vaultAbi,
@@ -193,4 +227,33 @@ export async function updateAllowance(
   if (receipt.status !== "success") {
     throw new Error("Allowance action failed.")
   }
+}
+
+export async function confirmPurchase(
+  wallet: ConnectedWallet,
+  config: AppConfig,
+  purchase: Purchase
+) {
+  await assertWallet(wallet, config)
+  const signature =
+    (purchase.authorization?.signature as `0x${string}` | undefined) ||
+    (await wallet.signTypedData(
+      buyerTypedData(purchase.offer.quote, config.chainId, config.vault)
+    ))
+  // Save the exact authorization before the wallet may broadcast anything.
+  await marketplaceRequest(`purchases/${purchase.id}/authorize`, { signature })
+  await assertWallet(wallet, config)
+  const hash = await wallet.writeContract({
+    address: config.vault,
+    abi: vaultAbi,
+    functionName: "purchase",
+    args: [
+      quoteMessage(purchase.offer.quote),
+      purchase.offer.signature as `0x${string}`,
+      signature,
+    ],
+  })
+  return marketplaceRequest(`purchases/${purchase.id}/transaction`, {
+    txHash: hash,
+  })
 }

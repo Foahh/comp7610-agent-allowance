@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "vp dev",
+    "seller": "vp exec node --watch src/seller-entry.ts",
     "build": "tsc && vp build"
   },
   "dependencies": {

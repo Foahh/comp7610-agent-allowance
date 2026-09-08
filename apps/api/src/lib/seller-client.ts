@@ -9,6 +9,7 @@ import {
   SignedQuoteSchema,
 } from "@repo/schemas"
 import { deliveryMessage, identityMessage } from "@repo/utils"
+import { publicClient, vaultAbi } from "@repo/utils"
 import { signer } from "@repo/utils/config"
 import { boundedResponse, endpointRequest, endpointUrl } from "@repo/utils/http"
 import { randomUUID } from "node:crypto"
@@ -45,13 +46,21 @@ export function createSellerClient(config: Config, store: BuyerStore) {
       })
     )
     const recovered = await recoverMessageAddress({
-      message: identityMessage(nonce, normalized),
+      message: identityMessage(nonce, normalized, proof.identity),
       signature: proof.signature as `0x${string}`,
     })
     const { identity } = proof
+    const validSigner =
+      recovered.toLowerCase() === identity.address.toLowerCase() ||
+      (await publicClient(config.chainId, config.rpcUrl).readContract({
+        address: config.vault,
+        abi: vaultAbi,
+        functionName: "sellerSigners",
+        args: [identity.address as `0x${string}`, recovered],
+      })) > BigInt(Math.floor(Date.now() / 1000))
 
     if (
-      recovered.toLowerCase() !== identity.address.toLowerCase() ||
+      !validSigner ||
       identity.chainId !== config.chainId ||
       identity.vault.toLowerCase() !== config.vault.toLowerCase() ||
       identity.token.toLowerCase() !== config.token.toLowerCase()
@@ -206,7 +215,7 @@ export function createSellerClient(config: Config, store: BuyerStore) {
 
     return {
       expiresAt,
-      signature: await signer("agent", config).signMessage({
+      signature: await signer("buyer", config).signMessage({
         message: deliveryMessage(
           id,
           config.chainId,

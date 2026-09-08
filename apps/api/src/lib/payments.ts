@@ -5,39 +5,31 @@ import type {
   SignedQuote,
 } from "@repo/schemas"
 
+import { createBuyerMarketplaceQueries } from "@repo/db/marketplace"
 import {
-  getChain,
   publicClient,
-  quoteMessage,
   quoteTypedData,
   vaultAbi,
+  buyerTypedData,
 } from "@repo/utils"
 import { signer, type Config } from "@repo/utils/config"
-import {
-  createWalletClient,
-  encodeFunctionData,
-  http,
-  keccak256,
-  recoverTypedDataAddress,
-  type Hex,
-} from "viem"
+import { endpointRequest } from "@repo/utils/http"
+import { recoverTypedDataAddress, type Hex } from "viem"
 
 import type { BuyerStore } from "./store.ts"
 
+import { recoverIntent } from "./intent-recovery.ts"
 import { assertPurchasableQuote } from "./quote-validation.ts"
+
+const TRANSACTION_HASH_PATTERN = /^0x[0-9a-fA-F]{64}$/
 
 export function createPayments(
   config: Config,
   store: BuyerStore,
-  receiptTimeoutMs = 30000
+  canAuthorize: () => boolean = () => true
 ) {
   const client = publicClient(config.chainId, config.rpcUrl)
-  const account = signer("agent", config)
-  const wallet = createWalletClient({
-    account,
-    chain: getChain(config.chainId),
-    transport: http(config.rpcUrl),
-  })
+  const account = signer("buyer", config)
   let tail = Promise.resolve()
 
   async function serialized<T>(operation: () => Promise<T>): Promise<T> {
@@ -66,7 +58,7 @@ export function createPayments(
     })
     const [
       owner,
-      agent,
+      buyerSigner,
       budget,
       perPurchase,
       spent,
@@ -78,7 +70,7 @@ export function createPayments(
     return {
       id,
       owner,
-      agent,
+      buyerSigner: buyerSigner,
       sellers: [
         ...(await client.readContract({
           address: config.vault,
@@ -104,64 +96,16 @@ export function createPayments(
   }
 
   async function recover(purchase: Purchase): Promise<Purchase> {
-    if (!purchase.txHash || !purchase.rawTransaction) {
-      return purchase
-    }
-
-    if (!["prepared", "pending"].includes(purchase.paymentStatus)) {
-      return purchase
-    }
-
-    const start = performance.now()
-
-    try {
-      const known = await client
-        .getTransactionReceipt({ hash: purchase.txHash as Hex })
-        .catch(() => undefined)
-
-      if (!known) {
-        // Re-broadcast exactly the persisted bytes. Never re-sign an uncertain purchase.
-        await client
-          .sendRawTransaction({
-            serializedTransaction: purchase.rawTransaction as Hex,
-          })
-          .catch(() => undefined)
-      }
-
-      purchase.paymentStatus = "pending"
-      save(purchase)
-
-      const confirmationStarted = performance.now()
-      purchase.broadcastMs =
-        (purchase.broadcastMs ?? 0) + confirmationStarted - start
-      const receipt = await client.waitForTransactionReceipt({
-        hash: purchase.txHash as Hex,
-        confirmations: config.confirmations,
-        timeout: receiptTimeoutMs,
-      })
-
-      purchase.paymentStatus =
-        receipt.status === "success" ? "confirmed" : "reverted"
-      purchase.gasUsed = receipt.gasUsed.toString()
-      purchase.gasWei = (receipt.gasUsed * receipt.effectiveGasPrice).toString()
-      purchase.paymentMs = (purchase.paymentMs ?? 0) + performance.now() - start
-      purchase.confirmationMs =
-        (purchase.confirmationMs ?? 0) + performance.now() - confirmationStarted
-      purchase.error =
-        receipt.status === "reverted"
-          ? "Contract rejected the payment."
-          : undefined
-    } catch {
-      purchase.paymentStatus = "pending"
-      purchase.error =
-        "Payment outcome is not known yet. Recover this purchase before spending again."
-    }
-
-    return save(purchase)
+    return save(await recoverIntent(config, purchase))
   }
 
   async function purchase(conversation: Conversation, offer: SignedQuote) {
     return serialized(async () => {
+      if (!canAuthorize()) {
+        throw new Error(
+          "Session ended or deployment changed. Sign in again before authorizing a purchase."
+        )
+      }
       const existing = store.getPurchase(offer.id)
 
       if (existing) {
@@ -213,56 +157,96 @@ export function createPayments(
       try {
         const limit = await allowance(offer.quote.allowanceId)
         const now = (await client.getBlock()).timestamp
-        const recovered = await recoverTypedDataAddress({
+        let recovered = await recoverTypedDataAddress({
           ...quoteTypedData(offer.quote, config.chainId, config.vault),
           signature: offer.signature as Hex,
         })
+
+        if (recovered.toLowerCase() !== offer.quote.recipient.toLowerCase()) {
+          const expiry = await client.readContract({
+            address: config.vault,
+            abi: vaultAbi,
+            functionName: "sellerSigners",
+            args: [offer.quote.recipient as `0x${string}`, recovered],
+          })
+
+          if (expiry > now) {
+            recovered = offer.quote.recipient as `0x${string}`
+          }
+        }
+
         assertPurchasableQuote({
           conversation,
           offer,
           allowance: limit,
-          agentAddress: account.address,
+          buyerAddress:
+            limit.buyerSigner.toLowerCase() === config.owner.toLowerCase()
+              ? config.owner
+              : account.address,
           recoveredSeller: recovered,
           currentTimestamp: now,
           config,
         })
 
-        const args = [
-          quoteMessage(offer.quote),
-          offer.signature as Hex,
-        ] as const
+        if (!canAuthorize()) {
+          throw new Error("Session ended before purchase authorization.")
+        }
 
-        await client.simulateContract({
-          account,
-          address: config.vault,
-          abi: vaultAbi,
-          functionName: "purchase",
-          args,
-        })
+        const automatic =
+          limit.buyerSigner.toLowerCase() === account.address.toLowerCase()
+        const fromBlock = (await client.getBlockNumber()).toString()
 
-        const request = await wallet.prepareTransactionRequest({
-          type: "eip1559",
-          to: config.vault,
-          data: encodeFunctionData({
-            abi: vaultAbi,
-            functionName: "purchase",
-            args,
-          }),
-        })
+        record.authorization = {
+          fromBlock,
+        }
 
-        const rawTransaction = await account.signTransaction({
-          ...request,
-          chainId: config.chainId,
-        })
+        if (automatic) {
+          record.authorization.signature = await account.signTypedData(
+            buyerTypedData(offer.quote, config.chainId, config.vault)
+          )
+          record.paymentStatus = "pending"
+        } else {
+          record.paymentStatus = "prepared"
+        }
 
-        record.rawTransaction = rawTransaction
-        record.txHash = keccak256(rawTransaction)
-        record.nonce = request.nonce
-        record.paymentStatus = "prepared"
-        // The durable journal precedes all broadcasting.
         save(record)
 
-        return recover(record)
+        if (automatic) {
+          const destination = createBuyerMarketplaceQueries(
+            store.db
+          ).destinations.get(offer.id)
+          if (!destination) {
+            throw new Error(
+              "Seller endpoint is unavailable. Submit the prepared purchase in your wallet."
+            )
+          }
+
+          // Persist the authorization before crossing the network boundary.
+          const result = (await endpointRequest(
+            destination.endpoint,
+            `/v1/purchases/${offer.id}/submit`,
+            {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                signature: record.authorization.signature,
+              }),
+            }
+          )) as { txHash?: string }
+
+          if (result.txHash && TRANSACTION_HASH_PATTERN.test(result.txHash)) {
+            record.txHash = result.txHash
+            record.paymentStatus = "pending"
+            save(record)
+          }
+
+          return recover(record)
+        }
+
+        record.error =
+          "Confirm this purchase in your wallet. Your account wallet pays gas."
+
+        return save(record)
       } catch (error) {
         record.error =
           error instanceof Error
@@ -282,15 +266,44 @@ export function createPayments(
     })
   }
 
-  return { account, allowance, purchase, recoverAll }
+  async function authorizePurchase(id: string, signature: Hex) {
+    if (!canAuthorize()) {
+      throw new Error("Sign in again before authorizing a purchase.")
+    }
+    const purchase = store.getPurchase(id)
+    if (!purchase?.authorization) {
+      throw new Error("Unknown prepared purchase.")
+    }
+    const state = await allowance(purchase.offer.quote.allowanceId)
+    const valid = await client.verifyTypedData({
+      address: state.buyerSigner as `0x${string}`,
+      ...buyerTypedData(purchase.offer.quote, config.chainId, config.vault),
+      signature,
+    })
+    if (!valid) {
+      throw new Error("Buyer signature does not match this allowance.")
+    }
+    purchase.authorization.signature = signature
+    return save(purchase)
+  }
+  async function recordTransaction(id: string, txHash: Hex) {
+    const purchase = store.getPurchase(id)
+    if (!purchase?.authorization) {
+      throw new Error("Unknown prepared purchase.")
+    }
+    purchase.txHash = txHash
+    purchase.paymentStatus = "pending"
+    save(purchase)
+    return recover(purchase)
+  }
+  return {
+    account,
+    allowance,
+    purchase,
+    recoverAll,
+    authorizePurchase,
+    recordTransaction,
+  }
 }
 
 export type Payments = ReturnType<typeof createPayments>
-
-export function publicPurchase(
-  purchase: Purchase
-): Omit<Purchase, "rawTransaction"> {
-  const { rawTransaction: _, ...visible } = purchase
-
-  return visible
-}

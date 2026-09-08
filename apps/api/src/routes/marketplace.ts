@@ -13,7 +13,6 @@ import type { Marketplace } from "../seller/lib/marketplace.ts"
 import type { SellerService } from "../seller/lib/seller-service.ts"
 import type { AppEnv } from "./conversations.ts"
 
-import { publicPurchase } from "../lib/payments.ts"
 import { createSellerClient } from "../lib/seller-client.ts"
 import { createAdminRoutes } from "../seller/routes/admin.ts"
 
@@ -108,8 +107,28 @@ export function createMarketplaceRoutes(
           )
         )
     )
-    .get("/purchases", (context) =>
-      context.json(store.listPurchases().map(publicPurchase))
+    .get("/purchases", (context) => context.json(store.listPurchases()))
+    .post(
+      "/purchases/:id/authorize",
+      validator("json", v.object({ signature: HexSchema })),
+      async (context) =>
+        context.json(
+          await payments.authorizePurchase(
+            context.req.param("id"),
+            context.req.valid("json").signature as `0x${string}`
+          )
+        )
+    )
+    .post(
+      "/purchases/:id/transaction",
+      validator("json", v.object({ txHash: HexSchema })),
+      async (context) => {
+        const purchase = await payments.recordTransaction(
+          context.req.param("id"),
+          context.req.valid("json").txHash as `0x${string}`
+        )
+        return context.json(await agent.deliver(purchase, ignoreAgentEvent))
+      }
     )
     .post("/purchases/:id/retry", async (context) => {
       const purchase = store.getPurchase(context.req.param("id"))
@@ -121,12 +140,10 @@ export function createMarketplaceRoutes(
       await payments.recoverAll()
 
       return context.json(
-        publicPurchase(
-          await agent.deliver(
-            store.getPurchase(purchase.id)!,
-            ignoreAgentEvent,
-            true
-          )
+        await agent.deliver(
+          store.getPurchase(purchase.id)!,
+          ignoreAgentEvent,
+          true
         )
       )
     })

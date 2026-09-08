@@ -14,9 +14,8 @@ import { randomUUID } from "node:crypto"
 import * as v from "valibot"
 
 import type { BuyerAgent } from "../lib/agent.ts"
+import type { Payments } from "../lib/payments.ts"
 import type { BuyerStore } from "../lib/store.ts"
-
-import { publicPurchase, type Payments } from "../lib/payments.ts"
 
 type ServerBindings = {
   incoming?: { socket: { remoteAddress?: string } }
@@ -133,7 +132,7 @@ export function createConversationRoutes(
       return context.json({
         conversation,
         messages: store.listMessages(conversation.id),
-        purchases: store.listPurchases(conversation.id).map(publicPurchase),
+        purchases: store.listPurchases(conversation.id),
         allowance: conversation.allowanceId
           ? await payments.allowance(conversation.allowanceId)
           : null,
@@ -159,9 +158,11 @@ export function createConversationRoutes(
 
         if (
           state.owner.toLowerCase() !== conversation.owner ||
-          state.agent.toLowerCase() !== payments.account.address.toLowerCase()
+          (state.buyerSigner.toLowerCase() !==
+            payments.account.address.toLowerCase() &&
+            !(state.buyerSigner.toLowerCase() === conversation.owner))
         ) {
-          throw new Error("Allowance ownership or agent mismatch.")
+          throw new Error("Allowance ownership or buyer signer mismatch.")
         }
 
         const bound = store.getAllowance(allowanceId)

@@ -18,13 +18,30 @@ const AppAddressSchema = v.pipe(
 )
 
 const AppConfigSchema = v.object({
+  configured: v.optional(v.boolean(), true),
+  restartRequired: v.optional(v.boolean(), false),
+  vaultVersion: v.string(),
+  instance: v.optional(v.string(), "default"),
+  activeDeployment: v.optional(v.string(), ""),
+  deployments: v.optional(
+    v.array(
+      v.object({
+        vaultAddress: v.string(),
+        tokenAddress: v.string(),
+        chainId: v.number(),
+        vaultVersion: v.string(),
+      })
+    ),
+    []
+  ),
   chainId: v.number(),
   token: AppAddressSchema,
   vault: AppAddressSchema,
-  agent: AppAddressSchema,
+  buyerSigner: AppAddressSchema,
   owner: AppAddressSchema,
   rpcUrl: v.string(),
   sellerEndpoint: v.string(),
+  sellerPublic: v.optional(v.boolean(), false),
 })
 
 const ConversationDetailsSchema = v.object({
@@ -46,7 +63,7 @@ export type ConversationDetails = v.InferOutput<
   typeof ConversationDetailsSchema
 >
 
-async function requestJson(
+export async function requestJson(
   path: string,
   body?: unknown,
   method = body === undefined ? "GET" : "POST"

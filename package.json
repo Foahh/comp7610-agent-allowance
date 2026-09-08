@@ -6,15 +6,12 @@
   "scripts": {
     "knip": "knip",
     "deps:check": "knip --dependencies",
-    "dev": "vp run --parallel --filter ./apps/* dev",
+    "dev": "vp exec node scripts/dev.ts",
     "build": "vp run -r build",
     "check": "vp check",
     "ready": "vp check && vp run -r build",
-    "db:init": "vp exec node scripts/init-db.ts",
     "prepare": "vp config",
     "doctor": "vp exec react-doctor",
-    "accounts": "vp exec node scripts/accounts.ts",
-    "models:check": "vp exec node scripts/check-models.ts",
     "deploy:sepolia": "vp run @repo/contracts#deploy:sepolia",
     "test:contracts": "vp test packages/contracts/test"
   },

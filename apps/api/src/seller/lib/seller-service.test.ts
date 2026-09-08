@@ -48,6 +48,8 @@ let task: Task
 beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), "seller-protocol-test-"))
   config = {
+    credentialsDir: join(directory, "credentials"),
+    cookieName: "test",
     dataDir: directory,
     local: false,
     localInstallation: 0,
@@ -57,7 +59,7 @@ beforeEach(() => {
     rpcUrl: "https://example.invalid",
     confirmations: 2,
     root: directory,
-    owner: buyer.address,
+    owner: seller.address,
     sellerPublicUrl: "http://localhost:3002",
     appOrigin: "http://localhost:3000",
   } as Config
@@ -93,7 +95,9 @@ beforeEach(() => {
     Promise.resolve(
       functionName === "allowanceSellers"
         ? [seller.address]
-        : [buyer.address, buyer.address]
+        : functionName === "deliverySigners"
+          ? buyer.address
+          : [buyer.address, buyer.address]
     )
   )
   chain.waitForTransactionReceipt.mockReset()

@@ -32,8 +32,13 @@ let market: ReturnType<typeof createMarketplace>
 beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), "seller-test-"))
   store = openSellerDatabase(join(directory, "seller.sqlite"))
-  market = createMarketplace({ dataDir: directory } as Config, store)
-  vi.stubEnv("SETTINGS_ENCRYPTION_KEY", "ab".repeat(32))
+  market = createMarketplace(
+    {
+      dataDir: directory,
+      credentialsDir: join(directory, "credentials"),
+    } as Config,
+    store
+  )
 })
 
 afterEach(() => {
@@ -72,9 +77,21 @@ test("model credentials are encrypted, write-only, and survive reopening", () =>
   expect(JSON.stringify(market.models.list())).not.toContain("private-api-key")
   store.close()
   store = openSellerDatabase(join(directory, "seller.sqlite"))
-  market = createMarketplace({ dataDir: directory } as Config, store)
+  market = createMarketplace(
+    {
+      dataDir: directory,
+      credentialsDir: join(directory, "credentials"),
+    } as Config,
+    store
+  )
   expect(market.runtimeModel(model.id).apiKey).toBe("private-api-key")
-  vi.stubEnv("SETTINGS_ENCRYPTION_KEY", "cd".repeat(32))
+  market = createMarketplace(
+    {
+      dataDir: directory,
+      credentialsDir: join(directory, "different-account"),
+    } as Config,
+    store
+  )
   expect(() => market.runtimeModel(model.id)).toThrow()
 })
 

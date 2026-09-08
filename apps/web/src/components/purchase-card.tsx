@@ -3,6 +3,7 @@ import type { Purchase } from "@repo/schemas"
 import { formatUnits, formatEther } from "viem"
 
 import { Badge } from "#/components/ui/badge"
+import { Button } from "#/components/ui/button"
 import {
   Card,
   CardHeader,
@@ -10,6 +11,10 @@ import {
   CardDescription,
   CardContent,
 } from "#/components/ui/card"
+import { useMarketplaceAction } from "#/hooks/use-marketplace"
+import { confirmPurchase } from "#/lib/wallet"
+
+import { useWorkspaceAssistant } from "./assistant-context"
 
 export function PurchaseCard({
   purchase,
@@ -34,6 +39,7 @@ export function PurchaseCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        <PurchaseConfirmation purchase={purchase} />
         <div className="flex flex-wrap gap-2">
           <Badge
             variant={
@@ -92,5 +98,40 @@ export function PurchaseCard({
         </details>
       </CardContent>
     </Card>
+  )
+}
+
+function PurchaseConfirmation({ purchase }: { purchase: Purchase }) {
+  const { wallet, config } = useWorkspaceAssistant()
+  const confirm = useMarketplaceAction(async () => {
+    if (!config) {
+      throw new Error("Configuration unavailable.")
+    }
+    return confirmPurchase(wallet, config, purchase)
+  })
+  return (
+    <>
+      {purchase.authorization &&
+        ["prepared", "pending"].includes(purchase.paymentStatus) && (
+          <div className="space-y-2">
+            <p className="text-sm">
+              Your wallet will submit this exact purchase and pay gas. If
+              another submission is pending, refresh first to avoid paying for a
+              duplicate attempt.
+            </p>
+            <Button
+              disabled={confirm.isPending}
+              onClick={() => confirm.mutate(undefined)}
+            >
+              {confirm.isPending ? "Confirming…" : "Confirm purchase in wallet"}
+            </Button>
+            {confirm.error && (
+              <p role="alert" className="text-sm text-destructive">
+                {confirm.error.message}
+              </p>
+            )}
+          </div>
+        )}
+    </>
   )
 }

@@ -51,14 +51,11 @@ CREATE TABLE IF NOT EXISTS purchases (
   conversation_id TEXT NOT NULL REFERENCES conversations(id),
   payment_status TEXT NOT NULL CHECK (payment_status IN ('prepared', 'pending', 'confirmed', 'reverted', 'rejected')),
   tx_hash TEXT,
-  raw_transaction TEXT,
+  buyer_signature TEXT,
+  authorization_from_block TEXT,
   gas_used TEXT,
   gas_wei TEXT,
   error TEXT,
-  nonce INTEGER,
-  payment_ms REAL,
-  broadcast_ms REAL,
-  confirmation_ms REAL,
   created_at INTEGER NOT NULL
 );
 
@@ -235,4 +232,9 @@ CREATE TABLE IF NOT EXISTS installations (
   chain TEXT NOT NULL,
   vault TEXT NOT NULL,
   signer TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS operation_records (
+  id TEXT PRIMARY KEY NOT NULL,
+  value TEXT NOT NULL
 );

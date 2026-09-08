@@ -56,6 +56,17 @@ export function createAdminRoutes(market: Marketplace, service: SellerService) {
   app.use("/*", bodyLimit({ maxSize: 21 * 1024 * 1024 }))
 
   return app
+    .get("/submission", async (context) =>
+      context.json(await service.submitter.status())
+    )
+    .put(
+      "/submission",
+      validator("json", v.object({ enabled: v.boolean() })),
+      (context) => {
+        service.submitter.setEnabled(context.req.valid("json").enabled)
+        return context.json({ ok: true })
+      }
+    )
     .get("/identity", (context) =>
       context.json({ address: service.account.address })
     )
@@ -185,7 +196,8 @@ export function createAdminRoutes(market: Marketplace, service: SellerService) {
               sellerId: "preview",
             },
             market.snapshot(listing),
-            listing.deliverable
+            listing.deliverable,
+            market.credentialsDir
           ),
         })
       }

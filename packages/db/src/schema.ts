@@ -102,14 +102,11 @@ export const purchases = sqliteTable(
       enum: ["prepared", "pending", "confirmed", "reverted", "rejected"],
     }).notNull(),
     txHash: text("tx_hash"),
-    rawTransaction: text("raw_transaction"),
+    buyerSignature: text("buyer_signature"),
+    authorizationFromBlock: text("authorization_from_block"),
     gasUsed: text("gas_used"),
     gasWei: text("gas_wei"),
     error: text("error"),
-    nonce: integer("nonce"),
-    paymentMs: real("payment_ms"),
-    broadcastMs: real("broadcast_ms"),
-    confirmationMs: real("confirmation_ms"),
     createdAt: integer("created_at").notNull(),
   },
   (table) => [
@@ -344,4 +341,9 @@ export const installations = sqliteTable("installations", {
   chain: text("chain").notNull(),
   vault: text("vault").notNull(),
   signer: text("signer").notNull(),
+})
+
+export const operationRecords = sqliteTable("operation_records", {
+  id: text("id").primaryKey().notNull(),
+  value: text("value", { mode: "json" }).$type<unknown>().notNull(),
 })

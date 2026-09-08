@@ -40,7 +40,7 @@ export function createMarketplace(config: Config, store: SellerStore) {
   function saveModel(input: ModelInput, id: string = randomUUID()) {
     const previous = models.get(id)
     const encryptedKey = input.apiKey
-      ? encryptSecret(input.apiKey)
+      ? encryptSecret(input.apiKey, config.credentialsDir)
       : previous?.encryptedKey
 
     if (!encryptedKey) {
@@ -72,7 +72,7 @@ export function createMarketplace(config: Config, store: SellerStore) {
       throw new Error("Select a saved model connection in Settings.")
     }
 
-    return decodeModel(model)
+    return decodeModel(model, config.credentialsDir)
   }
 
   function saveListing(input: ListingInput, id: string = randomUUID()) {
@@ -242,6 +242,7 @@ export function createMarketplace(config: Config, store: SellerStore) {
   }
 
   return {
+    credentialsDir: config.credentialsDir,
     listings,
     versions,
     published,
@@ -261,11 +262,11 @@ export function createMarketplace(config: Config, store: SellerStore) {
   }
 }
 
-export function decodeModel(model: StoredModel) {
+export function decodeModel(model: StoredModel, credentialsDir: string) {
   return {
     baseURL: model.baseURL,
     model: model.model,
-    apiKey: decryptSecret(model.encryptedKey),
+    apiKey: decryptSecret(model.encryptedKey, credentialsDir),
   }
 }
 

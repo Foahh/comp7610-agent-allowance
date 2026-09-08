@@ -5,17 +5,13 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 
 import {
-  listConversations,
   bindAllowance,
-  createAuthChallenge,
   createConversation as requestConversation,
   deleteConversation,
   recoverConversation,
   sendMessage,
-  verifyAuthChallenge,
 } from "#/lib/client"
 import {
-  connectWallet,
   fundAllowance,
   updateAllowance,
   type ConnectedWallet,
@@ -31,12 +27,12 @@ const EXCHANGE_SEMESTER_PROMPT = [
   "a recommendation brief.",
 ].join(" ")
 
-export function useAssistant() {
+export function useAssistant(wallet: ConnectedWallet, logout: () => void) {
   const cache = useQueryClient()
-  const [wallet, setWallet] = useState<ConnectedWallet | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [scenario, setScenario] = useState<Scenario>("success")
   const [approvedSellers, setApprovedSellers] = useState<Address[]>([])
+  const [automatic, setAutomatic] = useState(false)
   const [draft, setDraft] = useState("")
   const { configuration, conversations, details, refresh } =
     useAssistantQueries(wallet?.account.address, selected)
@@ -52,29 +48,6 @@ export function useAssistant() {
     setSelected(conversation.id)
 
     return conversation
-  }
-
-  function connect() {
-    if (!config) {
-      return
-    }
-
-    void perform(async () => {
-      const connected = await connectWallet(config)
-      const challenge = await createAuthChallenge(connected.account.address)
-      const signature = await connected.signMessage({
-        message: challenge.message,
-      })
-      await verifyAuthChallenge(challenge.id, signature)
-      setWallet(connected)
-      setSelected(null)
-      const existing = await listConversations()
-      if (existing.length) {
-        setSelected(existing[0]!.id)
-      } else {
-        await createConversation(scenario)
-      }
-    })
   }
 
   function preset(next: Scenario) {
@@ -100,7 +73,8 @@ export function useAssistant() {
         budget,
         cap,
         approvedSellers,
-        (text) => dispatch({ type: "status", text })
+        (text) => dispatch({ type: "status", text }),
+        automatic
       )
       await bindAllowance(selected, allowanceId)
     })
@@ -188,10 +162,13 @@ export function useAssistant() {
     conversations: conversations.data || [],
     purchases: [...purchases.values()],
     approvedSellers,
+    automatic,
+    setAutomatic,
     setApprovedSellers,
     setDraft,
     select: setSelected,
-    connect,
+    connect: logout,
+    logout,
     preset,
     fund,
     allowanceAction,
