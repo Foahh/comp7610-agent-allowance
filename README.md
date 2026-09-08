@@ -1,40 +1,12 @@
 # Agent Spend Guard
 
-A demo where a buyer agent purchases specialist work with a per-conversation allowance enforced by a smart contract. ATT is a six-decimal teaching token with no monetary value; the included city data is synthetic.
+A COMP7610 group project demo where a buyer agent purchases specialist work with a per-conversation allowance enforced by a smart contract.
 
-## Run locally
+## Deployment
 
-Install dependencies and copy the configuration:
+See the [deployment guide](DEPLOY.md) for deploy the application locally.
 
-```powershell
-vp install
-Copy-Item .env.example .env
-```
-
-Configure AI and Sepolia below, then start the application. Open http://127.0.0.1:3000/. The buyer and provider APIs run on ports `3001` and `3002`.
-
-## Configure AI
-
-Add `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and `OPENAI_MODEL` to `.env`. The configured endpoint must support streaming Chat Completions, tool calling, and structured output.
-
-Use `BUYER_*` or `SELLER_*` versions of these variables to override either agent. Check both configurations with:
-
-```powershell
-vp run models:check
-```
-
-## Sepolia
-
-The application uses Sepolia. Configure the test signer keys in `.env` and fund the required wallets with Sepolia ETH. `RPC_URL` is optional; set it to use your own Sepolia RPC provider instead of the default public endpoint. Then run:
-
-```powershell
-vp run @repo/contracts#build
-vp run deploy:sepolia
-vp run db:init
-vp run dev
-```
-
-Connect the browser wallet to Sepolia. The owner key stays in that wallet; the provider only signs quotes and needs no gas for them.
+[中文部署指南](部署.md) 请看这里.
 
 ## Validate
 
@@ -45,9 +17,3 @@ vp test
 vp run -r build
 vp exec react-doctor apps/web --verbose --scope changed
 ```
-
-## More documentation
-
-- [Using the application](docs/using-the-application.md)
-- [Architecture and security model](docs/architecture-and-security.md)
-- [Operations and recovery](docs/operations-and-recovery.md)
