@@ -1,5 +1,8 @@
 import * as v from "valibot"
 
+import { FileDeliverySchema, PublicListingSchema } from "./marketplace.ts"
+export * from "./marketplace.ts"
+
 const addressPattern = /^0x[0-9a-fA-F]{40}$/
 const hexPattern = /^0x[0-9a-fA-F]+$/
 const amountPattern = /^(0|[1-9][0-9]*)$/
@@ -7,12 +10,16 @@ const amountPattern = /^(0|[1-9][0-9]*)$/
 export const AddressSchema = v.pipe(v.string(), v.regex(addressPattern))
 export const HexSchema = v.pipe(v.string(), v.regex(hexPattern))
 export const AmountSchema = v.pipe(v.string(), v.regex(amountPattern))
-export const ServiceSchema = v.picklist(["analysis", "writing"])
+export const ServiceSchema = v.pipe(
+  v.string(),
+  v.minLength(1),
+  v.maxLength(100)
+)
 export const ScenarioSchema = v.picklist(["success", "insufficient"])
 
 export const HealthSchema = v.object({
   status: v.literal("ok"),
-  service: v.picklist(["api", "providers"]),
+  service: v.picklist(["api", "seller"]),
 })
 
 export const ConversationSchema = v.object({
@@ -32,16 +39,12 @@ export const MessageSchema = v.object({
   createdAt: v.number(),
 })
 
-export const ServiceOfferSchema = v.object({
-  id: ServiceSchema,
-  name: v.string(),
-  description: v.string(),
-  amount: AmountSchema,
-})
-
 export const TaskSchema = v.strictObject({
   service: ServiceSchema,
-  brief: v.pipe(v.string(), v.minLength(10), v.maxLength(12000)),
+  sellerId: v.string(),
+  version: v.pipe(v.number(), v.integer(), v.minValue(1)),
+  requestId: v.string(),
+  brief: v.pipe(v.string(), v.maxLength(12000)),
   evidence: v.optional(v.pipe(v.string(), v.maxLength(30000)), ""),
 })
 
@@ -61,12 +64,14 @@ export const SignedQuoteSchema = v.object({
   signature: HexSchema,
   task: TaskSchema,
   deliverable: v.string(),
+  listing: PublicListingSchema,
 })
 
 export const DeliverySchema = v.object({
   purchaseId: HexSchema,
   status: v.picklist(["pending", "running", "completed", "failed"]),
   content: v.string(),
+  file: v.optional(FileDeliverySchema),
   references: v.array(v.string()),
   modelMs: v.number(),
   deliveryMs: v.number(),
@@ -101,7 +106,7 @@ export const AllowanceSchema = v.object({
   id: AmountSchema,
   owner: AddressSchema,
   agent: AddressSchema,
-  provider: AddressSchema,
+  sellers: v.array(AddressSchema),
   budget: AmountSchema,
   perPurchase: AmountSchema,
   spent: AmountSchema,
@@ -122,7 +127,6 @@ export const ChatEventSchema = v.variant("type", [
 export type Health = v.InferOutput<typeof HealthSchema>
 export type Conversation = v.InferOutput<typeof ConversationSchema>
 export type Message = v.InferOutput<typeof MessageSchema>
-export type ServiceOffer = v.InferOutput<typeof ServiceOfferSchema>
 export type Task = v.InferOutput<typeof TaskSchema>
 export type SignedQuote = v.InferOutput<typeof SignedQuoteSchema>
 export type Delivery = v.InferOutput<typeof DeliverySchema>

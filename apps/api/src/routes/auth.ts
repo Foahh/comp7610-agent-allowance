@@ -7,7 +7,7 @@ import { Hono } from "hono"
 import { setCookie, deleteCookie, getCookie } from "hono/cookie"
 import { randomBytes, randomUUID } from "node:crypto"
 import * as v from "valibot"
-import { recoverMessageAddress } from "viem"
+import { recoverMessageAddress, zeroAddress } from "viem"
 
 import type { BuyerStore } from "../lib/store.ts"
 
@@ -28,6 +28,17 @@ export function createAuthRoutes(store: BuyerStore, config: Config) {
         const { address } = context.req.valid("json")
 
         const owner = address.toLowerCase()
+
+        if (owner !== config.owner.toLowerCase() || owner === zeroAddress) {
+          return context.json(
+            {
+              error:
+                "Connect the wallet configured as this installation's owner.",
+            },
+            403
+          )
+        }
+
         const id = randomUUID()
         const expiresAt = addMinutes(new Date(), 5).getTime()
 
@@ -58,6 +69,7 @@ export function createAuthRoutes(store: BuyerStore, config: Config) {
         const { id, signature } = context.req.valid("json")
 
         const challenge = store.getChallenge(id)
+
         if (!challenge || challenge.expiresAt <= Date.now()) {
           return context.json({ error: "Challenge expired." }, 401)
         }
@@ -92,6 +104,7 @@ export function createAuthRoutes(store: BuyerStore, config: Config) {
     )
     .post("/logout", (context) => {
       const token = getCookie(context, "agent_session")
+
       if (token) {
         store.removeSession(token)
       }

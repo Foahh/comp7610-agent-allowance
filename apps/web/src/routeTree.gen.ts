@@ -10,43 +10,91 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ProvidersRouteImport } from './routes/providers'
+import { Route as LibraryRouteImport } from './routes/library'
+import { Route as ListingsRouteImport } from './routes/listings'
+import { Route as OrdersRouteImport } from './routes/orders'
+import { Route as SellersRouteImport } from './routes/sellers'
+import { Route as SettingsRouteImport } from './routes/settings'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProvidersRoute = ProvidersRouteImport.update({
-  id: '/providers',
-  path: '/providers',
+const LibraryRoute = LibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ListingsRoute = ListingsRouteImport.update({
+  id: '/listings',
+  path: '/listings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersRoute = OrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SellersRoute = SellersRouteImport.update({
+  id: '/sellers',
+  path: '/sellers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/providers': typeof ProvidersRoute
+  '/library': typeof LibraryRoute
+  '/listings': typeof ListingsRoute
+  '/orders': typeof OrdersRoute
+  '/sellers': typeof SellersRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/providers': typeof ProvidersRoute
+  '/library': typeof LibraryRoute
+  '/listings': typeof ListingsRoute
+  '/orders': typeof OrdersRoute
+  '/sellers': typeof SellersRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/providers': typeof ProvidersRoute
+  '/library': typeof LibraryRoute
+  '/listings': typeof ListingsRoute
+  '/orders': typeof OrdersRoute
+  '/sellers': typeof SellersRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/providers'
+  fullPaths:
+    '/' | '/library' | '/listings' | '/orders' | '/sellers' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/providers'
-  id: '__root__' | '/' | '/providers'
+  to: '/' | '/library' | '/listings' | '/orders' | '/sellers' | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/library'
+    | '/listings'
+    | '/orders'
+    | '/sellers'
+    | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ProvidersRoute: typeof ProvidersRoute
+  LibraryRoute: typeof LibraryRoute
+  ListingsRoute: typeof ListingsRoute
+  OrdersRoute: typeof OrdersRoute
+  SellersRoute: typeof SellersRoute
+  SettingsRoute: typeof SettingsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,11 +106,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/providers': {
-      id: '/providers'
-      path: '/providers'
-      fullPath: '/providers'
-      preLoaderRoute: typeof ProvidersRouteImport
+    '/library': {
+      id: '/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/listings': {
+      id: '/listings'
+      path: '/listings'
+      fullPath: '/listings'
+      preLoaderRoute: typeof ListingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders': {
+      id: '/orders'
+      path: '/orders'
+      fullPath: '/orders'
+      preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sellers': {
+      id: '/sellers'
+      path: '/sellers'
+      fullPath: '/sellers'
+      preLoaderRoute: typeof SellersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -70,7 +146,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ProvidersRoute: ProvidersRoute,
+  LibraryRoute: LibraryRoute,
+  ListingsRoute: ListingsRoute,
+  OrdersRoute: OrdersRoute,
+  SellersRoute: SellersRoute,
+  SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

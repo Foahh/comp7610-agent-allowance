@@ -22,8 +22,9 @@ const AppConfigSchema = v.object({
   token: AppAddressSchema,
   vault: AppAddressSchema,
   agent: AppAddressSchema,
-  provider: AppAddressSchema,
+  owner: AppAddressSchema,
   rpcUrl: v.string(),
+  sellerEndpoint: v.string(),
 })
 
 const ConversationDetailsSchema = v.object({

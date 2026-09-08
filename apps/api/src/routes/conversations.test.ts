@@ -4,6 +4,7 @@ import { Hono } from "hono"
 import assert from "node:assert/strict"
 import { test } from "vite-plus/test"
 
+import type { BuyerAgent } from "../lib/agent.ts"
 import type { Payments } from "../lib/payments.ts"
 
 import { openBuyerDatabase } from "../lib/store.ts"
@@ -21,8 +22,12 @@ test("deletion enforces ownership and protects funded allowances", async () => {
     context.set("owner", "alice")
     await next()
   })
-  app.route("/", createConversationRoutes({} as Config, store, payments))
+  app.route(
+    "/",
+    createConversationRoutes({} as Config, store, payments, {} as BuyerAgent)
+  )
   const remove = (id: string) => app.request(`/${id}`, { method: "DELETE" })
+
   try {
     for (const [id, owner, allowanceId] of [
       ["mine", "alice", null],

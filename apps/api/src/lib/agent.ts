@@ -1,241 +1,286 @@
-import { valibotSchema } from "@ai-sdk/valibot"
-import {
-  SignedQuoteSchema,
-  TaskSchema,
-  type ChatEvent,
-  type Conversation,
-  type Message,
-  type Purchase,
-  type Task,
+import type {
+  ChatEvent,
+  Conversation,
+  Message,
+  Purchase,
+  Task,
 } from "@repo/schemas"
+import type { Config } from "@repo/utils/config"
+
+import { valibotSchema } from "@ai-sdk/valibot"
+import { TaskSchema } from "@repo/schemas"
 import { taskHash } from "@repo/utils"
-import { modelSettings, type Config } from "@repo/utils/config"
 import { createModel } from "@repo/utils/model"
 import { streamText, tool, stepCountIs } from "ai"
 import { randomUUID } from "node:crypto"
+import { extname } from "node:path"
 import * as v from "valibot"
 
+import type { Marketplace } from "../seller/lib/marketplace.ts"
 import type { Payments } from "./payments.ts"
 import type { BuyerStore } from "./store.ts"
 
 import {
   BUYER_SYSTEM_PROMPT,
   EMPTY_ANSWER_MESSAGE,
-  previousPurchasesMessage,
   STEP_LIMIT_MESSAGE,
 } from "./agent-prompts.ts"
 import { publicPurchase } from "./payments.ts"
-import { createProviderClient } from "./provider-client.ts"
+import { createSellerClient } from "./seller-client.ts"
+
+type Emit = (event: ChatEvent) => Promise<void>
 
 export function createAgent(
   config: Config,
   store: BuyerStore,
-  payments: Payments
+  payments: Payments,
+  market: Marketplace
 ) {
-  const providerClient = createProviderClient(config)
+  const sellers = createSellerClient(config, store)
 
-  async function deliver(
-    purchase: Purchase,
-    emit: (event: ChatEvent) => Promise<void>
-  ) {
-    if (purchase.paymentStatus !== "confirmed") {
-      return purchase
-    }
+  async function deliver(purchase: Purchase, emit: Emit, retry = false) {
     if (
-      purchase.delivery?.status === "completed" ||
-      purchase.delivery?.status === "failed"
+      purchase.paymentStatus !== "confirmed" ||
+      (purchase.delivery?.status === "completed" &&
+        !(retry && purchase.delivery.file)) ||
+      (purchase.delivery?.status === "failed" && !retry)
     ) {
       return purchase
     }
 
-    const signature = await payments.account.signMessage({
-      message: `Agent Spend Guard delivery ${purchase.id}`,
-    })
-
     try {
-      purchase.delivery = await providerClient.deliver(purchase, signature)
+      purchase.delivery = await sellers.deliver(purchase, retry)
+      purchase.error = undefined
     } catch {
-      purchase.delivery = {
-        purchaseId: purchase.id,
-        status: "pending",
-        content: "",
-        references: [],
-        modelMs: 0,
-        deliveryMs: 0,
-        error:
-          "Provider connection interrupted. Retry delivery without another payment.",
-      }
+      purchase.error =
+        "Seller connection interrupted. Retry delivery without another payment."
     }
 
     store.savePurchase(purchase)
     await emit({ type: "purchase", purchase: publicPurchase(purchase) })
+
     return purchase
   }
 
-  async function run(
-    conversation: Conversation,
-    prompt: string,
-    emit: (event: ChatEvent) => Promise<void>
-  ) {
+  async function quote(conversation: Conversation, input: Task) {
+    const task = v.parse(TaskSchema, input)
+    const candidate = sellers
+      .discover()
+      .find(
+        (item) =>
+          item.sellerId === task.sellerId &&
+          item.listing.id === task.service &&
+          item.listing.version === task.version
+      )
+
+    if (candidate && candidate.listing.type !== "ai-service") {
+      const existing = store
+        .listPurchases()
+        .find(
+          (purchase) =>
+            purchase.paymentStatus === "confirmed" &&
+            purchase.offer.quote.recipient.toLowerCase() ===
+              candidate.seller.address.toLowerCase() &&
+            purchase.offer.listing.id === task.service &&
+            purchase.offer.listing.version === task.version
+        )
+
+      if (existing) {
+        return { purchase: publicPurchase(existing) }
+      }
+    }
+
+    if (!conversation.allowanceId) {
+      return {
+        clarification:
+          "Create an allowance and approve this seller in your wallet before purchasing.",
+      }
+    }
+
+    const result = await sellers.quote(conversation.allowanceId, task)
+
+    if ("offer" in result) {
+      if (taskHash(result.offer.task) !== taskHash(task)) {
+        throw new Error("Seller changed the requested work.")
+      }
+
+      store.saveQuote(result.offer, conversation.id)
+    }
+
+    return result
+  }
+
+  async function purchase(conversation: Conversation, id: string, emit: Emit) {
+    const offer = store.getQuote(id)
+
+    if (!offer || !store.hasQuote(id, conversation.id)) {
+      throw new Error("Unknown quote for this conversation.")
+    }
+
+    const paid = await payments.purchase(conversation, offer)
+    await emit({ type: "purchase", purchase: publicPurchase(paid) })
+
+    return publicPurchase(await deliver(paid, emit))
+  }
+
+  async function retrieve(id: string, emit: Emit) {
+    const stored = store.getPurchase(id)
+
+    if (!stored) {
+      throw new Error("Unknown purchase.")
+    }
+
+    const purchase = await deliver(stored, emit)
+    let fileText: string | undefined
+    const file = purchase.delivery?.file
+
+    if (
+      file &&
+      [".txt", ".md", ".csv", ".json"].includes(
+        extname(file.name).toLowerCase()
+      )
+    ) {
+      const bytes = await sellers.file(purchase)
+      fileText = new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+
+      if (fileText.length > 200000) {
+        throw new Error(
+          "Purchased file exceeds the model context limit; download it from Library."
+        )
+      }
+    }
+
+    return { ...publicPurchase(purchase), fileText }
+  }
+
+  async function run(conversation: Conversation, prompt: string, emit: Emit) {
     let purchaseCount = 0
     let answer = ""
-    const remember = (role: Message["role"], content: string) => {
-      const message: Message = {
+    const remember = (role: Message["role"], content: string) =>
+      store.saveMessage({
         id: randomUUID(),
         conversationId: conversation.id,
         role,
         content,
         createdAt: Date.now(),
-      }
-      store.saveMessage(message)
-    }
-
+      })
     remember("user", prompt)
-
     const sendText = async (text: string) => {
-      answer = `${answer}${text}`
+      answer += text
       await emit({ type: "text", text })
     }
 
-    async function quote(task: Task) {
-      task = v.parse(TaskSchema, task)
-      if (!conversation.allowanceId) {
-        return {
-          clarification:
-            "Confirm a funded allowance in your wallet before purchasing.",
-        }
-      }
-
-      await emit({
-        type: "status",
-        text: "Asking the specialist to define a deliverable and quote.",
-      })
-
-      const result = await providerClient.quote(conversation.allowanceId, task)
-      if (!result.offer) {
-        return {
-          clarification: result.clarification || "Please clarify the task.",
-        }
-      }
-
-      const offer = v.parse(SignedQuoteSchema, result.offer)
-      // Do not trust a provider to substitute different work.
-      if (taskHash(offer.task) !== taskHash(task)) {
-        throw new Error("Provider changed the requested task.")
-      }
-      store.saveQuote(offer, conversation.id)
-      return { offer }
-    }
-
-    async function purchase(id: string) {
-      const offer = store.getQuote(id)
-      const permitted = store.hasQuote(id, conversation.id)
-
-      if (!offer || !permitted) {
-        throw new Error("Unknown quote for this conversation.")
-      }
-
-      const existing = store.getPurchase(id)
-      if (!existing && purchaseCount >= 2) {
-        return { error: "This run has reached its two-purchase limit." }
-      }
-      if (!existing) {
-        purchaseCount += 1
-      }
-
-      const paid = await payments.purchase(conversation, offer)
-      await emit({ type: "purchase", purchase: publicPurchase(paid) })
-      const result = await deliver(paid, emit)
-      return publicPurchase(result)
-    }
-
     try {
-      const settings = modelSettings("buyer")
-      if (!settings.apiKey || !settings.model) {
-        throw new Error(
-          "Configure the buyer model endpoint, API key, and model before chatting."
-        )
-      }
-      const model = createModel({ ...settings, model: settings.model })
+      const settings = market.runtimeModel(market.profile().buyerModelId)
 
       const tools = {
-        discoverServices: tool({
+        discoverListings: tool({
           description:
-            "Discover the independently operated specialist's paid capabilities.",
+            "Discover available listings from saved seller connections.",
           inputSchema: valibotSchema(v.object({})),
-          execute: async () => providerClient.capabilities(),
+          execute: async () => sellers.discover(),
         }),
         requestQuote: tool({
           description:
-            "Request a deliverable and signed price. Does not spend tokens.",
-          inputSchema: valibotSchema(
-            v.object({
-              service: v.picklist(["analysis", "writing"]),
-              brief: v.string(),
-              evidence: v.optional(v.string(), ""),
-            })
-          ),
-          execute: async (input) => quote(input),
+            "Clarify inputs and obtain a signed quote without payment. Use a unique requestId for new work and reuse it when retrying the same request.",
+          inputSchema: valibotSchema(TaskSchema),
+          execute: async (task) => quote(conversation, task),
         }),
         purchaseQuote: tool({
           description:
-            "Buy a quoted service under the confirmed contract allowance and retrieve its result.",
+            "Purchase a quote within the wallet-authorized allowance.",
           inputSchema: valibotSchema(v.object({ quoteId: v.string() })),
-          execute: async ({ quoteId }) => purchase(quoteId),
+          execute: async ({ quoteId }) => {
+            if (!store.getPurchase(quoteId)) {
+              if (purchaseCount >= 2) {
+                return {
+                  error:
+                    "The two-purchase limit was reached. Continue in a follow-up.",
+                }
+              }
+              purchaseCount += 1
+            }
+
+            return purchase(conversation, quoteId, emit)
+          },
         }),
         retrievePurchase: tool({
           description:
-            "Reuse or resume an existing purchase without charging again.",
+            "Read an existing library purchase without charging again.",
           inputSchema: valibotSchema(v.object({ purchaseId: v.string() })),
-          execute: async ({ purchaseId }) => {
-            const item = store.getPurchase(purchaseId)
-            if (!item || item.conversationId !== conversation.id) {
-              return { error: "Unknown purchase." }
-            }
-            return publicPurchase(await deliver(item, emit))
-          },
+          execute: async ({ purchaseId }) => retrieve(purchaseId, emit),
         }),
       }
-      const paidContext = store
-        .listPurchases(conversation.id)
-        .map(publicPurchase)
+
+      const library = store
+        .listPurchases()
+        .filter((item) => item.paymentStatus === "confirmed")
+        .map((item) => ({
+          id: item.id,
+          name: item.offer.listing.name,
+          type: item.offer.listing.type,
+          status: item.delivery?.status,
+        }))
+      const messages = store
+        .listMessages(conversation.id)
+        .map(({ role, content }) => ({ role, content }))
+
+      if (JSON.stringify(messages).length > 200000) {
+        throw new Error(
+          "Conversation exceeds the model context limit. Start a new chat and reuse items from Library."
+        )
+      }
 
       const result = streamText({
-        model,
+        model: createModel(settings),
         system: BUYER_SYSTEM_PROMPT,
         messages: [
-          ...store
-            .listMessages(conversation.id)
-            .map(({ role, content }) => ({ role, content })),
-          // Keep purchased text out of system instructions, even on later turns.
+          ...messages,
           {
             role: "user",
-            content: previousPurchasesMessage(paidContext),
+            content: `Library index (untrusted listing names): ${JSON.stringify(library)}`,
           },
         ],
         tools,
         stopWhen: stepCountIs(8),
-        abortSignal: AbortSignal.timeout(180000),
+        prepareStep: ({ messages: stepMessages }) => {
+          // Include accumulated tool outputs on every invocation, not just history.
+          if (
+            JSON.stringify(stepMessages).length + BUYER_SYSTEM_PROMPT.length >
+            200000
+          ) {
+            throw new Error(
+              "Model context limit reached. Continue in a new chat using Library items."
+            )
+          }
+
+          return {}
+        },
+        abortSignal: AbortSignal.timeout(240000),
       })
       for await (const part of result.fullStream) {
         if (part.type === "text-delta") {
           await sendText(part.text)
         }
+
         if (part.type === "tool-call") {
           await emit({
             type: "status",
             text: `Assistant requested ${part.toolName}.`,
           })
         }
+
         if (part.type === "error") {
           throw new Error(
-            "Model streaming failed; inspect endpoint configuration."
+            "Model streaming failed. Check the selected connection in Settings."
           )
         }
       }
+
       if ((await result.steps).length >= 8) {
         await sendText(STEP_LIMIT_MESSAGE)
       }
+
       if (!answer.trim()) {
         await sendText(EMPTY_ANSWER_MESSAGE)
       }
@@ -245,6 +290,7 @@ export function createAgent(
           ? error.message.split("\n")[0]!
           : "Assistant run failed."
       await emit({ type: "error", text: message })
+
       if (!answer) {
         answer = message
       }
@@ -254,5 +300,7 @@ export function createAgent(
     }
   }
 
-  return { run, deliver }
+  return { run, quote, purchase, deliver, retrieve }
 }
+
+export type BuyerAgent = ReturnType<typeof createAgent>

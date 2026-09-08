@@ -353,58 +353,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
-      typescript:
+      hardhat:
         specifier: 'catalog:'
-        version: 7.0.2
-      vite:
-        specifier: npm:@voidzero-dev/vite-plus-core@0.3.0
-        version: '@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(typescript@7.0.2)(yaml@2.9.0)'
-      vite-plus:
-        specifier: 'catalog:'
-        version: 0.3.0(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(typescript@7.0.2)(yaml@2.9.0))(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(typescript@7.0.2)(yaml@2.9.0)
-
-  apps/providers:
-    dependencies:
-      '@ai-sdk/valibot':
-        specifier: 'catalog:'
-        version: 3.0.36(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@7.0.2)))(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
-      '@hono/node-server':
-        specifier: ^2.1.1
-        version: 2.1.1(hono@4.13.7)
-      '@hono/standard-validator':
-        specifier: 'catalog:'
-        version: 0.4.0(@standard-schema/spec@1.1.0)(hono@4.13.7)
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@repo/schemas':
-        specifier: workspace:*
-        version: link:../../packages/schemas
-      '@repo/utils':
-        specifier: workspace:*
-        version: link:../../packages/utils
-      ai:
-        specifier: 'catalog:'
-        version: 7.0.93(zod@4.5.4)
-      hono:
-        specifier: 'catalog:'
-        version: 4.13.7
-      valibot:
-        specifier: 'catalog:'
-        version: 1.4.2(typescript@7.0.2)
-      viem:
-        specifier: 'catalog:'
-        version: 2.56.3(typescript@7.0.2)(zod@4.5.4)
-    devDependencies:
-      '@hono/vite-build':
-        specifier: ^1.11.1
-        version: 1.11.1(hono@4.13.7)
-      '@hono/vite-dev-server':
-        specifier: 'catalog:'
-        version: 0.26.1(hono@4.13.7)
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.13.3
+        version: 3.15.0
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

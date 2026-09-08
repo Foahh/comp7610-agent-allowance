@@ -32,7 +32,7 @@ export function createPayments(
   receiptTimeoutMs = 30000
 ) {
   const client = publicClient(config.chainId, config.rpcUrl)
-  const account = signer("agent")
+  const account = signer("agent", config)
   const wallet = createWalletClient({
     account,
     chain: getChain(config.chainId),
@@ -67,7 +67,6 @@ export function createPayments(
     const [
       owner,
       agent,
-      provider,
       budget,
       perPurchase,
       spent,
@@ -80,7 +79,14 @@ export function createPayments(
       id,
       owner,
       agent,
-      provider,
+      sellers: [
+        ...(await client.readContract({
+          address: config.vault,
+          abi: vaultAbi,
+          functionName: "allowanceSellers",
+          args: [BigInt(id)],
+        })),
+      ],
       budget: budget.toString(),
       perPurchase: perPurchase.toString(),
       spent: spent.toString(),
@@ -93,6 +99,7 @@ export function createPayments(
 
   function save(purchase: Purchase) {
     store.savePurchase(purchase)
+
     return purchase
   }
 
@@ -100,15 +107,18 @@ export function createPayments(
     if (!purchase.txHash || !purchase.rawTransaction) {
       return purchase
     }
+
     if (!["prepared", "pending"].includes(purchase.paymentStatus)) {
       return purchase
     }
 
     const start = performance.now()
+
     try {
       const known = await client
         .getTransactionReceipt({ hash: purchase.txHash as Hex })
         .catch(() => undefined)
+
       if (!known) {
         // Re-broadcast exactly the persisted bytes. Never re-sign an uncertain purchase.
         await client
@@ -158,6 +168,7 @@ export function createPayments(
         if (existing.conversationId !== conversation.id) {
           throw new Error("Quote belongs to another conversation.")
         }
+
         return recover(existing)
       }
 
@@ -170,6 +181,24 @@ export function createPayments(
           throw new Error(
             "Another payment is unresolved. No new charge was created."
           )
+        }
+      }
+
+      // A second quote for a static version must reuse its confirmed purchase,
+      // including when two conversations submitted competing requests.
+      if (offer.listing.type !== "ai-service") {
+        const owned = store
+          .listPurchases()
+          .find(
+            (item) =>
+              item.paymentStatus === "confirmed" &&
+              item.offer.quote.recipient.toLowerCase() ===
+                offer.quote.recipient.toLowerCase() &&
+              item.offer.quote.service === offer.quote.service
+          )
+
+        if (owned) {
+          return owned
         }
       }
 
@@ -193,7 +222,7 @@ export function createPayments(
           offer,
           allowance: limit,
           agentAddress: account.address,
-          recoveredProvider: recovered,
+          recoveredSeller: recovered,
           currentTimestamp: now,
           config,
         })

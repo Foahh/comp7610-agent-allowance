@@ -104,7 +104,7 @@ async function offer(
     account: recipient,
     domain: {
       name: "AgentSpendVault",
-      version: "2",
+      version: "1",
       chainId: hardhat.id,
       verifyingContract: vault,
     },
@@ -202,4 +202,68 @@ test("rejects expired allowances and invalid seller sets", async () => {
   await network.provider.request({ method: "evm_mine" })
   await expect(buy(await offer(1n, seller, expiresAt + 100n))).rejects.toThrow()
   await write("AgentSpendVault", vault, "withdrawUnused", [allowanceId])
+})
+
+test("failed token transfers roll back accounting and quote consumption", async () => {
+  token = await deploy("RejectingTestToken")
+  vault = await deploy("AgentSpendVault", [token])
+  await write("RejectingTestToken", token, "approve", [vault, 5_000_000n])
+  await write("AgentSpendVault", vault, "createAllowance", [
+    agent,
+    [seller],
+    5_000_000n,
+    2_000_000n,
+    expiresAt,
+  ])
+  const value = await offer()
+  await write("RejectingTestToken", token, "setRejectTransfers", [true])
+  await expect(buy(value)).rejects.toThrow()
+  const digest = await read("quoteDigest", [value.quote])
+  expect(await read("purchases", [digest])).toBe(false)
+  expect(((await read("allowances", [allowanceId])) as bigint[])[4]).toBe(0n)
+  await write("RejectingTestToken", token, "setRejectTransfers", [false])
+  await buy(value)
+  expect(await read("purchases", [digest])).toBe(true)
+})
+
+test("competing purchases cannot spend the same remaining funds", async () => {
+  await buy(await offer())
+  await buy(await offer())
+  const first = await offer(1_000_000n)
+  const second = await offer(1_000_000n, otherSeller)
+  const { abi } = await hre.artifacts.readArtifact("AgentSpendVault")
+  const nonce = await client.getTransactionCount({ address: agent! })
+  await network.provider.request({ method: "evm_setAutomine", params: [false] })
+  try {
+    const hashes: Hex[] = []
+    for (const [index, value] of [first, second].entries()) {
+      hashes.push(
+        await wallet.writeContract({
+          account: agent!,
+          address: vault,
+          abi,
+          functionName: "purchase",
+          args: [value.quote, value.signature],
+          nonce: nonce + index,
+          gas: 300000n,
+        })
+      )
+    }
+    await network.provider.request({ method: "evm_mine" })
+    const receipts = await Promise.all(
+      hashes.map((hash) => client.getTransactionReceipt({ hash }))
+    )
+    expect(receipts.map((receipt) => receipt.status).sort()).toEqual([
+      "reverted",
+      "success",
+    ])
+    expect(((await read("allowances", [allowanceId])) as bigint[])[4]).toBe(
+      5_000_000n
+    )
+  } finally {
+    await network.provider.request({
+      method: "evm_setAutomine",
+      params: [true],
+    })
+  }
 })

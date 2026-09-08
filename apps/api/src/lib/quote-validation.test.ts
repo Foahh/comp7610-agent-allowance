@@ -1,7 +1,7 @@
 import type { Allowance, Conversation, SignedQuote } from "@repo/schemas"
 import type { Address, Hex } from "viem"
 
-import { quoteId, serviceHash, taskHash } from "@repo/utils"
+import { quoteId, listingHash, taskHash } from "@repo/utils"
 import assert from "node:assert/strict"
 import { describe, test } from "vite-plus/test"
 
@@ -9,7 +9,7 @@ import { assertPurchasableQuote } from "./quote-validation.ts"
 
 const owner = "0x0000000000000000000000000000000000000001" as Address
 const agent = "0x0000000000000000000000000000000000000002" as Address
-const provider = "0x0000000000000000000000000000000000000003" as Address
+const seller = "0x0000000000000000000000000000000000000003" as Address
 const vault = "0x0000000000000000000000000000000000000004" as Address
 const chainId = 11155111
 const currentTimestamp = 1_000n
@@ -20,22 +20,41 @@ const purchaseCapExceededPattern = /exceeds/
 function createValidInput() {
   const task = {
     service: "analysis",
+    sellerId: "test",
+    version: 1,
+    requestId: "request",
     brief: "Compare the three available cities.",
     evidence: "",
   } as const
+  const listing = {
+    id: "analysis",
+    version: 1,
+    name: "Test",
+    description: "",
+    preview: "",
+    type: "ai-service" as const,
+    amount: "1200000",
+    requiredInputs: "",
+    deliverable: "A cited comparison.",
+    scope: "",
+    contentHash: `0x${"1".repeat(64)}`,
+  }
+
   const quote = {
     allowanceId: "1",
-    service: serviceHash(task.service),
-    requestHash: taskHash(task),
-    recipient: provider,
+    service: listingHash(listing),
+    requestHash: taskHash(task, "A cited comparison."),
+    recipient: seller,
     amount: "1200000",
     nonce: `0x${"1".repeat(64)}` as Hex,
     expiresAt: "1300",
   }
+
   const offer: SignedQuote = {
     id: quoteId(quote, chainId, vault),
     quote,
     signature: "0x12",
+    listing,
     task,
     deliverable: "A cited comparison.",
   }
@@ -53,7 +72,7 @@ function createValidInput() {
     id: "1",
     owner,
     agent,
-    provider,
+    sellers: [seller],
     budget: "5000000",
     perPurchase: "2000000",
     spent: "0",
@@ -68,7 +87,7 @@ function createValidInput() {
     offer,
     allowance,
     agentAddress: agent,
-    recoveredProvider: provider,
+    recoveredSeller: seller,
     currentTimestamp,
     config: { chainId, vault },
   }

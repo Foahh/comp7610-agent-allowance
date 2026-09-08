@@ -4,13 +4,12 @@ import { readConfig } from "@repo/utils/config"
 const config = readConfig()
 const configuredPaths = {
   buyer: process.env.DATABASE_PATH,
-  provider: process.env.PROVIDER_DATABASE_PATH,
+  seller: process.env.SELLER_DATABASE_PATH,
 }
 
-for (const role of ["buyer", "provider"] as const) {
+for (const role of ["buyer", "seller"] as const) {
   const store = openDatabase(
-    configuredPaths[role] ||
-      `${config.root}data/${role}-${config.chainId}.sqlite`
+    configuredPaths[role] || `${config.dataDir}/${role}.sqlite`
   )
 
   store.close()

@@ -9,7 +9,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./config": "./src/config.ts",
-    "./model": "./src/model.ts"
+    "./model": "./src/model.ts",
+    "./secrets": "./src/secrets.ts",
+    "./http": "./src/http.ts"
   },
   "scripts": {
     "build": "vp pack",

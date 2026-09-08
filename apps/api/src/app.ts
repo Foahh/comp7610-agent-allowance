@@ -5,7 +5,9 @@ import { getCookie } from "hono/cookie"
 import { HTTPException } from "hono/http-exception"
 
 import type { BuyerStore } from "./lib/store.ts"
+import type { SellerStore } from "./seller/lib/store.ts"
 
+import { createAgent } from "./lib/agent.ts"
 import { createPayments } from "./lib/payments.ts"
 import { createAuthRoutes } from "./routes/auth.ts"
 import { createConfigRoutes } from "./routes/config.ts"
@@ -14,44 +16,68 @@ import {
   type AppEnv,
 } from "./routes/conversations.ts"
 import { healthRoutes } from "./routes/health.ts"
+import { createMarketplaceRoutes } from "./routes/marketplace.ts"
+import { createMarketplace } from "./seller/lib/marketplace.ts"
+import { createSellerService } from "./seller/lib/seller-service.ts"
+import { createProtocolRoutes } from "./seller/routes/protocol.ts"
 
-const CONVERSATIONS_API_PATH = "/api/conversations"
-
-function isConversationApiPath(path: string) {
-  return (
-    path === CONVERSATIONS_API_PATH ||
-    path.startsWith(CONVERSATIONS_API_PATH + "/")
-  )
-}
+const loopbackAddresses = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"])
 
 export function createApp(
   config: Config,
   store: BuyerStore,
-  payments = createPayments(config, store)
+  payments = createPayments(config, store),
+  sellerStore: SellerStore = store
 ) {
   const app = new Hono<AppEnv>()
+  const market = createMarketplace(config, sellerStore)
+  const service = createSellerService(config, sellerStore, market)
+  const agent = createAgent(config, store, payments, market)
 
   app.onError((error, context) => {
     const status = error instanceof HTTPException ? error.status : 400
+
     return context.json({ error: error.message.split("\n")[0] }, status)
   })
 
   app.use("/api/*", async (context, next) => {
+    // Public seller routes can serve the LAN; management remains local.
+    // Inspect the socket address, never a caller-controlled forwarding header.
+    const bindings = context.env?.server || context.env
+    const remoteAddress = bindings?.incoming?.socket.remoteAddress
+
+    if (remoteAddress && !loopbackAddresses.has(remoteAddress)) {
+      return context.json(
+        { error: "Management is available only from this installation." },
+        403
+      )
+    }
+
     if (!["GET", "HEAD", "OPTIONS"].includes(context.req.method)) {
       if (context.req.header("origin") !== config.appOrigin) {
         return context.json({ error: "Untrusted request origin." }, 403)
       }
     }
+
     await next()
   })
 
   app.use("/api/*", async (context, next) => {
-    if (!isConversationApiPath(context.req.path)) {
+    if (
+      ["/api/config", "/api/health"].includes(context.req.path) ||
+      context.req.path.startsWith("/api/auth/")
+    ) {
       return next()
     }
+
     const token = getCookie(context, "agent_session")
     const session = token ? store.getSession(token) : undefined
-    if (!session || session.expiresAt <= Date.now()) {
+
+    if (
+      !session ||
+      session.expiresAt <= Date.now() ||
+      session.owner !== config.owner.toLowerCase()
+    ) {
       return context.json({ error: "Connect and verify your wallet." }, 401)
     }
     context.set("owner", session.owner)
@@ -59,12 +85,17 @@ export function createApp(
   })
 
   return app
+    .route("/v1", createProtocolRoutes(config, market, service, sellerStore))
     .route("/api/health", healthRoutes)
     .route("/api/config", createConfigRoutes(config, payments.account.address))
     .route("/api/auth", createAuthRoutes(store, config))
     .route(
+      "/api/marketplace",
+      createMarketplaceRoutes(config, store, payments, agent, market, service)
+    )
+    .route(
       "/api/conversations",
-      createConversationRoutes(config, store, payments)
+      createConversationRoutes(config, store, payments, agent)
     )
 }
 

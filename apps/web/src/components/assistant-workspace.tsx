@@ -13,6 +13,7 @@ import { Spinner } from "#/components/ui/spinner"
 import { useWorkspaceLayout } from "#/hooks/use-workspace-layout"
 
 import { AllowancePanel } from "./allowance-panel.tsx"
+import { AllowanceSellers } from "./allowance-sellers.tsx"
 import { useWorkspaceAssistant } from "./assistant-context"
 import { ChatComposer } from "./chat-composer.tsx"
 import { ConversationSidebar } from "./conversation-sidebar"
@@ -172,6 +173,7 @@ function AllowanceControls({
   return (
     <div className="allowance-content">
       <WalletControls assistant={assistant} />
+      <AllowanceSellers />
       <AllowancePanel
         allowance={details?.allowance || null}
         connected={!!wallet && !!selected}

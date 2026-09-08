@@ -2,18 +2,27 @@ import { getChain, publicClient } from "@repo/utils"
 import { readConfig, signer } from "@repo/utils/config"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
-import { createWalletClient, http, type Abi, type Hex } from "viem"
+import { createWalletClient, http, zeroAddress, type Abi, type Hex } from "viem"
 
 const config = readConfig()
+if (config.local) {
+  throw new Error(
+    "Local deployments are managed by automated tests. This command deploys to Sepolia."
+  )
+}
+
 const account = signer("deployer")
 const agent = signer("agent").address
-const provider = signer("provider").address
 const client = publicClient(config.chainId, config.rpcUrl)
 const wallet = createWalletClient({
   account,
   chain: getChain(config.chainId),
   transport: http(config.rpcUrl),
 })
+
+console.log(
+  `Fund the generated deployer ${account.address} with Sepolia ETH before deployment.`
+)
 
 async function deploy(name: string, args: readonly unknown[] = []) {
   const path = fileURLToPath(
@@ -37,7 +46,10 @@ async function deploy(name: string, args: readonly unknown[] = []) {
   return receipt.contractAddress
 }
 
-const token = await deploy("AllowanceTestToken")
+const token =
+  config.token === zeroAddress
+    ? await deploy("AllowanceTestToken")
+    : config.token
 const vault = await deploy("AgentSpendVault", [token])
 
 mkdirSync(`${config.root}data`, { recursive: true })
@@ -50,7 +62,6 @@ writeFileSync(
       vault,
       owner: account.address,
       agent,
-      provider,
     },
     null,
     2

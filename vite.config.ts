@@ -17,7 +17,12 @@ export default defineConfig({
         "unknown",
       ],
     },
-    ignorePatterns: ["**/routeTree.gen.ts", "pnpm-lock.yaml", ".agents/*"],
+    ignorePatterns: [
+      "**/routeTree.gen.ts",
+      "pnpm-lock.yaml",
+      ".agents/*",
+      "**/src/components/ui/**",
+    ],
     endOfLine: "lf",
     semi: false,
     singleQuote: false,
@@ -31,7 +36,7 @@ export default defineConfig({
     sortPackageJson: true,
   },
   lint: {
-    ignorePatterns: ["**/routeTree.gen.ts"],
+    ignorePatterns: ["**/routeTree.gen.ts", "**/src/components/ui/**"],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
     rules: { "vite-plus/prefer-vite-plus-imports": "error", curly: "error" },
     options: { typeAware: true, typeCheck: true },

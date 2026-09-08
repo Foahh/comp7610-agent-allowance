@@ -47,7 +47,9 @@ contract AgentSpendVault is EIP712, ReentrancyGuard {
     mapping(uint256 => mapping(address => bool)) public approvedSellers;
     mapping(uint256 => address[]) private sellersByAllowance;
 
-    function allowanceSellers(uint256 allowanceId) external view returns (address[] memory) {
+    function allowanceSellers(
+        uint256 allowanceId
+    ) external view returns (address[] memory) {
         return sellersByAllowance[allowanceId];
     }
 
@@ -79,7 +81,7 @@ contract AgentSpendVault is EIP712, ReentrancyGuard {
     event AllowanceRevoked(uint256 indexed allowanceId);
     event UnusedWithdrawn(uint256 indexed allowanceId, uint256 amount);
 
-    constructor(address tokenAddress) EIP712("AgentSpendVault", "2") {
+    constructor(address tokenAddress) EIP712("AgentSpendVault", "1") {
         if (tokenAddress == address(0)) {
             revert InvalidAllowance();
         }

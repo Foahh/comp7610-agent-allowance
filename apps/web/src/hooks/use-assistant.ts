@@ -1,9 +1,11 @@
 import type { Conversation } from "@repo/schemas"
+import type { Address } from "viem"
 
 import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 
 import {
+  listConversations,
   bindAllowance,
   createAuthChallenge,
   createConversation as requestConversation,
@@ -34,6 +36,7 @@ export function useAssistant() {
   const [wallet, setWallet] = useState<ConnectedWallet | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [scenario, setScenario] = useState<Scenario>("success")
+  const [approvedSellers, setApprovedSellers] = useState<Address[]>([])
   const [draft, setDraft] = useState("")
   const { configuration, conversations, details, refresh } =
     useAssistantQueries(wallet?.account.address, selected)
@@ -65,7 +68,12 @@ export function useAssistant() {
       await verifyAuthChallenge(challenge.id, signature)
       setWallet(connected)
       setSelected(null)
-      await createConversation(scenario)
+      const existing = await listConversations()
+      if (existing.length) {
+        setSelected(existing[0]!.id)
+      } else {
+        await createConversation(scenario)
+      }
     })
   }
 
@@ -91,6 +99,7 @@ export function useAssistant() {
         config,
         budget,
         cap,
+        approvedSellers,
         (text) => dispatch({ type: "status", text })
       )
       await bindAllowance(selected, allowanceId)
@@ -178,6 +187,8 @@ export function useAssistant() {
       conversations.error?.message,
     conversations: conversations.data || [],
     purchases: [...purchases.values()],
+    approvedSellers,
+    setApprovedSellers,
     setDraft,
     select: setSelected,
     connect,

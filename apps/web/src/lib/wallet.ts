@@ -55,8 +55,14 @@ export async function fundAllowance(
   config: AppConfig,
   total: string,
   maximum: string,
+  sellers: Address[],
   onStatus: (text: string) => void
 ) {
+  if (sellers.length === 0 || sellers.length > 16) {
+    throw new Error(
+      "Select between one and sixteen sellers for this allowance."
+    )
+  }
   const budget = parseUnits(total, 6)
   const cap = parseUnits(maximum, 6)
 
@@ -132,7 +138,7 @@ export async function fundAllowance(
     address: config.vault,
     abi: vaultAbi,
     functionName: "createAllowance",
-    args: [config.agent, config.provider, budget, cap, now + 86400n],
+    args: [config.agent, sellers, budget, cap, now + 86400n],
   })
   const receipt = await client.waitForTransactionReceipt({
     hash: creation,

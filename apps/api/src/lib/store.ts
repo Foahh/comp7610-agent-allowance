@@ -18,18 +18,22 @@ import {
 } from "@repo/db"
 import { createRecordQueries } from "@repo/db/records"
 
-export function openBuyerDatabase(filename?: string) {
+export function openBuyerDatabase(filename?: string, scope = "") {
   const connection = openDatabase(filename)
   const { db } = connection
   const records = createRecordQueries(db)
 
+  const allowanceKey = (id: string) => `${scope}${id}`
+
   function getPurchase(id: string): Purchase | undefined {
     const row = db.select().from(purchases).where(eq(purchases.id, id)).get()
+
     if (!row) {
       return undefined
     }
 
     const offer = records.getQuote(id)
+
     if (!offer) {
       throw new Error("Purchase quote is missing.")
     }
@@ -186,7 +190,7 @@ export function openBuyerDatabase(filename?: string) {
       return db
         .select()
         .from(allowances)
-        .where(eq(allowances.allowanceId, allowanceId))
+        .where(eq(allowances.allowanceId, allowanceKey(allowanceId)))
         .get()
     },
     bindAllowance(conversation: Conversation, allowanceId: string) {
@@ -194,7 +198,7 @@ export function openBuyerDatabase(filename?: string) {
         const bound = db
           .select()
           .from(allowances)
-          .where(eq(allowances.allowanceId, allowanceId))
+          .where(eq(allowances.allowanceId, allowanceKey(allowanceId)))
           .get()
 
         if (bound && bound.conversationId !== conversation.id) {
@@ -202,7 +206,10 @@ export function openBuyerDatabase(filename?: string) {
         }
 
         db.insert(allowances)
-          .values({ allowanceId, conversationId: conversation.id })
+          .values({
+            allowanceId: allowanceKey(allowanceId),
+            conversationId: conversation.id,
+          })
           .onConflictDoNothing()
           .run()
 

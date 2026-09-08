@@ -12,9 +12,12 @@ export function createConfigRoutes(config: Config, agentAddress: Address) {
       vault: config.vault,
       token: config.token,
       agent: agentAddress,
-      provider: config.provider,
+      owner: config.owner,
+      sellerEndpoint: config.sellerPublicUrl,
       // Never send a credential-bearing RPC URL to the browser.
-      rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
+      rpcUrl: config.local
+        ? config.rpcUrl
+        : "https://ethereum-sepolia-rpc.publicnode.com",
     })
   )
 }

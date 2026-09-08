@@ -13,8 +13,10 @@
     "db:init": "vp exec node scripts/init-db.ts",
     "prepare": "vp config",
     "doctor": "vp exec react-doctor",
+    "accounts": "vp exec node scripts/accounts.ts",
     "models:check": "vp exec node scripts/check-models.ts",
-    "deploy:sepolia": "vp run @repo/contracts#deploy:sepolia"
+    "deploy:sepolia": "vp run @repo/contracts#deploy:sepolia",
+    "test:contracts": "vp test packages/contracts/test"
   },
   "devDependencies": {
     "@repo/db": "workspace:*",

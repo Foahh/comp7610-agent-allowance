@@ -14,7 +14,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, test } from "vite-plus/test"
 
-import { openProviderDatabase } from "../../../providers/src/lib/store.ts"
+import { openSellerDatabase } from "../seller/lib/store.ts"
 import { openBuyerDatabase } from "./store.ts"
 
 const conversation: Conversation = {
@@ -31,8 +31,24 @@ function offer(id = "quote-1"): SignedQuote {
     id,
     signature: "0x1234",
     deliverable: "Report",
+    listing: {
+      id: "analysis",
+      version: 1,
+      name: "Test",
+      description: "",
+      preview: "",
+      type: "text",
+      amount: "1",
+      requiredInputs: "",
+      deliverable: "Report",
+      scope: "",
+      contentHash: "0x01",
+    },
     task: {
       service: "analysis",
+      sellerId: "test",
+      version: 1,
+      requestId: "request",
       brief: "Compare the available cities.",
       evidence: "",
     },
@@ -65,6 +81,7 @@ function purchase(id = "quote-1"): Purchase {
 describe("relational storage", () => {
   test("deletes chat messages and hides the conversation while retaining payment records", () => {
     const store = openBuyerDatabase(":memory:")
+
     try {
       store.saveConversation(conversation)
       store.saveConversation({ ...conversation, id: "other" })
@@ -96,6 +113,7 @@ describe("relational storage", () => {
     const directory = mkdtempSync(join(tmpdir(), "allowance-db-test-"))
     const path = join(directory, "buyer.sqlite")
     let store = openBuyerDatabase(path)
+
     try {
       store.saveConversation(conversation)
       const record = purchase()
@@ -128,6 +146,7 @@ describe("relational storage", () => {
 
   test("enforces foreign keys and status constraints, and filters conversation children", () => {
     const store = openBuyerDatabase(":memory:")
+
     try {
       assert.throws(() =>
         store.saveMessage({
@@ -181,6 +200,7 @@ describe("relational storage", () => {
 
   test("binds allowances atomically and rejects duplicate runs", () => {
     const store = openBuyerDatabase(":memory:")
+
     try {
       store.saveConversation(conversation)
       const other = { ...conversation, id: "other" }
@@ -201,6 +221,7 @@ describe("relational storage", () => {
 
   test("saves delivery children transactionally and rolls back a failed purchase update", () => {
     const store = openBuyerDatabase(":memory:")
+
     try {
       store.saveConversation(conversation)
       const record = purchase()
@@ -213,6 +234,7 @@ describe("relational storage", () => {
         deliveryMs: 0,
         error: "temporary",
       }
+
       store.savePurchase(record)
       assert.deepEqual(store.getPurchase(record.id)?.delivery?.references, [
         "first",
@@ -244,8 +266,9 @@ describe("relational storage", () => {
     }
   })
 
-  test("provider quotes and deliveries do not require buyer-side records", () => {
-    const store = openProviderDatabase(":memory:")
+  test("seller quotes and deliveries do not require buyer-side records", () => {
+    const store = openSellerDatabase(":memory:")
+
     try {
       const quote = offer()
       store.saveQuote(quote)

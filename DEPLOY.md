@@ -1,113 +1,57 @@
 # Deployment guide
 
-## 1. Set up wallets
+## 1. Set up a wallet
 
-### 1. Install a wallet and create accounts
+Install a browser wallet such as MetaMask, create an account, and switch to **Ethereum Sepolia**.
 
-Install a browser wallet extension and create a wallet. This guide uses MetaMask.
-
-Create two accounts in MetaMask for the following roles. You can choose any names, as long as you can tell them apart.
-
-| Account    | Purpose                                         |
-| ---------- | ----------------------------------------------- |
-| `agent`    | Used by the agent; needs Sepolia ETH            |
-| `provider` | Used by the provider; does not need Sepolia ETH |
-
-![Create accounts in MetaMask](assets/image.png)
-
-### 2. Get Sepolia ETH
-
-Copy the `agent` account's wallet address.
+Copy your wallet address and get free Sepolia ETH from the [Google Cloud faucet](https://cloud.google.com/application/web3/faucet/ethereum/sepolia).
 
 ![Copy the wallet address](assets/image-1.png)
 
-Visit the [Google Cloud Sepolia faucet](https://cloud.google.com/application/web3/faucet/ethereum/sepolia) to get free Sepolia ETH.
-
 ![Get Sepolia ETH](assets/image-2.png)
 
-### 3. Get the private keys
+## 2. Prepare the AI service
 
-Open **Account Details** for each account and copy its private key for the environment configuration below.
-
-![Open account details](assets/image-4.png)
-
-![Get the private key](assets/image-5.png)
-
-## 2. Set up the AI service
-
-Visit the [DeepSeek platform](https://platform.deepseek.com/usage), add credit, and get an API key.
+Visit the [DeepSeek platform](https://platform.deepseek.com/usage), add credit, and get an API key. You will enter it in the application later.
 
 ## 3. Get the project
 
-Clone the repository:
-
 ```sh
 git clone https://github.com/Foahh/comp7610-agent-allowance
+cd comp7610-agent-allowance
 ```
 
-Open the cloned project folder in your preferred IDE.
+Open the project folder in your preferred IDE.
 
 ## 4. Configure environment variables
 
-### 1. Create the configuration file
-
-Copy `.env.example` to `.env`, then fill in the fields below.
-
-![Environment configuration example](assets/image-3.png)
-
-### 2. Configure the AI service
-
-| Variable          | Value                                        |
-| ----------------- | -------------------------------------------- |
-| `OPENAI_BASE_URL` | DeepSeek API URL                             |
-| `OPENAI_API_KEY`  | Your DeepSeek API key                        |
-| `OPENAI_MODEL`    | Model name; recommended: `deepseek-v4-flash` |
-
-Example:
+Copy `.env.example` to `.env` and set `OWNER_ADDRESS` to your browser-wallet address. Keep the other defaults for now.
 
 ```dotenv
-OPENAI_BASE_URL=https://api.deepseek.com
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=deepseek-v4-flash
+OWNER_ADDRESS=0x...
 ```
 
-### 3. Configure wallets
-
-Enter the private keys you copied earlier:
-
-| Variable               | Value                                                                                     |
-| ---------------------- | ----------------------------------------------------------------------------------------- |
-| `DEPLOYER_PRIVATE_KEY` | Contract deployment account's private key; use the same key as `AGENT_PRIVATE_KEY`        |
-| `AGENT_PRIVATE_KEY`    | The `agent` account's private key; this account must hold the Sepolia ETH claimed earlier |
-| `PROVIDER_PRIVATE_KEY` | The `provider` account's private key; this account does not need Sepolia ETH              |
-
-Example:
-
-```dotenv
-DEPLOYER_PRIVATE_KEY=0x...
-AGENT_PRIVATE_KEY=0x...
-PROVIDER_PRIVATE_KEY=0x...
-```
+If your group already has shared contracts, fill in `TOKEN_ADDRESS` and `VAULT_ADDRESS` too.
 
 ## 5. Install dependencies
 
-Follow the [official Vite+ installation guide](https://viteplus.dev/guide/).
-Vite+ manages the runtime, so you do not need to install Node.js or pnpm separately.
-
-After installation, open a new terminal and run this from the project root:
+Follow the [Vite+ installation guide](https://viteplus.dev/guide/), then open a new terminal in the project root:
 
 ```sh
 vp install
+vp run accounts
 ```
 
-## 6. Deploy the smart contracts
+The application generates backend keys locally and displays their public addresses. Send Sepolia ETH to the `agent` and `deployer` addresses. No private keys need to be entered in `.env`.
 
-Make sure the account for `DEPLOYER_PRIVATE_KEY` has Sepolia ETH, then run:
+## 6. Deploy the smart contracts
 
 ```sh
 vp run @repo/contracts#build
 vp run deploy:sepolia
 ```
+
+Addresses are saved to `data/deployment-11155111.json`. Skip deployment if you configured shared contracts; participants trading together must use the same contracts.
 
 ## 7. Start the application
 
@@ -116,12 +60,12 @@ vp run db:init
 vp run dev
 ```
 
-Keep the terminal running. For later sessions, just run `vp run dev`.
+Open `http://localhost:3000`. Keep the terminal running. For later sessions, just run `vp run dev`.
 
 ## 8. Start using the application
 
-Switch your wallet to Sepolia, select the `agent` account, and click **Connect wallet**. The account needs Sepolia ETH to pay transaction fees.
+Connect the wallet configured in `OWNER_ADDRESS` and sign in.
 
-![Connect your wallet](assets/image-6.png)
+In **Settings**, add your DeepSeek endpoint, model name, and API key. Click **Check connection** and select the buyer's default model.
 
-Claim ATT test tokens on the page, set a spending allowance, complete the authorization, and start chatting.
+Publish a product in **My listings**, or add another participant's API URL in **Connected sellers**. In **Chat**, select sellers, claim test ATT when prompted, and authorize a spending allowance to start buying.

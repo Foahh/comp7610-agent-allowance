@@ -7,6 +7,7 @@ import {
 import { Link } from "@tanstack/react-router"
 
 import { Button } from "#/components/ui/button"
+import { marketplaceNavigation } from "#/lib/navigation"
 
 import { useWorkspaceAssistant } from "./assistant-context"
 
@@ -106,24 +107,28 @@ export function ConversationSidebar({
           </div>
         ))}
       </nav>
-      <Button
-        nativeButton={false}
-        role="link"
-        render={
-          <Link
-            to="/providers"
-            aria-label="Providers"
-            title="Providers"
-            onClick={onNavigate}
-          />
-        }
-        variant="ghost"
-        size={collapsed ? "icon" : "default"}
-        className="mt-auto"
-      >
-        <RiTeamLine />
-        {!collapsed && "Providers"}
-      </Button>
+      <nav className="mt-auto flex flex-col gap-1" aria-label="Marketplace">
+        {marketplaceNavigation.map((item) => (
+          <Button
+            key={item.to}
+            nativeButton={false}
+            role="link"
+            render={
+              <Link
+                to={item.to}
+                aria-label={item.label}
+                title={item.label}
+                onClick={onNavigate}
+              />
+            }
+            variant="ghost"
+            size={collapsed ? "icon" : "default"}
+          >
+            <RiTeamLine />
+            {!collapsed && item.label}
+          </Button>
+        ))}
+      </nav>
     </aside>
   )
 }

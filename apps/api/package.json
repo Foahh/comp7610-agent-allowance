@@ -28,6 +28,7 @@
     "@hono/vite-build": "catalog:",
     "@hono/vite-dev-server": "catalog:",
     "@types/node": "catalog:",
+    "hardhat": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"

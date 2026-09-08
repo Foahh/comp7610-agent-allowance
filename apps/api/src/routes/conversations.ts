@@ -13,12 +13,19 @@ import { streamSSE } from "hono/streaming"
 import { randomUUID } from "node:crypto"
 import * as v from "valibot"
 
+import type { BuyerAgent } from "../lib/agent.ts"
 import type { BuyerStore } from "../lib/store.ts"
 
-import { createAgent } from "../lib/agent.ts"
 import { publicPurchase, type Payments } from "../lib/payments.ts"
 
-export type AppEnv = { Variables: { owner: string } }
+type ServerBindings = {
+  incoming?: { socket: { remoteAddress?: string } }
+}
+
+export type AppEnv = {
+  Bindings: ServerBindings & { server?: ServerBindings }
+  Variables: { owner: string }
+}
 
 const CreateConversationRequestSchema = v.object({
   title: v.optional(v.pipe(v.string(), v.maxLength(120)), "New conversation"),
@@ -35,10 +42,10 @@ const SendMessageRequestSchema = v.object({
 export function createConversationRoutes(
   config: Config,
   store: BuyerStore,
-  payments: Payments
+  payments: Payments,
+  agent: BuyerAgent
 ) {
   const router = new Hono<AppEnv>()
-  const agent = createAgent(config, store, payments)
   const active = new Set<string>()
 
   function owned(id: string, owner: string) {
@@ -75,15 +82,18 @@ export function createConversationRoutes(
     )
     .delete("/:id", async (context) => {
       const conversation = owned(context.req.param("id"), context.get("owner"))
+
       if (active.has(conversation.id)) {
         throw new HTTPException(409, {
           message: "Wait for the active run before deleting this conversation.",
         })
       }
       active.add(conversation.id)
+
       try {
         if (conversation.allowanceId) {
           const allowance = await payments.allowance(conversation.allowanceId)
+
           if (!allowance.revoked || BigInt(allowance.remaining) > 0n) {
             throw new HTTPException(409, {
               message:
@@ -91,6 +101,7 @@ export function createConversationRoutes(
             })
           }
         }
+
         if (
           store
             .listPurchases(conversation.id)
@@ -108,7 +119,9 @@ export function createConversationRoutes(
               "Refresh pending purchases before deleting this conversation.",
           })
         }
+
         store.deleteConversation(conversation.id)
+
         return context.json({ ok: true })
       } finally {
         active.delete(conversation.id)
@@ -146,11 +159,9 @@ export function createConversationRoutes(
 
         if (
           state.owner.toLowerCase() !== conversation.owner ||
-          state.agent.toLowerCase() !==
-            payments.account.address.toLowerCase() ||
-          state.provider.toLowerCase() !== config.provider.toLowerCase()
+          state.agent.toLowerCase() !== payments.account.address.toLowerCase()
         ) {
-          throw new Error("Allowance ownership, agent, or provider mismatch.")
+          throw new Error("Allowance ownership or agent mismatch.")
         }
 
         const bound = store.getAllowance(allowanceId)

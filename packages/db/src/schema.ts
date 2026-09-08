@@ -1,3 +1,5 @@
+import type { SignedQuote, ExecutionSnapshot } from "@repo/schemas"
+
 import { sql } from "drizzle-orm"
 import {
   sqliteTable,
@@ -77,20 +79,13 @@ export const quotes = sqliteTable(
     nonce: text("nonce").notNull(),
     expiresAt: text("expires_at").notNull(),
     signature: text("signature").notNull(),
-    taskService: text("task_service", {
-      enum: ["analysis", "writing"],
-    }).notNull(),
+    taskService: text("task_service").notNull(),
+    snapshot: text("snapshot", { mode: "json" }).$type<SignedQuote>().notNull(),
     brief: text("brief").notNull(),
     evidence: text("evidence").notNull(),
     deliverable: text("deliverable").notNull(),
   },
-  (table) => [
-    check(
-      "quotes_task_service_check",
-      sql`${table.taskService} in ('analysis', 'writing')`
-    ),
-    index("quotes_lookup_idx").on(table.conversationId),
-  ]
+  (table) => [index("quotes_lookup_idx").on(table.conversationId)]
 )
 
 export const purchases = sqliteTable(
@@ -138,6 +133,10 @@ export const deliveries = sqliteTable(
       enum: ["pending", "running", "completed", "failed"],
     }).notNull(),
     content: text("content").notNull(),
+    fileName: text("file_name"),
+    fileSize: integer("file_size"),
+    fileMediaType: text("file_media_type"),
+    fileHash: text("file_hash"),
     modelMs: real("model_ms").notNull(),
     deliveryMs: real("delivery_ms").notNull(),
     error: text("error"),
@@ -194,3 +193,155 @@ export const sessions = sqliteTable(
   },
   (table) => [index("sessions_lookup_idx").on(table.expiresAt)]
 )
+
+export const sellerProfiles = sqliteTable("seller_profiles", {
+  id: text("id").primaryKey().notNull(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  buyerModelId: text("buyer_model_id").notNull(),
+})
+
+export const modelConnections = sqliteTable("model_connections", {
+  id: text("id").primaryKey().notNull(),
+  name: text("name").notNull(),
+  baseURL: text("base_url").notNull(),
+  model: text("model").notNull(),
+  encryptedKey: text("encrypted_key").notNull(),
+})
+
+export const assets = sqliteTable("assets", {
+  id: text("id").primaryKey().notNull(),
+  name: text("name").notNull(),
+  mediaType: text("media_type").notNull(),
+  size: integer("size").notNull(),
+  hash: text("hash").notNull(),
+  readable: integer("readable", { mode: "boolean" }).notNull(),
+})
+
+export const listingVersions = sqliteTable(
+  "listing_versions",
+  {
+    id: text("id").notNull(),
+    version: integer("version").notNull(),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    preview: text("preview").notNull(),
+    type: text("type", {
+      enum: ["text", "link", "file", "ai-service"],
+    }).notNull(),
+    amount: text("amount").notNull(),
+    content: text("content").notNull(),
+    assetId: text("asset_id").notNull(),
+    modelId: text("model_id").notNull(),
+    instructions: text("instructions").notNull(),
+    requiredInputs: text("required_inputs").notNull(),
+    deliverable: text("deliverable").notNull(),
+    scope: text("scope").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.id, table.version] })]
+)
+
+export const listingHeads = sqliteTable("listing_heads", {
+  id: text("id").primaryKey().notNull(),
+  version: integer("version").notNull(),
+  publishedVersion: integer("published_version"),
+  status: text("status", { enum: ["draft", "active", "inactive"] }).notNull(),
+})
+
+export const listingAssets = sqliteTable(
+  "listing_assets",
+  {
+    listingId: text("listing_id").notNull(),
+    version: integer("version").notNull(),
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => assets.id),
+    position: integer("position").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.listingId, table.version, table.position] }),
+  ]
+)
+
+export const sellerConnections = sqliteTable("seller_connections", {
+  id: text("id").primaryKey().notNull(),
+  endpoint: text("endpoint").notNull().unique(),
+  address: text("address").notNull(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  chainId: integer("chain_id").notNull(),
+  vault: text("vault").notNull(),
+  token: text("token").notNull(),
+  enabled: integer("enabled", { mode: "boolean" }).notNull(),
+  status: text("status", {
+    enum: ["online", "offline", "identity-changed"],
+  }).notNull(),
+  checkedAt: integer("checked_at").notNull(),
+  error: text("error"),
+})
+
+export const connectedListings = sqliteTable(
+  "connected_listings",
+  {
+    connectionId: text("connection_id")
+      .notNull()
+      .references(() => sellerConnections.id, { onDelete: "cascade" }),
+    id: text("id").notNull(),
+    version: integer("version").notNull(),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    preview: text("preview").notNull(),
+    type: text("type", {
+      enum: ["text", "link", "file", "ai-service"],
+    }).notNull(),
+    amount: text("amount").notNull(),
+    requiredInputs: text("required_inputs").notNull(),
+    deliverable: text("deliverable").notNull(),
+    scope: text("scope").notNull(),
+    contentHash: text("content_hash").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.connectionId, table.id, table.version] }),
+  ]
+)
+
+export const quoteRequests = sqliteTable("quote_requests", {
+  requestKey: text("request_key").primaryKey().notNull(),
+  id: text("quote_id")
+    .notNull()
+    .references(() => quotes.id),
+  taskHash: text("task_hash").notNull(),
+})
+
+export const sellerJobs = sqliteTable("seller_jobs", {
+  id: text("purchase_id")
+    .primaryKey()
+    .notNull()
+    .references(() => quotes.id),
+  snapshot: text("snapshot", { mode: "json" })
+    .$type<ExecutionSnapshot>()
+    .notNull(),
+  txHash: text("tx_hash"),
+  paid: integer("paid", { mode: "boolean" }).notNull(),
+})
+
+export const purchaseDestinations = sqliteTable("purchase_destinations", {
+  id: text("purchase_id").primaryKey().notNull(),
+  endpoint: text("endpoint").notNull(),
+})
+
+export const purchasedFiles = sqliteTable("purchased_files", {
+  id: text("purchase_id")
+    .primaryKey()
+    .notNull()
+    .references(() => purchases.id),
+  path: text("path").notNull(),
+})
+
+export const installations = sqliteTable("installations", {
+  role: text("role").primaryKey().notNull(),
+  chain: text("chain").notNull(),
+  vault: text("vault").notNull(),
+  signer: text("signer").notNull(),
+})

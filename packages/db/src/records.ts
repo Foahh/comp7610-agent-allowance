@@ -11,6 +11,7 @@ export function createRecordQueries(
 ) {
   function saveQuote(offer: SignedQuote, conversationId?: string) {
     const row = {
+      snapshot: offer,
       id: offer.id,
       conversationId: conversationId ?? null,
       ...offer.quote,
@@ -27,35 +28,25 @@ export function createRecordQueries(
 
   function getQuote(id: string): SignedQuote | undefined {
     const row = db.select().from(quotes).where(eq(quotes.id, id)).get()
+
     if (!row) {
       return undefined
     }
 
-    return {
-      id: row.id,
-      signature: row.signature,
-      deliverable: row.deliverable,
-      quote: {
-        allowanceId: row.allowanceId,
-        service: row.service,
-        requestHash: row.requestHash,
-        recipient: row.recipient,
-        amount: row.amount,
-        nonce: row.nonce,
-        expiresAt: row.expiresAt,
-      },
-      task: {
-        service: row.taskService,
-        brief: row.brief,
-        evidence: row.evidence,
-      },
-    }
+    return row.snapshot
   }
 
   function saveDelivery(delivery: Delivery) {
     db.transaction(() => {
-      const { references, ...fields } = delivery
-      const row = { ...fields, error: fields.error ?? null }
+      const { references, file, ...fields } = delivery
+      const row = {
+        ...fields,
+        fileName: file?.name ?? null,
+        fileSize: file?.size ?? null,
+        fileMediaType: file?.mediaType ?? null,
+        fileHash: file?.hash ?? null,
+        error: fields.error ?? null,
+      }
 
       db.insert(deliveries)
         .values(row)
@@ -86,12 +77,24 @@ export function createRecordQueries(
       .from(deliveries)
       .where(eq(deliveries.purchaseId, id))
       .get()
+
     if (!row) {
       return undefined
     }
 
+    const { fileName, fileSize, fileMediaType, fileHash, ...fields } = row
+
     return {
-      ...row,
+      ...fields,
+      file:
+        fileName && fileHash && fileSize !== null && fileMediaType
+          ? {
+              name: fileName,
+              hash: fileHash,
+              size: fileSize,
+              mediaType: fileMediaType,
+            }
+          : undefined,
       error: row.error ?? undefined,
       references: db
         .select()

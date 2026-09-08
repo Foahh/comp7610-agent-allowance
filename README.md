@@ -1,12 +1,12 @@
 # Agent Spend Guard
 
-A COMP7610 group project demo where a buyer agent purchases specialist work with a per-conversation allowance enforced by a smart contract.
+A COMP7610 group project where participants buy and sell digital items and AI services. An AI assistant makes purchases using a conversation allowance enforced by a smart contract on Ethereum Sepolia.
 
 ## Deployment
 
-See the [deployment guide](DEPLOY.md) for deploy the application locally.
+See the [deployment guide](DEPLOY.md) to run the application locally.
 
-[中文部署指南](部署.md) 请看这里.
+中文请看[部署指南](部署.md)。
 
 ## Validate
 
@@ -17,3 +17,5 @@ vp test
 vp run -r build
 vp exec react-doctor apps/web --verbose --scope changed
 ```
+
+Tests create their own temporary local chain and accounts. The application uses Sepolia.

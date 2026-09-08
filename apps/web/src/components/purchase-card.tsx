@@ -24,17 +24,13 @@ export function PurchaseCard({
     <Card className="purchase-card">
       <CardHeader>
         <div className="purchase-heading">
-          <CardTitle>
-            {offer.task.service === "analysis"
-              ? "City evidence analysis"
-              : "Recommendation brief"}
-          </CardTitle>
+          <CardTitle>{offer.listing.name}</CardTitle>
           <Badge variant="outline" className="purchase-amount">
             {formatUnits(BigInt(offer.quote.amount), 6)} ATT
           </Badge>
         </div>
         <CardDescription>
-          Exchange Evidence · {offer.deliverable}
+          {offer.listing.type} · {offer.deliverable}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -52,7 +48,9 @@ export function PurchaseCard({
             <Badge
               variant={delivery.status === "failed" ? "destructive" : "outline"}
             >
-              Delivery: {delivery.status}
+              {paymentStatus === "confirmed" && delivery.status === "failed"
+                ? "Paid, delivery failed"
+                : `Delivery: ${delivery.status}`}
             </Badge>
           )}
         </div>
@@ -62,7 +60,7 @@ export function PurchaseCard({
         <details>
           <summary className="cursor-pointer text-sm">View receipt</summary>
           <dl className="receipt">
-            <dt>Provider</dt>
+            <dt>Seller</dt>
             <dd>{offer.quote.recipient}</dd>
             <dt>Purchase</dt>
             <dd>{purchase.id}</dd>

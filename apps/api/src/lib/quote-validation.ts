@@ -2,14 +2,14 @@ import type { Allowance, Conversation, SignedQuote } from "@repo/schemas"
 import type { Config } from "@repo/utils/config"
 import type { Address } from "viem"
 
-import { quoteId, serviceHash, taskHash } from "@repo/utils"
+import { quoteId, listingHash, taskHash } from "@repo/utils"
 
 type QuoteValidation = {
   conversation: Conversation
   offer: SignedQuote
   allowance: Allowance
   agentAddress: Address
-  recoveredProvider: Address
+  recoveredSeller: Address
   currentTimestamp: bigint
   config: Pick<Config, "chainId" | "vault">
 }
@@ -19,7 +19,7 @@ export function assertPurchasableQuote({
   offer,
   allowance,
   agentAddress,
-  recoveredProvider,
+  recoveredSeller,
   currentTimestamp,
   config,
 }: QuoteValidation) {
@@ -27,13 +27,18 @@ export function assertPurchasableQuote({
     conversation.allowanceId === offer.quote.allowanceId &&
     allowance.owner.toLowerCase() === conversation.owner.toLowerCase() &&
     allowance.agent.toLowerCase() === agentAddress.toLowerCase() &&
-    recoveredProvider.toLowerCase() === allowance.provider.toLowerCase() &&
-    offer.quote.recipient.toLowerCase() === allowance.provider.toLowerCase()
+    recoveredSeller.toLowerCase() === offer.quote.recipient.toLowerCase() &&
+    allowance.sellers.some(
+      (seller) => seller.toLowerCase() === offer.quote.recipient.toLowerCase()
+    )
 
   const matchesSignedWork =
     quoteId(offer.quote, config.chainId, config.vault) === offer.id &&
-    taskHash(offer.task) === offer.quote.requestHash &&
-    serviceHash(offer.task.service) === offer.quote.service
+    taskHash(offer.task, offer.deliverable) === offer.quote.requestHash &&
+    listingHash(offer.listing) === offer.quote.service &&
+    offer.listing.id === offer.task.service &&
+    offer.listing.version === offer.task.version &&
+    offer.listing.amount === offer.quote.amount
 
   if (!matchesAuthority || !matchesSignedWork) {
     throw new Error("Quote does not match the authorized task and allowance.")
@@ -42,6 +47,7 @@ export function assertPurchasableQuote({
   if (allowance.revoked || BigInt(allowance.expiresAt) <= currentTimestamp) {
     throw new Error("Allowance is revoked or expired.")
   }
+
   if (BigInt(offer.quote.expiresAt) <= currentTimestamp) {
     throw new Error("Quote expired.")
   }
