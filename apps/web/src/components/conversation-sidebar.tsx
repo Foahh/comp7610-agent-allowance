@@ -1,9 +1,4 @@
-import {
-  RiAddLine,
-  RiLayoutLeftLine,
-  RiTeamLine,
-  RiDeleteBinLine,
-} from "@remixicon/react"
+import { RiAddLine, RiLayoutLeftLine, RiDeleteBinLine } from "@remixicon/react"
 import { Link } from "@tanstack/react-router"
 
 import { Button } from "#/components/ui/button"
@@ -12,6 +7,7 @@ import { marketplaceNavigation } from "#/lib/navigation"
 import { useWorkspaceAssistant } from "./assistant-context"
 
 type Props = {
+  showConversations?: boolean
   collapsed: boolean
   onToggle?: () => void
   onNavigate?: () => void
@@ -19,6 +15,7 @@ type Props = {
 
 export function ConversationSidebar({
   collapsed,
+  showConversations = true,
   onToggle,
   onNavigate,
 }: Props) {
@@ -28,7 +25,7 @@ export function ConversationSidebar({
     <aside
       className="conversation-sidebar"
       data-collapsed={collapsed}
-      aria-label="Conversation navigation"
+      aria-label="Application sidebar"
     >
       <div className="sidebar-heading">
         <div className="brand" hidden={collapsed}>
@@ -51,23 +48,49 @@ export function ConversationSidebar({
           </Button>
         )}
       </div>
-      <Button
-        variant="outline"
-        size={collapsed ? "icon" : "default"}
-        aria-label="New conversation"
-        title="New conversation"
-        disabled={run.busy || !wallet}
-        onClick={() => {
-          assistant.preset("success")
-          onNavigate?.()
-        }}
-      >
-        <RiAddLine data-icon="inline-start" />
-        {!collapsed && "New conversation"}
-      </Button>
+      <nav className="flex flex-col gap-1" aria-label="Application">
+        {marketplaceNavigation.map((item) => (
+          <Button
+            key={item.to}
+            nativeButton={false}
+            role="link"
+            render={
+              <Link
+                to={item.to}
+                aria-label={item.label}
+                title={item.label}
+                activeProps={{ "aria-current": "page" }}
+                activeOptions={{ exact: true }}
+                onClick={onNavigate}
+              />
+            }
+            variant="ghost"
+            size={collapsed ? "icon" : "default"}
+          >
+            <item.icon />
+            {!collapsed && item.label}
+          </Button>
+        ))}
+      </nav>
+      {showConversations && (
+        <Button
+          variant="outline"
+          size={collapsed ? "icon" : "default"}
+          aria-label="New conversation"
+          title="New conversation"
+          disabled={run.busy || !wallet}
+          onClick={() => {
+            assistant.preset("success")
+            onNavigate?.()
+          }}
+        >
+          <RiAddLine data-icon="inline-start" />
+          {!collapsed && "New conversation"}
+        </Button>
+      )}
       <nav
         id="conversation-navigation"
-        hidden={collapsed}
+        hidden={collapsed || !showConversations}
         aria-label="Conversations"
         className="conversation-navigation"
       >
@@ -105,28 +128,6 @@ export function ConversationSidebar({
               <RiDeleteBinLine />
             </Button>
           </div>
-        ))}
-      </nav>
-      <nav className="mt-auto flex flex-col gap-1" aria-label="Marketplace">
-        {marketplaceNavigation.map((item) => (
-          <Button
-            key={item.to}
-            nativeButton={false}
-            role="link"
-            render={
-              <Link
-                to={item.to}
-                aria-label={item.label}
-                title={item.label}
-                onClick={onNavigate}
-              />
-            }
-            variant="ghost"
-            size={collapsed ? "icon" : "default"}
-          >
-            <RiTeamLine />
-            {!collapsed && item.label}
-          </Button>
         ))}
       </nav>
     </aside>

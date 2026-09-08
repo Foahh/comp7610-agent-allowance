@@ -22,10 +22,17 @@ function OrdersPage() {
   return (
     <MarketplacePage
       title="Orders"
-      description="Track payment and delivery separately for your purchases and sales."
+      description="Purchases and sales, from payment to delivery."
     >
       <RequestState
-        pending={purchases.isFetching || sales.isFetching || retry.isPending}
+        onRetry={
+          purchases.error || sales.error
+            ? () => {
+                void Promise.all([purchases.refetch(), sales.refetch()])
+              }
+            : undefined
+        }
+        pending={purchases.isPending || sales.isPending}
         error={purchases.error || sales.error || retry.error}
       />
       <Tabs defaultValue="purchases">
@@ -34,42 +41,67 @@ function OrdersPage() {
           <TabsTrigger value="sales">Sales</TabsTrigger>
         </TabsList>
         <TabsContent value="purchases" className="flex flex-col gap-5">
-          <p className="text-sm text-muted-foreground">
-            {purchases.data?.length || 0} purchases
-          </p>
+          {purchases.data && (
+            <p className="text-sm text-muted-foreground">
+              {purchases.data.length}{" "}
+              {purchases.data.length === 1 ? "purchase" : "purchases"}
+            </p>
+          )}
+          {purchases.data?.length === 0 && (
+            <div className="provider-empty">
+              <h2>No purchases yet</h2>
+              <p>Your purchases will appear here.</p>
+            </div>
+          )}
           {purchases.data?.map((purchase) => (
             <div key={purchase.id} className="flex flex-col gap-2">
-              <PurchaseCard purchase={purchase} chainId={11155111} />
-              {(["prepared", "pending"].includes(purchase.paymentStatus) ||
-                (purchase.paymentStatus === "confirmed" &&
-                  purchase.delivery?.status !== "completed") ||
-                (!!purchase.error &&
-                  purchase.paymentStatus === "confirmed")) && (
-                <Button
-                  variant="outline"
-                  disabled={retry.isPending}
-                  onClick={() => retry.mutate(purchase.id)}
-                >
-                  Recover payment / retry delivery without another charge
-                </Button>
-              )}
+              <PurchaseCard purchase={purchase} chainId={11155111}>
+                {(["prepared", "pending"].includes(purchase.paymentStatus) ||
+                  (purchase.paymentStatus === "confirmed" &&
+                    purchase.delivery?.status !== "completed") ||
+                  (!!purchase.error &&
+                    purchase.paymentStatus === "confirmed")) && (
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={retry.isPending}
+                      onClick={() => retry.mutate(purchase.id)}
+                    >
+                      {retry.isPending ? "Recovering…" : "Recover purchase"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Check payment or retry delivery without another charge.
+                    </p>
+                  </div>
+                )}
+              </PurchaseCard>
             </div>
           ))}
         </TabsContent>
         <TabsContent value="sales" className="grid gap-5">
-          <p className="text-sm text-muted-foreground">
-            {sales.data?.length || 0} quoted orders
-          </p>
+          {sales.data && (
+            <p className="text-sm text-muted-foreground">
+              {sales.data.length} quoted orders
+            </p>
+          )}
+          {sales.data?.length === 0 && (
+            <div className="provider-empty">
+              <h2>No sales yet</h2>
+              <p>Quoted orders will appear here.</p>
+            </div>
+          )}
           {sales.data?.map((sale) => (
             <Card key={sale.id}>
               <CardHeader>
-                <CardTitle>{sale.offer.listing.name}</CardTitle>
+                <div className="purchase-heading">
+                  <CardTitle>{sale.offer.listing.name}</CardTitle>
+                  <span className="purchase-amount">
+                    {formatUnits(BigInt(sale.offer.quote.amount), 6)} ATT
+                  </span>
+                </div>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
                 <p className="text-sm">{sale.offer.deliverable}</p>
-                <p className="text-sm">
-                  {formatUnits(BigInt(sale.offer.quote.amount), 6)} ATT
-                </p>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary">
                     Payment: {sale.paymentStatus}
@@ -85,9 +117,10 @@ function OrdersPage() {
                   </Badge>
                 </div>
                 {sale.delivery?.error && (
-                  <p className="text-sm text-destructive">
-                    {sale.delivery.error}
-                  </p>
+                  <details className="detail-disclosure purchase-error">
+                    <summary>Failure details</summary>
+                    <p>{sale.delivery.error}</p>
+                  </details>
                 )}
                 {sale.txHash && (
                   <a

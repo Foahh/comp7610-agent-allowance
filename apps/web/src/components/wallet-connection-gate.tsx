@@ -1,63 +1,84 @@
-import type { RefObject } from "react"
+import { RiArrowRightLine, RiWallet3Line } from "@remixicon/react"
 
-import { RiWallet3Line } from "@remixicon/react"
-
-import type { AssistantController } from "#/hooks/use-assistant"
-
+import { AssistantNotifications } from "./assistant-notifications"
+import { Button } from "./ui/button"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "#/components/ui/dialog"
-
-import { WalletControls } from "./wallet-controls"
+  DialogDescription,
+} from "./ui/dialog"
+import { Spinner } from "./ui/spinner"
 
 export function WalletConnectionGate({
-  assistant,
-  returnFocus,
+  busy,
+  configured,
+  error,
+  onConnect,
 }: {
-  assistant: AssistantController
-  returnFocus: RefObject<HTMLElement | null>
+  busy: boolean
+  configured: boolean
+  error: string
+  onConnect: () => void
 }) {
-  const { wallet, run, config, error } = assistant
-  const status = run.busy
-    ? "Finish connecting and sign the sign-in request in your wallet."
-    : config
-      ? ""
-      : "Waiting for the workspace configuration…"
-
   return (
-    <Dialog open={!wallet} disablePointerDismissal>
-      <DialogContent
-        className="wallet-connection-gate app-surface"
-        showCloseButton={false}
-        finalFocus={returnFocus}
-        data-connecting={run.busy}
-      >
-        <div className="wallet-connection-icon" aria-hidden="true">
-          <RiWallet3Line />
+    <>
+      <AssistantNotifications error={error || undefined} />
+      <div className="signin-shell app-surface" inert aria-hidden="true">
+        <aside>
+          <strong>Agent Spend</strong>
+          <div className="signin-placeholder" />
+          <div className="signin-placeholder" />
+        </aside>
+        <div className="signin-canvas">
+          <div className="signin-placeholder" />
+          <div className="signin-composer" />
         </div>
-        <DialogHeader>
-          <p className="eyebrow">Start here</p>
-          <DialogTitle>Connect your wallet</DialogTitle>
-          <DialogDescription>
-            Connect to start a conversation.
-          </DialogDescription>
-        </DialogHeader>
-        <WalletControls assistant={assistant} highlighted />
-        <p
-          id="wallet-connection-status"
-          className="wallet-connection-status"
-          role="status"
-          hidden={!status}
+        <aside>
+          <strong>Wallet & allowance</strong>
+          <div className="signin-placeholder" />
+        </aside>
+      </div>
+      <Dialog open disablePointerDismissal>
+        <DialogContent
+          className="wallet-connection-gate app-surface"
+          showCloseButton={false}
+          data-connecting={busy}
         >
-          {error && !config
-            ? "Unable to load the workspace. Refresh the page to try again."
-            : status}
-        </p>
-      </DialogContent>
-    </Dialog>
+          <div className="wallet-connection-icon" aria-hidden="true">
+            <RiWallet3Line />
+          </div>
+          <DialogHeader>
+            <DialogTitle>Connect your wallet</DialogTitle>
+            <DialogDescription>
+              Connect to start a conversation.
+            </DialogDescription>
+          </DialogHeader>
+          <Button
+            className="connect-primary"
+            disabled={busy || !configured}
+            onClick={() => {
+              onConnect()
+            }}
+          >
+            {busy ? <Spinner /> : <RiArrowRightLine />}
+            {busy ? "Connecting…" : "Connect wallet"}
+          </Button>
+          {!busy && !configured && error && (
+            <Button variant="outline" onClick={() => location.reload()}>
+              Retry connection
+            </Button>
+          )}
+          {busy && (
+            <p role="status" className="wallet-connection-status">
+              {configured
+                ? "Confirm the sign-in request in your wallet."
+                : "Loading workspace…"}
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

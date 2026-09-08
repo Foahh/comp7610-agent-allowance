@@ -23,6 +23,10 @@ export function AssistantNotifications({ error }: { error?: string }) {
     }
   }, [error])
 
+  return null
+}
+
+export function GlobalToaster() {
   return (
     <Toaster
       theme="light"

@@ -5,17 +5,19 @@ import type {
   ModelConnection,
 } from "@repo/schemas"
 
-import { useState } from "react"
+import { useId, useState } from "react"
+import { toast } from "sonner"
 import { formatUnits, parseUnits } from "viem"
 
+import { SheetActions } from "#/components/editor-sheet"
 import { RequestState, TextField } from "#/components/marketplace-page"
 import { Button } from "#/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import { Checkbox } from "#/components/ui/checkbox"
 import { Field, FieldGroup, FieldLabel } from "#/components/ui/field"
 import { NativeSelect, NativeSelectOption } from "#/components/ui/native-select"
 import { useMarketplaceAction } from "#/hooks/use-marketplace"
 import { marketplaceRequest, formText } from "#/lib/marketplace"
+import { listingTypeLabel } from "#/lib/presentation"
 
 const TOKEN_PRICE_PATTERN = /^\d+(\.\d{1,6})?$/
 const LISTING_TYPES: ListingInput["type"][] = [
@@ -24,10 +26,6 @@ const LISTING_TYPES: ListingInput["type"][] = [
   "file",
   "ai-service",
 ]
-
-function listingTypeLabel(type: ListingInput["type"]) {
-  return type === "ai-service" ? "AI service" : type
-}
 
 export function ListingEditor({
   listing,
@@ -42,6 +40,11 @@ export function ListingEditor({
   onSaved: () => void
   onCancel: () => void
 }) {
+  const formId = useId()
+  const [price, setPrice] = useState(
+    listing ? formatUnits(BigInt(listing.amount), 6) : "0.01"
+  )
+  const invalidPrice = !TOKEN_PRICE_PATTERN.test(price) || Number(price) <= 0
   const [type, setType] = useState<ListingInput["type"]>(
     listing?.type || "text"
   )
@@ -92,189 +95,153 @@ export function ListingEditor({
   })
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          {listing ? `Edit ${listing.name}` : "Create listing"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault()
-            save.mutate(new FormData(event.currentTarget), {
-              onSuccess: onSaved,
-            })
-          }}
-        >
-          <FieldGroup>
+    <div className="editor-content">
+      <form
+        id={formId}
+        onSubmit={(event) => {
+          event.preventDefault()
+          save.mutate(new FormData(event.currentTarget), {
+            onSuccess: () => {
+              toast.success("Draft saved.")
+              onSaved()
+            },
+          })
+        }}
+      >
+        <FieldGroup>
+          <h3 className="form-section-title">Basics</h3>
+          <Field>
+            <FieldLabel htmlFor={`${formId}-type`}>Item type</FieldLabel>
+            <NativeSelect
+              id={`${formId}-type`}
+              value={type}
+              onChange={(event) =>
+                setType(event.target.value as ListingInput["type"])
+              }
+            >
+              {LISTING_TYPES.map((value) => (
+                <NativeSelectOption key={value} value={value}>
+                  {listingTypeLabel(value)}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <TextField
+              label="Name"
+              name="name"
+              defaultValue={listing?.name}
+              required
+              maxLength={120}
+            />
+            <TextField
+              label="Price (ATT)"
+              name="price"
+              value={price}
+              onChange={(event) => setPrice(event.target.value)}
+              error={
+                invalidPrice
+                  ? "Enter a positive ATT price with up to six decimals."
+                  : undefined
+              }
+              inputMode="decimal"
+              required
+            />
+          </div>
+          <TextField
+            label="Public description"
+            name="description"
+            defaultValue={listing?.description}
+            multiline
+            maxLength={2000}
+          />
+          <TextField
+            label="Public preview"
+            name="preview"
+            defaultValue={listing?.preview}
+            multiline
+            maxLength={2000}
+          />
+          <h3 className="form-section-title">Delivery</h3>
+          <TextField
+            label="What the buyer receives"
+            name="deliverable"
+            defaultValue={listing?.deliverable}
+            required
+            maxLength={2000}
+          />
+          <TextField
+            label="Scope limits"
+            name="scope"
+            defaultValue={listing?.scope}
+            maxLength={2000}
+          />
+          {(type === "text" || type === "link") && (
+            <TextField
+              label={
+                type === "text" ? "Private paid content" : "Private paid URL"
+              }
+              name="content"
+              defaultValue={listing?.content}
+              multiline={type === "text"}
+              type={type === "link" ? "url" : "text"}
+              required
+              maxLength={200000}
+            />
+          )}
+          {type === "file" && (
             <Field>
-              <FieldLabel htmlFor="listing-type">Item type</FieldLabel>
+              <FieldLabel htmlFor={`${formId}-file`}>Private file</FieldLabel>
               <NativeSelect
-                id="listing-type"
-                value={type}
-                onChange={(event) =>
-                  setType(event.target.value as ListingInput["type"])
-                }
+                id={`${formId}-file`}
+                name="assetId"
+                defaultValue={listing?.assetId || ""}
+                required
               >
-                {LISTING_TYPES.map((value) => (
-                  <NativeSelectOption key={value} value={value}>
-                    {listingTypeLabel(value)}
+                <NativeSelectOption value="">
+                  Select an uploaded file
+                </NativeSelectOption>
+                {assets.map((asset) => (
+                  <NativeSelectOption key={asset.id} value={asset.id}>
+                    {asset.name}
                   </NativeSelectOption>
                 ))}
               </NativeSelect>
             </Field>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <TextField
-                label="Name"
-                name="name"
-                defaultValue={listing?.name}
-                required
-                maxLength={120}
-              />
-              <TextField
-                label="Price per request or copy (ATT)"
-                name="price"
-                defaultValue={
-                  listing ? formatUnits(BigInt(listing.amount), 6) : "0.01"
-                }
-                inputMode="decimal"
-                required
-              />
-            </div>
-            <TextField
-              label="Public description"
-              name="description"
-              defaultValue={listing?.description}
-              multiline
-              maxLength={2000}
+          )}
+          {type === "ai-service" && (
+            <ListingServiceFields
+              listing={listing}
+              models={models}
+              readableAssets={readableAssets}
+              selectedAssets={selectedAssets}
+              onAssetChange={setAssetSelected}
+              formId={formId}
             />
-            <TextField
-              label="Public preview"
-              name="preview"
-              defaultValue={listing?.preview}
-              multiline
-              maxLength={2000}
-            />
-            <TextField
-              label="What the buyer receives"
-              name="deliverable"
-              defaultValue={listing?.deliverable}
-              required
-              maxLength={2000}
-            />
-            <TextField
-              label="Scope limits"
-              name="scope"
-              defaultValue={listing?.scope}
-              maxLength={2000}
-            />
-            {(type === "text" || type === "link") && (
-              <TextField
-                label={
-                  type === "text" ? "Private paid content" : "Private paid URL"
-                }
-                name="content"
-                defaultValue={listing?.content}
-                multiline={type === "text"}
-                type={type === "link" ? "url" : "text"}
-                required
-                maxLength={200000}
-              />
-            )}
-            {type === "file" && (
-              <Field>
-                <FieldLabel htmlFor="listing-file">Private file</FieldLabel>
-                <NativeSelect
-                  id="listing-file"
-                  name="assetId"
-                  defaultValue={listing?.assetId || ""}
-                  required
-                >
-                  <NativeSelectOption value="">
-                    Select an uploaded file
-                  </NativeSelectOption>
-                  {assets.map((asset) => (
-                    <NativeSelectOption key={asset.id} value={asset.id}>
-                      {asset.name}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </Field>
-            )}
-            {type === "ai-service" && (
-              <>
-                <Field>
-                  <FieldLabel htmlFor="listing-model">
-                    Model connection
-                  </FieldLabel>
-                  <NativeSelect
-                    id="listing-model"
-                    name="modelId"
-                    defaultValue={listing?.modelId || ""}
-                  >
-                    <NativeSelectOption value="">
-                      Select before publishing
-                    </NativeSelectOption>
-                    {models.map((model) => (
-                      <NativeSelectOption key={model.id} value={model.id}>
-                        {model.name}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                </Field>
-                <TextField
-                  label="Private service instructions"
-                  name="instructions"
-                  defaultValue={listing?.instructions}
-                  multiline
-                  maxLength={30000}
-                />
-                <TextField
-                  label="Required buyer inputs"
-                  name="requiredInputs"
-                  defaultValue={listing?.requiredInputs}
-                  multiline
-                  maxLength={2000}
-                />
-                <fieldset className="flex flex-col gap-3">
-                  <legend className="mb-3 text-sm font-medium">
-                    Knowledge assets
-                  </legend>
-                  {readableAssets.map((asset) => (
-                    <Field key={asset.id} orientation="horizontal">
-                      <Checkbox
-                        id={`knowledge-${asset.id}`}
-                        checked={selectedAssets.has(asset.id)}
-                        onCheckedChange={(checked) =>
-                          setAssetSelected(asset.id, checked)
-                        }
-                      />
-                      <FieldLabel htmlFor={`knowledge-${asset.id}`}>
-                        {asset.name}
-                      </FieldLabel>
-                    </Field>
-                  ))}
-                </fieldset>
-              </>
-            )}
-            <p className="text-sm text-muted-foreground">
-              Saving creates a draft version. Existing quotes and purchases
-              retain their original content.
-            </p>
-            <div className="flex gap-2">
-              <Button type="submit" disabled={save.isPending}>
-                Save draft
-              </Button>
-              <Button variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-            </div>
-            <RequestState pending={save.isPending} error={save.error} />
-          </FieldGroup>
-        </form>
-      </CardContent>
-    </Card>
+          )}
+          <p className="text-sm text-muted-foreground">
+            Saved as a draft. Existing purchases keep their original version.
+          </p>
+          <SheetActions>
+            <Button
+              form={formId}
+              type="submit"
+              disabled={save.isPending || invalidPrice}
+            >
+              {save.isPending ? "Saving…" : "Save draft"}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={save.isPending}
+              onClick={onCancel}
+            >
+              Cancel
+            </Button>
+          </SheetActions>
+          <RequestState error={save.error} />
+        </FieldGroup>
+      </form>
+    </div>
   )
 }
 
@@ -297,18 +264,86 @@ export function ListingPreview({ listing }: { listing: Listing }) {
         }}
       >
         <p className="text-sm text-muted-foreground">
-          Calls your real model connection. No ATT purchase is created.
+          Uses your model connection; no ATT purchase.
         </p>
         <TextField label="Test request" name="brief" multiline required />
         <TextField label="Supporting evidence" name="evidence" multiline />
         <Button type="submit" disabled={preview.isPending}>
-          Run preview
+          {preview.isPending ? "Running…" : "Run preview"}
         </Button>
-        <RequestState pending={preview.isPending} error={preview.error} />
+        <RequestState error={preview.error} />
         {preview.data && (
           <p className="text-sm whitespace-pre-wrap">{preview.data.content}</p>
         )}
       </form>
     </details>
+  )
+}
+
+function ListingServiceFields({
+  listing,
+  models,
+  readableAssets,
+  selectedAssets,
+  onAssetChange,
+  formId,
+}: {
+  listing: Listing | null
+  models: ModelConnection[]
+  readableAssets: Asset[]
+  selectedAssets: Set<string>
+  onAssetChange: (id: string, selected: boolean) => void
+  formId: string
+}) {
+  return (
+    <>
+      <h3 className="form-section-title">Service configuration</h3>
+      <Field>
+        <FieldLabel htmlFor={`${formId}-model`}>Model connection</FieldLabel>
+        <NativeSelect
+          id={`${formId}-model`}
+          name="modelId"
+          defaultValue={listing?.modelId || ""}
+        >
+          <NativeSelectOption value="">
+            Select before publishing
+          </NativeSelectOption>
+          {models.map((model) => (
+            <NativeSelectOption key={model.id} value={model.id}>
+              {model.name}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      </Field>
+      <TextField
+        label="Private service instructions"
+        name="instructions"
+        defaultValue={listing?.instructions}
+        multiline
+        maxLength={30000}
+      />
+      <TextField
+        label="Required buyer inputs"
+        name="requiredInputs"
+        defaultValue={listing?.requiredInputs}
+        multiline
+        maxLength={2000}
+      />
+      <fieldset className="flex flex-col gap-3">
+        <legend className="mb-3 text-sm font-medium">Knowledge assets</legend>
+        {readableAssets.map((asset) => (
+          <Field key={asset.id} orientation="horizontal">
+            <Checkbox
+              id={`knowledge-${asset.id}`}
+              checked={selectedAssets.has(asset.id)}
+              onCheckedChange={(checked) => onAssetChange(asset.id, checked)}
+            />
+            <FieldLabel htmlFor={`knowledge-${asset.id}`}>
+              {asset.name}
+            </FieldLabel>
+          </Field>
+        ))}
+      </fieldset>
+    </>
   )
 }

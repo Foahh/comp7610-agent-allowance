@@ -1,10 +1,10 @@
+import type { SellerConnection } from "@repo/schemas"
 import type { Address } from "viem"
 
 import { Link } from "@tanstack/react-router"
 
 import { useWorkspaceAssistant } from "#/components/assistant-context"
 import { RequestState } from "#/components/marketplace-page"
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import { Checkbox } from "#/components/ui/checkbox"
 import { Field, FieldLabel } from "#/components/ui/field"
 import { useMarketplace } from "#/hooks/use-marketplace"
@@ -16,33 +16,29 @@ export function AllowanceSellers() {
   const locked = !!allowance && !allowance.revoked
   const selected = locked ? allowance.sellers : assistant.approvedSellers
   const selectedAddresses = new Set(selected)
-  const sellers = new Map<
-    string,
-    NonNullable<typeof connections.data>[number]["identity"]
-  >()
-
-  for (const connection of connections.data || []) {
-    if (connection.enabled && connection.status === "online") {
-      sellers.set(
-        connection.identity.address.toLowerCase(),
-        connection.identity
-      )
-    }
-  }
+  const sellers = getOnlineSellers(connections.data)
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Approved sellers</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+    <section className="allowance-sellers" aria-label="Approved sellers">
+      <div className="section-heading">
+        <h3>Approved sellers</h3>
+        <span className="text-xs text-muted-foreground">
+          {selected.length} selected
+        </span>
+      </div>
+      <div className="flex flex-col gap-3">
         <p className="text-xs text-muted-foreground">
-          {locked
-            ? "This seller set is fixed until you revoke and replace the allowance."
-            : "Choose up to 16 sellers to include in the next wallet authorization."}
+          {locked ? "Fixed for this allowance." : "Select up to 16 sellers."}
         </p>
         <RequestState
-          pending={connections.isFetching}
+          onRetry={
+            connections.error
+              ? () => {
+                  void connections.refetch()
+                }
+              : undefined
+          }
+          pending={connections.isPending}
           error={connections.error}
         />
         {locked
@@ -75,12 +71,31 @@ export function AllowanceSellers() {
                 </FieldLabel>
               </Field>
             ))}
-        {!locked && sellers.size === 0 && (
-          <Link className="text-sm underline" to="/sellers">
-            Connect a seller first
-          </Link>
+        {!locked &&
+          !connections.isPending &&
+          !connections.error &&
+          sellers.size === 0 && (
+            <Link className="text-sm underline" to="/sellers">
+              Connect a seller first
+            </Link>
+          )}
+        {locked && selected.length === 0 && (
+          <p className="text-sm text-muted-foreground">No approved sellers.</p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   )
+}
+
+function getOnlineSellers(connections: SellerConnection[] = []) {
+  const sellers = new Map<string, SellerConnection["identity"]>()
+  for (const connection of connections) {
+    if (connection.enabled && connection.status === "online") {
+      sellers.set(
+        connection.identity.address.toLowerCase(),
+        connection.identity
+      )
+    }
+  }
+  return sellers
 }

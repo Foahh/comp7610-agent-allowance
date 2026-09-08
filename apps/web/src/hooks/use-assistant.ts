@@ -39,11 +39,12 @@ export function useAssistant(wallet: ConnectedWallet, logout: () => void) {
   const { run, dispatch, perform } = useAssistantRun(refresh)
   const config = configuration.data
 
-  async function createConversation(nextScenario: Scenario) {
+  async function createConversation(nextScenario: Scenario, message?: string) {
     const title =
-      nextScenario === "insufficient"
+      message?.replace(/\s+/g, " ").slice(0, 120) ||
+      (nextScenario === "insufficient"
         ? "Allowance boundary"
-        : "Exchange semester"
+        : "Exchange semester")
     const conversation = await requestConversation(title, nextScenario)
     setSelected(conversation.id)
 
@@ -95,14 +96,23 @@ export function useAssistant(wallet: ConnectedWallet, logout: () => void) {
   }
 
   function send() {
-    if (!selected || !draft.trim()) {
+    if (!wallet || run.busy || !draft.trim()) {
       return
     }
 
     const message = draft.trim()
     setDraft("")
     void perform(async () => {
-      await sendMessage(selected, message, (event) => {
+      let conversationId = selected
+      if (!conversationId) {
+        try {
+          conversationId = (await createConversation(scenario, message)).id
+        } catch (error) {
+          setDraft(message)
+          throw error
+        }
+      }
+      await sendMessage(conversationId, message, (event) => {
         if (event.type !== "done") {
           dispatch(event)
         }

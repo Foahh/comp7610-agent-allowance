@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "#/components/ui/card"
+import { Checkbox } from "#/components/ui/checkbox"
 import {
   Field,
   FieldGroup,
@@ -21,6 +22,7 @@ import {
 import { Input } from "#/components/ui/input"
 import { Separator } from "#/components/ui/separator"
 
+import { AllowanceSellers } from "./allowance-sellers"
 import { useWorkspaceAssistant } from "./assistant-context"
 
 const amount = (value: string) => formatUnits(BigInt(value), 6)
@@ -56,38 +58,17 @@ export function AllowancePanel({
     <Card className="allowance-card">
       <CardHeader>
         <CardTitle>
-          <h3>Conversation allowance</h3>
+          <h2>Allowance</h2>
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         {allowance && <AllowanceSummary allowance={allowance} />}
         {canCreate && (
           <FieldGroup>
-            <label className="flex items-start gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={automatic}
-                disabled={busy}
-                onChange={(event) => setAutomatic(event.target.checked)}
-              />
-              <span>
-                Automatic purchases within this allowance. Your unfunded buyer
-                signer may spend the budget with the approved sellers. An
-                opted-in seller pays gas; otherwise a wallet confirmation is
-                required.
-              </span>
-            </label>
-            {!automatic && (
-              <p className="text-sm text-muted-foreground">
-                Confirm each purchase in your browser wallet and pay its gas.
-                Your backend signer can retrieve paid deliveries, but cannot
-                purchase with this allowance.
-              </p>
-            )}
             <Field data-invalid={invalidBudget}>
               <FieldLabel htmlFor="budget">
                 <span>
-                  Total allowance (<AttToken />)
+                  Total budget (<AttToken />)
                 </span>
               </FieldLabel>
               <Input
@@ -108,7 +89,7 @@ export function AllowancePanel({
             <Field data-invalid={invalidCap}>
               <FieldLabel htmlFor="cap">
                 <span>
-                  Maximum per purchase (<AttToken />)
+                  Per purchase (<AttToken />)
                 </span>
               </FieldLabel>
               <Input
@@ -127,6 +108,35 @@ export function AllowancePanel({
               )}
             </Field>
           </FieldGroup>
+        )}
+        <AllowanceSellers />
+        {canCreate && (
+          <section className="purchase-mode">
+            <Field orientation="horizontal">
+              <Checkbox
+                id="automatic-purchases"
+                checked={automatic}
+                disabled={busy}
+                onCheckedChange={(checked) => setAutomatic(checked)}
+              />
+              <FieldLabel htmlFor="automatic-purchases">
+                Automatic purchases
+              </FieldLabel>
+            </Field>
+            <p className="text-xs text-muted-foreground">
+              {automatic
+                ? "Allow purchases within your limits."
+                : "Confirm each purchase in your wallet and pay gas."}
+            </p>
+            <details className="detail-disclosure">
+              <summary>How purchases work</summary>
+              <p>
+                {automatic
+                  ? "Your buyer signer can spend this allowance with approved sellers. An opted-in seller pays gas; otherwise your wallet must confirm the purchase."
+                  : "Your backend signer can retrieve paid deliveries, but cannot purchase with this allowance."}
+              </p>
+            </details>
+          </section>
         )}
       </CardContent>
       <AllowanceActions
@@ -201,9 +211,9 @@ function AllowanceActions({
       {canCreate && (
         <p className="allowance-guidance">
           {connected
-            ? "Approve ATT, then confirm creation in your wallet. "
-            : "Connect your wallet and select a conversation to authorize spending. "}
-          Valid for 24 hours. Gas is paid separately in test ETH.
+            ? "Approve ATT, then confirm in your wallet. "
+            : "Select a conversation to authorize spending. "}
+          Valid for 24 hours. Setup gas is paid in test ETH.
         </p>
       )}
       {canCreate ? (

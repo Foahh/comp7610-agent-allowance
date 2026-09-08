@@ -16,14 +16,8 @@ export function ChatComposer({
   const { wallet, run } = assistant
   const guidance = !wallet
     ? "Connect your wallet to send a message."
-    : !assistant.selected
-      ? "Start a new conversation to send a message."
-      : undefined
-  const canSend =
-    wallet !== null &&
-    !!assistant.selected &&
-    !run.busy &&
-    assistant.draft.trim() !== ""
+    : undefined
+  const canSend = wallet !== null && !run.busy && assistant.draft.trim() !== ""
 
   function sendMessage() {
     if (canSend) {

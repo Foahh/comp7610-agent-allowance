@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router"
 
-import { ConnectionSettings } from "#/components/connection-settings"
+import {
+  ConnectionSettings,
+  LocalInstances,
+} from "#/components/connection-settings"
 import { DeploymentSettings } from "#/components/deployment-settings"
 import { MarketplacePage, RequestState } from "#/components/marketplace-page"
 import { ModelSettings } from "#/components/model-settings"
@@ -16,16 +19,20 @@ function SettingsPage() {
   return (
     <MarketplacePage
       title="Settings"
-      description="Configure your seller profile and private model connections."
+      description="Manage your profile, connections, and seller."
     >
       <RequestState
-        pending={profile.isFetching}
+        onRetry={
+          profile.error
+            ? () => {
+                void profile.refetch()
+              }
+            : undefined
+        }
+        pending={profile.isPending}
         error={profile.error || models.error}
       />
-      <div className="grid gap-6 lg:grid-cols-2">
-        <DeploymentSettings />
-        <SellerOperations />
-        <ConnectionSettings />
+      <div className="settings-grid">
         {profile.data && (
           <ProfileForm
             key={JSON.stringify(profile.data)}
@@ -33,7 +40,18 @@ function SettingsPage() {
             models={models.data || []}
           />
         )}
-        <ModelSettings models={models.data || []} />
+        <ModelSettings
+          models={models.data || []}
+          loading={models.isPending}
+          error={models.error}
+          onRetry={() => {
+            void models.refetch()
+          }}
+        />
+        <ConnectionSettings />
+        <SellerOperations />
+        <DeploymentSettings />
+        <LocalInstances />
       </div>
     </MarketplacePage>
   )

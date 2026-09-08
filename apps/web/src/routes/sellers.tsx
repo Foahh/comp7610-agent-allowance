@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 import { formatUnits } from "viem"
 
+import { EditorSheet } from "#/components/editor-sheet"
 import { ListingPurchase } from "#/components/listing-purchase"
 import {
   MarketplacePage,
@@ -18,9 +19,11 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "#/components/ui/card"
 import { useMarketplace, useMarketplaceAction } from "#/hooks/use-marketplace"
 import { marketplaceRequest, formText } from "#/lib/marketplace"
+import { listingTypeLabel } from "#/lib/presentation"
 
 export const Route = createFileRoute("/sellers")({ component: SellersPage })
 
@@ -44,6 +47,7 @@ function updateConnection({ id, action, enabled }: ConnectionAction) {
 
 function SellersPage() {
   const connections = useMarketplace("connections")
+  const [purchaseOpen, setPurchaseOpen] = useState(false)
   const [selection, setSelection] = useState<{
     seller: SellerConnection
     listing: PublicListing
@@ -55,11 +59,11 @@ function SellersPage() {
 
   return (
     <MarketplacePage
-      title="Connected sellers"
-      description="Save seller endpoints, explore their listings, and choose what your assistant can buy."
+      title="Sellers"
+      description="Connect sellers and explore their listings."
     >
       <form
-        className="flex flex-wrap items-end gap-3"
+        className="dashboard-toolbar"
         onSubmit={(event) => {
           event.preventDefault()
           const form = event.currentTarget
@@ -78,38 +82,52 @@ function SellersPage() {
           />
         </div>
         <Button type="submit" disabled={connect.isPending}>
-          Connect seller
+          {connect.isPending ? "Connecting…" : "Connect seller"}
         </Button>
       </form>
       <p className="my-3 text-sm text-muted-foreground">
-        Connecting saves a catalog. Spending permission is approved separately
-        in your conversation allowance.
+        Spending access is managed in your conversation allowance.
       </p>
       <RequestState
-        pending={
-          connections.isFetching || connect.isPending || update.isPending
+        onRetry={
+          connections.error
+            ? () => {
+                void connections.refetch()
+              }
+            : undefined
         }
+        pending={connections.isPending}
         error={connections.error || connect.error || update.error}
+        success={
+          connect.isSuccess
+            ? "Seller connected."
+            : update.isSuccess
+              ? "Seller updated."
+              : undefined
+        }
       />
       {selection && (
-        <ListingPurchase
-          key={`${selection.seller.id}:${selection.listing.id}:${selection.listing.version}`}
-          {...selection}
-          onClose={() => setSelection(null)}
-        />
+        <EditorSheet
+          open={purchaseOpen}
+          onOpenChange={setPurchaseOpen}
+          title={selection.listing.name}
+        >
+          <ListingPurchase
+            key={`${selection.seller.id}:${selection.listing.id}:${selection.listing.version}`}
+            {...selection}
+            onClose={() => setPurchaseOpen(false)}
+          />
+        </EditorSheet>
       )}
-      {connections.data?.length === 0 && (
+      {!connections.error && connections.data?.length === 0 && (
         <div className="provider-empty">
           <h2>No connected sellers</h2>
-          <p>
-            Ask another participant for their seller endpoint, then add it
-            above.
-          </p>
+          <p>Add a seller endpoint to explore its listings.</p>
         </div>
       )}
       <div className="provider-grid">
         {connections.data?.map((seller) => (
-          <Card key={seller.id}>
+          <Card key={seller.id} className="seller-card">
             <CardHeader>
               <div className="flex justify-between gap-2">
                 <CardTitle>{seller.identity.name}</CardTitle>
@@ -124,14 +142,58 @@ function SellersPage() {
               <CardDescription>{seller.identity.description}</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              <p className="text-xs break-all text-muted-foreground">
-                {seller.endpoint}
-                <br />
-                {seller.identity.address}
-              </p>
-              {seller.error && (
-                <p className="text-sm text-destructive">{seller.error}</p>
+              <div className="section-heading">
+                <span className="text-xs text-muted-foreground">
+                  {seller.listings.length}{" "}
+                  {seller.listings.length === 1 ? "listing" : "listings"}
+                </span>
+              </div>
+              <details className="detail-disclosure">
+                <summary>Seller details</summary>
+                <dl className="receipt">
+                  <dt>Endpoint</dt>
+                  <dd>{seller.endpoint}</dd>
+                  <dt>Address</dt>
+                  <dd>{seller.identity.address}</dd>
+                </dl>
+                {seller.error && (
+                  <p className="purchase-error">{seller.error}</p>
+                )}
+              </details>
+              {seller.listings.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  This seller has no active listings.
+                </p>
               )}
+              {seller.listings.map((listing) => (
+                <div
+                  key={`${listing.id}:${listing.version}`}
+                  className="flex flex-col gap-2 border-t border-border pt-4"
+                >
+                  <strong className="text-sm">{listing.name}</strong>
+                  <p className="text-sm text-muted-foreground">
+                    {listing.description}
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm tabular-nums">
+                      {formatUnits(BigInt(listing.amount), 6)} ATT ·{" "}
+                      {listingTypeLabel(listing.type)}
+                    </span>
+                    <Button
+                      disabled={!seller.enabled || seller.status !== "online"}
+                      onClick={() => {
+                        setSelection({ seller, listing })
+                        setPurchaseOpen(true)
+                      }}
+                    >
+                      View & buy
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+            <CardFooter>
+              {" "}
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
@@ -140,7 +202,11 @@ function SellersPage() {
                     update.mutate({ id: seller.id, action: "refresh" })
                   }
                 >
-                  Refresh
+                  {update.isPending &&
+                  update.variables?.id === seller.id &&
+                  update.variables.action === "refresh"
+                    ? "Refreshing…"
+                    : "Refresh"}
                 </Button>
                 <Button
                   variant="outline"
@@ -167,35 +233,7 @@ function SellersPage() {
                   Remove
                 </Button>
               </div>
-              {seller.listings.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  This seller has no active listings.
-                </p>
-              )}
-              {seller.listings.map((listing) => (
-                <div
-                  key={`${listing.id}:${listing.version}`}
-                  className="flex flex-col gap-2 border-t border-border pt-4"
-                >
-                  <strong className="text-sm">{listing.name}</strong>
-                  <p className="text-sm text-muted-foreground">
-                    {listing.description}
-                  </p>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm">
-                      {formatUnits(BigInt(listing.amount), 6)} ATT ·{" "}
-                      {listing.type}
-                    </span>
-                    <Button
-                      disabled={!seller.enabled || seller.status !== "online"}
-                      onClick={() => setSelection({ seller, listing })}
-                    >
-                      View & buy
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
+            </CardFooter>
           </Card>
         ))}
       </div>

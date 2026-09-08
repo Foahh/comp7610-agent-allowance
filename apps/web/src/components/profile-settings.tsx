@@ -43,17 +43,17 @@ export function ProfileForm({
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="space-y-2 text-sm">
-          <p className="text-muted-foreground">
-            Share this endpoint with buyers:
-          </p>
-          <p className="break-all">{config?.sellerEndpoint}</p>
-          <p className="break-all text-muted-foreground">
-            Signing address: {identity.data?.address || "Unavailable"}
-          </p>
-          <p className="text-muted-foreground">
-            Buyer signer · no ETH funding required:
-          </p>
-          <p className="break-all">{config?.buyerSigner}</p>
+          <details className="detail-disclosure">
+            <summary>Endpoint and signing accounts</summary>
+            <dl className="receipt">
+              <dt>Seller endpoint</dt>
+              <dd>{config?.sellerEndpoint}</dd>
+              <dt>Seller signer</dt>
+              <dd>{identity.data?.address || "Unavailable"}</dd>
+              <dt>Buyer signer · no ETH funding required</dt>
+              <dd>{config?.buyerSigner}</dd>
+            </dl>
+          </details>
           <RequestState error={identity.error} />
         </div>
         <form
@@ -102,7 +102,7 @@ export function ProfileForm({
               </NativeSelect>
             </Field>
             <Button type="submit" disabled={save.isPending}>
-              Save settings
+              {save.isPending ? "Saving…" : "Save profile"}
             </Button>
             <RequestState
               pending={save.isPending}

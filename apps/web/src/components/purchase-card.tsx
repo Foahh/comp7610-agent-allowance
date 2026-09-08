@@ -1,4 +1,5 @@
 import type { Purchase } from "@repo/schemas"
+import type { ReactNode } from "react"
 
 import { formatUnits, formatEther } from "viem"
 
@@ -10,17 +11,22 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
+  CardFooter,
 } from "#/components/ui/card"
 import { useMarketplaceAction } from "#/hooks/use-marketplace"
+import { listingTypeLabel } from "#/lib/presentation"
 import { confirmPurchase } from "#/lib/wallet"
 
 import { useWorkspaceAssistant } from "./assistant-context"
+import { RequestState } from "./marketplace-page"
 
 export function PurchaseCard({
   purchase,
   chainId,
+  children,
 }: {
   purchase: Purchase
+  children?: ReactNode
   chainId: number
 }) {
   const { offer, paymentStatus, delivery } = purchase
@@ -35,7 +41,7 @@ export function PurchaseCard({
           </Badge>
         </div>
         <CardDescription>
-          {offer.listing.type} · {offer.deliverable}
+          {listingTypeLabel(offer.listing.type)} · {offer.deliverable}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -61,7 +67,10 @@ export function PurchaseCard({
           )}
         </div>
         {(purchase.error || delivery?.error) && (
-          <p className="purchase-error">{purchase.error || delivery?.error}</p>
+          <details className="detail-disclosure purchase-error">
+            <summary>Failure details</summary>
+            <p>{purchase.error || delivery?.error}</p>
+          </details>
         )}
         <details>
           <summary className="cursor-pointer text-sm">View receipt</summary>
@@ -97,6 +106,9 @@ export function PurchaseCard({
           </dl>
         </details>
       </CardContent>
+      {children && (
+        <CardFooter className="purchase-footer">{children}</CardFooter>
+      )}
     </Card>
   )
 }
@@ -115,21 +127,18 @@ function PurchaseConfirmation({ purchase }: { purchase: Purchase }) {
         ["prepared", "pending"].includes(purchase.paymentStatus) && (
           <div className="space-y-2">
             <p className="text-sm">
-              Your wallet will submit this exact purchase and pay gas. If
-              another submission is pending, refresh first to avoid paying for a
-              duplicate attempt.
+              Confirm this purchase and pay gas in your wallet.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              If a submission is pending, refresh before trying again.
             </p>
             <Button
               disabled={confirm.isPending}
               onClick={() => confirm.mutate(undefined)}
             >
-              {confirm.isPending ? "Confirming…" : "Confirm purchase in wallet"}
+              {confirm.isPending ? "Confirming…" : "Confirm purchase"}
             </Button>
-            {confirm.error && (
-              <p role="alert" className="text-sm text-destructive">
-                {confirm.error.message}
-              </p>
-            )}
+            <RequestState error={confirm.error} />
           </div>
         )}
     </>

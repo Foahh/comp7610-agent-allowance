@@ -1,4 +1,4 @@
-import { RiMenuLine, RiWallet3Line } from "@remixicon/react"
+import { RiWallet3Line } from "@remixicon/react"
 import { useRef, useState, type RefObject } from "react"
 
 import { Button } from "#/components/ui/button"
@@ -13,25 +13,19 @@ import { Spinner } from "#/components/ui/spinner"
 import { useWorkspaceLayout } from "#/hooks/use-workspace-layout"
 
 import { AllowancePanel } from "./allowance-panel.tsx"
-import { AllowanceSellers } from "./allowance-sellers.tsx"
 import { useWorkspaceAssistant } from "./assistant-context"
 import { ChatComposer } from "./chat-composer.tsx"
-import { ConversationSidebar } from "./conversation-sidebar"
 import { ConversationThread } from "./conversation-thread.tsx"
-import { WalletConnectionGate } from "./wallet-connection-gate"
 import { WalletControls } from "./wallet-controls.tsx"
 
 export function AssistantWorkspace() {
   const assistant = useWorkspaceAssistant()
   const layout = useWorkspaceLayout()
-  const [collapsed, setCollapsed] = useState(false)
   const [panel, setPanel] = useState<{
     layout: typeof layout
-    open: "navigation" | "allowance" | null
+    open: "allowance" | null
   }>({ layout, open: null })
-  const navigationTrigger = useRef<HTMLButtonElement>(null)
   const allowanceTrigger = useRef<HTMLButtonElement>(null)
-  const workspaceRef = useRef<HTMLElement>(null)
   const { selected, details } = assistant
   const scenario = details?.conversation.scenario || assistant.scenario
   const amounts = useAllowanceAmounts(selected || scenario, scenario)
@@ -39,33 +33,14 @@ export function AssistantWorkspace() {
     setPanel({ layout, open: null })
   }
 
-  function closePanel() {
-    setPanel({ layout, open: null })
-  }
-
   const allowance = <AllowanceControls amounts={amounts} />
 
   return (
-    <main
-      ref={workspaceRef}
-      tabIndex={-1}
-      className="workspace app-surface"
-      data-sidebar-collapsed={collapsed}
-      data-wallet-required={!assistant.wallet}
-      inert={!assistant.wallet}
-    >
-      <WalletConnectionGate assistant={assistant} returnFocus={workspaceRef} />
-      {layout !== "mobile" && (
-        <ConversationSidebar
-          collapsed={collapsed}
-          onToggle={() => setCollapsed(!collapsed)}
-        />
-      )}
+    <main className="workspace app-surface">
       <section className="chat-workspace" aria-label="Assistant conversation">
         <WorkspaceHeader
           layout={layout}
           openPanel={panel.open}
-          navigationTrigger={navigationTrigger}
           allowanceTrigger={allowanceTrigger}
           onOpen={(open) => setPanel({ layout, open })}
         />
@@ -88,34 +63,10 @@ export function AssistantWorkspace() {
       {layout === "desktop" && (
         <aside className="allowance-sidebar" aria-label="Wallet and allowance">
           <div className="panel-heading">
-            <p className="eyebrow">Spending controls</p>
             <h2>Wallet & allowance</h2>
           </div>
           {allowance}
         </aside>
-      )}
-      {layout === "mobile" && (
-        <Sheet
-          open={panel.open === "navigation"}
-          onOpenChange={(open) =>
-            setPanel({ layout, open: open ? "navigation" : null })
-          }
-        >
-          <SheetContent
-            id="navigation-panel"
-            side="left"
-            className="workspace-sheet app-surface"
-            finalFocus={navigationTrigger}
-          >
-            <SheetHeader>
-              <SheetTitle>Conversations</SheetTitle>
-              <SheetDescription>
-                Your assistant workspace and history.
-              </SheetDescription>
-            </SheetHeader>
-            <ConversationSidebar collapsed={false} onNavigate={closePanel} />
-          </SheetContent>
-        </Sheet>
       )}
       {layout !== "desktop" && (
         <Sheet
@@ -173,7 +124,6 @@ function AllowanceControls({
   return (
     <div className="allowance-content">
       <WalletControls assistant={assistant} />
-      <AllowanceSellers />
       <AllowancePanel
         allowance={details?.allowance || null}
         connected={!!wallet && !!selected}
@@ -202,39 +152,20 @@ function AllowanceControls({
 function WorkspaceHeader({
   layout,
   openPanel,
-  navigationTrigger,
   allowanceTrigger,
   onOpen,
 }: {
   layout: ReturnType<typeof useWorkspaceLayout>
-  openPanel: "navigation" | "allowance" | null
-  navigationTrigger: RefObject<HTMLButtonElement | null>
+  openPanel: "allowance" | null
   allowanceTrigger: RefObject<HTMLButtonElement | null>
-  onOpen: (panel: "navigation" | "allowance") => void
+  onOpen: (panel: "allowance") => void
 }) {
   const assistant = useWorkspaceAssistant()
   const { details } = assistant
   return (
     <header className="workspace-header">
       <div className="workspace-heading">
-        {layout === "mobile" && (
-          <Button
-            ref={navigationTrigger}
-            variant="ghost"
-            size="icon"
-            aria-label="Open conversations"
-            aria-haspopup="dialog"
-            aria-expanded={openPanel === "navigation"}
-            aria-controls={
-              openPanel === "navigation" ? "navigation-panel" : undefined
-            }
-            onClick={() => onOpen("navigation")}
-          >
-            <RiMenuLine />
-          </Button>
-        )}
         <div className="workspace-title">
-          <p className="eyebrow">Assistant</p>
           <h1>{details?.conversation.title || "Your workspace"}</h1>
         </div>
         {layout !== "desktop" && (

@@ -1,13 +1,16 @@
-import { RiArrowLeftLine } from "@remixicon/react"
-import { Link } from "@tanstack/react-router"
-import { useId, type ComponentProps, type ReactNode } from "react"
+import {
+  useId,
+  useEffect,
+  useRef,
+  type ComponentProps,
+  type ReactNode,
+} from "react"
+import { toast } from "sonner"
 
-import { useWorkspaceAssistant } from "#/components/assistant-context"
 import { Button } from "#/components/ui/button"
-import { Field, FieldLabel } from "#/components/ui/field"
+import { Field, FieldLabel, FieldError } from "#/components/ui/field"
 import { Input } from "#/components/ui/input"
 import { Textarea } from "#/components/ui/textarea"
-import { marketplaceNavigation } from "#/lib/navigation"
 
 export function MarketplacePage({
   title,
@@ -18,68 +21,17 @@ export function MarketplacePage({
   description: string
   children: ReactNode
 }) {
-  const assistant = useWorkspaceAssistant()
-
   return (
     <main className="providers-page app-surface">
-      <header className="providers-header">
-        <div className="providers-header-inner">
-          <Link to="/" className="brand">
-            <span className="brand-copy">
-              <span className="eyebrow">COMP7610</span>
-              <strong>Agent Spend</strong>
-            </span>
-          </Link>
-          <Button
-            nativeButton={false}
-            role="link"
-            render={<Link to="/" />}
-            variant="outline"
-          >
-            <RiArrowLeftLine />
-            Back to assistant
-          </Button>
-        </div>
-      </header>
       <section
         className="providers-content"
         aria-labelledby="marketplace-title"
       >
-        <nav className="flex flex-wrap gap-2" aria-label="Application">
-          {marketplaceNavigation.map((item) => (
-            <Button
-              key={item.to}
-              nativeButton={false}
-              render={
-                <Link to={item.to} activeProps={{ "aria-current": "page" }} />
-              }
-              variant="ghost"
-            >
-              {item.label}
-            </Button>
-          ))}
-        </nav>
         <div className="providers-intro">
-          <p className="eyebrow">Buy & sell</p>
           <h1 id="marketplace-title">{title}</h1>
-          <p>{description}</p>
+          {description && <p>{description}</p>}
         </div>
-        {!assistant.wallet ? (
-          <div className="provider-empty">
-            <h2>Connect your owner wallet</h2>
-            <p>
-              Only this installation’s owner can manage its items and settings.
-            </p>
-            <Button
-              onClick={assistant.connect}
-              disabled={assistant.run.busy || !assistant.config}
-            >
-              Connect wallet
-            </Button>
-          </div>
-        ) : (
-          children
-        )}
+        {children}
       </section>
     </main>
   )
@@ -88,12 +40,17 @@ export function MarketplacePage({
 export function TextField({
   label,
   multiline = false,
+  error,
   ...props
-}: ComponentProps<typeof Input> & { label: string; multiline?: boolean }) {
+}: ComponentProps<typeof Input> & {
+  label: string
+  multiline?: boolean
+  error?: string
+}) {
   const id = useId()
 
   return (
-    <Field>
+    <Field data-invalid={!!error}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       {multiline ? (
         <Textarea
@@ -105,8 +62,14 @@ export function TextField({
           rows={5}
         />
       ) : (
-        <Input id={id} {...props} />
+        <Input
+          id={id}
+          aria-invalid={!!error}
+          aria-describedby={error ? `${id}-error` : undefined}
+          {...props}
+        />
       )}
+      {error && <FieldError id={`${id}-error`}>{error}</FieldError>}
     </Field>
   )
 }
@@ -114,31 +77,42 @@ export function TextField({
 export function RequestState({
   pending,
   error,
+  label = "Loading…",
+  onRetry,
   success,
 }: {
+  onRetry?: () => void
+  label?: string
   pending?: boolean
   error?: Error | null
   success?: string
 }) {
-  if (error) {
+  const previous = useRef("")
+  const message = error?.message || success || ""
+  useEffect(() => {
+    if (message && message !== previous.current) {
+      if (error) {
+        toast.error(message, { id: `request-error-${message}` })
+      } else {
+        toast.success(message)
+      }
+    }
+    previous.current = message
+  }, [message, error])
+
+  if (error && onRetry) {
     return (
-      <p role="alert" className="text-sm text-destructive">
-        {error.message}
-      </p>
+      <div className="status-notice flex flex-wrap items-center justify-between gap-3">
+        <p>Unable to load this section.</p>
+        <Button variant="outline" onClick={onRetry}>
+          Retry
+        </Button>
+      </div>
     )
   }
-
-  if (pending) {
-    return (
-      <p role="status" className="text-sm text-muted-foreground">
-        Working…
-      </p>
-    )
-  }
-
-  return success ? (
-    <p role="status" className="text-sm text-muted-foreground">
-      {success}
+  return pending ? (
+    <p role="status" className="request-status">
+      {label}
     </p>
   ) : null
 }

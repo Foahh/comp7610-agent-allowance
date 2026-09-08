@@ -3,14 +3,6 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { createWalletClient, custom } from "viem"
 
-import { Button } from "#/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "#/components/ui/card"
 import {
   getConfig,
   requestJson,
@@ -19,6 +11,8 @@ import {
   type AppConfig,
 } from "#/lib/client"
 import { connectWallet, type ConnectedWallet } from "#/lib/wallet"
+
+import { WalletConnectionGate } from "./wallet-connection-gate"
 
 type Session = { owner: string | null }
 
@@ -222,36 +216,13 @@ export function AccountEntry({
   }
 
   return (
-    <main className="mx-auto flex min-h-svh max-w-lg items-center p-6">
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Sign in to Agent Spend Guard</CardTitle>
-          <CardDescription>
-            Use your browser wallet on Sepolia. Signing in does not authorize
-            spending.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Your conversations, listings, model credentials, and purchases stay
-            in this installation. The same wallet on another installation starts
-            a separate workspace.
-          </p>
-          <Button
-            disabled={busy || !config}
-            onClick={() => {
-              void login()
-            }}
-          >
-            {busy ? "Connecting…" : "Connect wallet and sign in"}
-          </Button>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-        </CardContent>
-      </Card>
-    </main>
+    <WalletConnectionGate
+      busy={busy}
+      configured={!!config}
+      error={error}
+      onConnect={() => {
+        void login()
+      }}
+    />
   )
 }

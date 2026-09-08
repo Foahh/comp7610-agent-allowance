@@ -1,4 +1,4 @@
-import { RiSparklingLine, RiWallet3Line } from "@remixicon/react"
+import { RiSparklingLine } from "@remixicon/react"
 import { SEPOLIA_CHAIN_ID } from "@repo/utils"
 
 import type { AssistantController } from "#/hooks/use-assistant"
@@ -15,7 +15,6 @@ import {
   MessageResponse,
 } from "#/components/ai-elements/message"
 import { Shimmer } from "#/components/ai-elements/shimmer"
-import { Button } from "#/components/ui/button"
 
 import { PurchaseCard } from "./purchase-card.tsx"
 import { ScenarioBar } from "./scenario-bar"
@@ -76,27 +75,10 @@ export function ConversationThread({
               What would you like
               <br className="hidden sm:block" /> to work on?
             </h2>
-            {!assistant.wallet ? (
-              <>
-                <Button
-                  disabled={assistant.run.busy || !assistant.config}
-                  onClick={assistant.connect}
-                >
-                  <RiWallet3Line />
-                  Connect wallet
-                </Button>
-                <p className="welcome-hint">
-                  Start chatting now. Funding is only needed for purchases.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="welcome-hint">
-                  Describe your task below, or try a scenario below.
-                </p>
-                <ScenarioBar assistant={assistant} />
-              </>
-            )}
+            <p className="welcome-hint">
+              Describe your task below, or try a scenario below.
+            </p>
+            <ScenarioBar assistant={assistant} />
           </ConversationEmptyState>
         )}
         {timeline.map((entry) => {

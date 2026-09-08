@@ -5,7 +5,9 @@ import { createRootRouteWithContext, Outlet } from "@tanstack/react-router"
 import type { ConnectedWallet } from "#/lib/wallet"
 
 import { AccountEntry } from "#/components/account-entry"
+import { AppShell } from "#/components/app-shell"
 import { AssistantContext } from "#/components/assistant-context"
+import { GlobalToaster } from "#/components/assistant-notifications"
 import { AssistantNotifications } from "#/components/assistant-notifications"
 import { DeploymentSettings } from "#/components/deployment-settings"
 import { useAssistant } from "#/hooks/use-assistant"
@@ -20,15 +22,18 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootLayout() {
   return (
-    <AccountEntry>
-      {(wallet, logout) => (
-        <Workspace
-          key={wallet.account.address}
-          wallet={wallet}
-          logout={logout}
-        />
-      )}
-    </AccountEntry>
+    <>
+      <GlobalToaster />
+      <AccountEntry>
+        {(wallet, logout) => (
+          <Workspace
+            key={wallet.account.address}
+            wallet={wallet}
+            logout={logout}
+          />
+        )}
+      </AccountEntry>
+    </>
   )
 }
 
@@ -44,11 +49,13 @@ function Workspace({
     <AssistantContext value={assistant}>
       <AssistantNotifications error={assistant.error} />
       {assistant.config?.configured === false ? (
-        <main className="mx-auto max-w-2xl p-6">
+        <main className="setup-page app-surface">
           <DeploymentSettings />
         </main>
       ) : assistant.config ? (
-        <Outlet />
+        <AppShell>
+          <Outlet />
+        </AppShell>
       ) : (
         <p role="status" className="p-6">
           Loading your workspace…

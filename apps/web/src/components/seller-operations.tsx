@@ -7,6 +7,7 @@ import { marketplaceRequest } from "#/lib/marketplace"
 import { assertWallet } from "#/lib/wallet"
 
 import { useWorkspaceAssistant } from "./assistant-context"
+import { RequestState } from "./marketplace-page"
 import { Button } from "./ui/button"
 import {
   Card,
@@ -80,45 +81,57 @@ export function SellerOperations() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Seller signing and gas</CardTitle>
+        <CardTitle>Seller signing & gas</CardTitle>
         <CardDescription>
-          Authorize your generated seller signer for 30 days. Token revenue is
-          paid directly to your account wallet.
+          Authorize signing and manage the seller’s gas balance.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
-        <p className="break-all">Revenue account: {wallet.account.address}</p>
-        <p className="break-all">
-          Seller signer: {status.data?.address || "Loading…"}
+        <details className="detail-disclosure">
+          <summary>Signing accounts</summary>
+          <p className="break-all">Revenue account: {wallet.account.address}</p>
+          <p className="break-all">
+            Seller signer: {status.data?.address || "Loading…"}
+          </p>
+        </details>
+        <p className="text-xs text-muted-foreground">
+          Signing authorization lasts 30 days. Revenue goes to your wallet.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button
             disabled={action.isPending || !status.data}
             onClick={() => action.mutate("register")}
           >
-            Authorize seller signer
+            {action.isPending ? "Updating…" : "Authorize signer"}
           </Button>
           <Button
             variant="outline"
             disabled={action.isPending || !status.data}
             onClick={() => action.mutate("revoke")}
           >
-            Revoke seller signer
+            Revoke signer
           </Button>
         </div>
-        <p>
-          Automatic submission is{" "}
-          {status.data?.enabled ? "enabled" : "disabled"}. When enabled, this
-          service submits valid buyer authorizations and pays ETH from the
-          seller signer. Include gas in your listing price.
+        <div className="section-heading">
+          <h3>Automatic submission</h3>
+          <span className="text-xs text-muted-foreground">
+            {status.data?.enabled ? "Enabled" : "Disabled"}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          When enabled, your seller submits purchases and pays gas.
         </p>
+        <details className="detail-disclosure">
+          <summary>Gas limits and responsibilities</summary>
+          <p>
+            Include gas in listing prices. Limits: 20 gwei maximum fee, 0.002
+            ETH per transaction, and 0.01 ETH reserved per UTC day. Reverted
+            attempts still cost gas. These software limits cannot protect a
+            stolen funded key.
+          </p>
+        </details>
         <p>
-          Gas limits: 20 gwei maximum fee, 0.002 ETH maximum per transaction,
-          and 0.01 ETH of reserved costs per UTC day. Reverted attempts still
-          cost gas. These software limits cannot protect a stolen funded key.
-        </p>
-        <p>
-          Operating balance:{" "}
+          Gas balance:{" "}
           {status.data ? formatEther(BigInt(status.data.balance)) : "…"} Sepolia
           ETH
         </p>
@@ -128,9 +141,7 @@ export function SellerOperations() {
             disabled={action.isPending || !status.data}
             onClick={() => action.mutate("toggle")}
           >
-            {status.data?.enabled
-              ? "Pause automatic submission"
-              : "Enable seller-paid submission"}
+            {status.data?.enabled ? "Pause submission" : "Enable submission"}
           </Button>
           <Button
             variant="outline"
@@ -140,12 +151,10 @@ export function SellerOperations() {
             Add 0.002 Sepolia ETH
           </Button>
         </div>
-        {(status.error || action.error) && (
-          <p role="alert" className="text-destructive">
-            {status.error?.message || action.error?.message}
-          </p>
-        )}
-        {action.isSuccess && <p role="status">Seller settings updated.</p>}
+        <RequestState
+          error={status.error || action.error}
+          success={action.isSuccess ? "Seller settings updated." : undefined}
+        />
       </CardContent>
     </Card>
   )
