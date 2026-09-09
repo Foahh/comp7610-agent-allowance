@@ -20,6 +20,8 @@ import { keccak256, stringToHex } from "viem"
 
 import type { SellerStore } from "./store.ts"
 
+import { demoItems } from "./demo-items.ts"
+
 export type { StoredModel, ExecutionSnapshot } from "@repo/schemas"
 
 export function createMarketplace(config: Config, store: SellerStore) {
@@ -241,6 +243,40 @@ export function createMarketplace(config: Config, store: SellerStore) {
     return publicListing(listing, hash)
   }
 
+  function addDemoItems() {
+    let added = 0
+    for (const item of demoItems) {
+      if (listings.get(item.id)) {
+        continue
+      }
+      const asset =
+        "filename" in item
+          ? saveAsset(item.filename, item.mediaType, Buffer.from(item.content))
+          : undefined
+      saveListing(
+        {
+          name: item.name,
+          description: item.description,
+          preview: item.preview,
+          type: asset ? "file" : "text",
+          amount: item.amount,
+          content: asset ? "" : item.content,
+          assetId: asset?.id ?? "",
+          modelId: "",
+          instructions: "",
+          requiredInputs: "",
+          deliverable: item.deliverable,
+          scope: "One copy of the supplied demonstration resource",
+          assetIds: [],
+        },
+        item.id
+      )
+      publish(item.id, true)
+      added++
+    }
+    return { added, skipped: demoItems.length - added }
+  }
+
   return {
     credentialsDir: config.credentialsDir,
     listings,
@@ -259,6 +295,7 @@ export function createMarketplace(config: Config, store: SellerStore) {
     snapshot,
     publish,
     offerListing,
+    addDemoItems,
   }
 }
 

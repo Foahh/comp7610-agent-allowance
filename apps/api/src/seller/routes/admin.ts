@@ -151,6 +151,7 @@ export function createAdminRoutes(market: Marketplace, service: SellerService) {
       )
     })
     .get("/listings", (context) => context.json(market.listings.list()))
+    .post("/demo-items", (context) => context.json(market.addDemoItems()))
     .post("/listings", validator("json", ListingInputSchema), (context) =>
       context.json(market.saveListing(context.req.valid("json")), 201)
     )

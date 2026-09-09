@@ -106,6 +106,24 @@ test("wallet accounts isolate stores, sessions, configurations, and keys", async
       configured: false,
     })
     expect((await configure(bob.cookie)).status).toBe(200)
+    expect(
+      (await request("/marketplace/seller/demo-items", "", {})).status
+    ).toBe(401)
+    const demo = await request(
+      "/marketplace/seller/demo-items",
+      alice.cookie,
+      {}
+    )
+    expect(demo.status).toBe(200)
+    expect(await demo.json()).toEqual({ added: 3, skipped: 0 })
+    expect(
+      await (
+        await request("/marketplace/seller/demo-items", alice.cookie, {})
+      ).json()
+    ).toEqual({ added: 0, skipped: 3 })
+    expect(
+      await (await request("/marketplace/seller/listings", bob.cookie)).json()
+    ).toEqual([])
     const created = (await (
       await request("/conversations", alice.cookie, {
         title: "Alice private chat",

@@ -3,6 +3,7 @@ import type { Listing } from "@repo/schemas"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 
+import { DemoItems } from "#/components/demo-items"
 import { EditorSheet } from "#/components/editor-sheet"
 import { ListingCard } from "#/components/listing-card"
 import { ListingEditor } from "#/components/listing-editor"
@@ -44,6 +45,7 @@ function ListingsPage() {
         </Button>
         <ListingTemplates />
       </div>
+      <DemoItems />
       <RequestState
         onRetry={
           listings.error

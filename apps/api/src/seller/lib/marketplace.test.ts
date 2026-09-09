@@ -66,6 +66,48 @@ test("catalog excludes private content and preserves purchased versions after ed
   expect(market.versions.get(first.id, 1)?.content).toBe("Paid content")
 })
 
+test("demo items publish deliverable content and survive retries and reopening without overwriting edits", () => {
+  expect(market.addDemoItems()).toEqual({ added: 3, skipped: 0 })
+  const items = market.published.list()
+  expect(items).toHaveLength(3)
+  expect(items.map((item) => item.amount).sort()).toEqual([
+    "1000000",
+    "2000000",
+    "3000000",
+  ])
+  for (const item of items) {
+    expect(() => market.snapshot(item)).not.toThrow()
+    expect(market.offerListing(item)).not.toHaveProperty("content")
+    if (item.type === "file") {
+      const { asset, bytes } = market.readAsset(item.assetId)
+      expect(bytes.length).toBe(asset.size)
+      expect(bytes.toString()).toMatch(/synthetic|checklist/i)
+    } else {
+      expect(item.content).toContain("Agent budgeting guide")
+    }
+  }
+  const guide = items.find((item) => item.type === "text")!
+  market.saveListing({ ...guide, name: "My edited guide" }, guide.id)
+  market.publish(guide.id, false)
+  store.close()
+  store = openSellerDatabase(join(directory, "seller.sqlite"))
+  market = createMarketplace(
+    {
+      dataDir: directory,
+      credentialsDir: join(directory, "credentials"),
+    } as Config,
+    store
+  )
+  expect(market.addDemoItems()).toEqual({ added: 0, skipped: 3 })
+  expect(market.listings.get(guide.id)).toMatchObject({
+    name: "My edited guide",
+    version: 2,
+    status: "inactive",
+  })
+  expect(market.published.list()).toHaveLength(2)
+  expect(market.assets.list()).toHaveLength(2)
+})
+
 test("model credentials are encrypted, write-only, and survive reopening", () => {
   const model = market.saveModel({
     name: "Model",
