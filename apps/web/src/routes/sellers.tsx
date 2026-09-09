@@ -152,9 +152,9 @@ function SellersPage() {
                   <dt>Address</dt>
                   <dd>{seller.identity.address}</dd>
                 </dl>
-                {seller.error && (
-                  <p className="purchase-error">{seller.error}</p>
-                )}
+                <RequestState
+                  error={seller.error ? new Error(seller.error) : undefined}
+                />
               </details>
               {seller.listings.map((listing) => (
                 <div

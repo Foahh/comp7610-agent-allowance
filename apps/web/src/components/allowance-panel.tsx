@@ -1,5 +1,6 @@
 import type { Allowance } from "@repo/schemas"
 
+import { toast } from "sonner"
 import { formatUnits } from "viem"
 
 import { AttToken } from "#/components/att-token"
@@ -13,12 +14,7 @@ import {
   CardTitle,
 } from "#/components/ui/card"
 import { Checkbox } from "#/components/ui/checkbox"
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-  FieldError,
-} from "#/components/ui/field"
+import { Field, FieldGroup, FieldLabel } from "#/components/ui/field"
 import { Input } from "#/components/ui/input"
 import { Separator } from "#/components/ui/separator"
 
@@ -76,15 +72,17 @@ export function AllowancePanel({
                 aria-invalid={invalidBudget}
                 inputMode="decimal"
                 value={budget}
-                aria-describedby={invalidBudget ? "budget-error" : undefined}
+                onBlur={() => {
+                  if (invalidBudget) {
+                    toast.error(
+                      "Enter a positive amount with at most six decimal places.",
+                      { id: "budget-error" }
+                    )
+                  }
+                }}
                 onChange={(event) => onBudgetChange(event.target.value)}
                 disabled={busy}
               />
-              {invalidBudget && (
-                <FieldError id="budget-error">
-                  Enter a positive amount with at most six decimal places.
-                </FieldError>
-              )}
             </Field>
             <Field data-invalid={invalidCap}>
               <FieldLabel htmlFor="cap">
@@ -97,15 +95,17 @@ export function AllowancePanel({
                 aria-invalid={invalidCap}
                 inputMode="decimal"
                 value={cap}
-                aria-describedby={invalidCap ? "cap-error" : undefined}
+                onBlur={() => {
+                  if (invalidCap) {
+                    toast.error(
+                      "Use a positive cap no larger than the total.",
+                      { id: "cap-error" }
+                    )
+                  }
+                }}
                 onChange={(event) => onCapChange(event.target.value)}
                 disabled={busy}
               />
-              {invalidCap && (
-                <FieldError id="cap-error">
-                  Use a positive cap no larger than the total.
-                </FieldError>
-              )}
             </Field>
           </FieldGroup>
         )}

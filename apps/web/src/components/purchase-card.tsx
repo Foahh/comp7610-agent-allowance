@@ -70,12 +70,13 @@ export function PurchaseCard({
             </Badge>
           )}
         </div>
-        {(purchase.error || delivery?.error) && (
-          <details className="detail-disclosure purchase-error">
-            <summary>Failure details</summary>
-            <p>{purchase.error || delivery?.error}</p>
-          </details>
-        )}
+        <RequestState
+          error={
+            purchase.error || delivery?.error
+              ? new Error(purchase.error || delivery?.error)
+              : undefined
+          }
+        />
         <details>
           <summary className="cursor-pointer text-sm">View receipt</summary>
           <dl className="receipt">

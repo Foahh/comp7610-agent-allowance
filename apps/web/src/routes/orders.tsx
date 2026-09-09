@@ -100,12 +100,13 @@ function OrdersPage() {
                     Delivery: {deliveryStatusLabel(sale.delivery?.status)}
                   </Badge>
                 </div>
-                {sale.delivery?.error && (
-                  <details className="detail-disclosure purchase-error">
-                    <summary>Failure details</summary>
-                    <p>{sale.delivery.error}</p>
-                  </details>
-                )}
+                <RequestState
+                  error={
+                    sale.delivery?.error
+                      ? new Error(sale.delivery?.error)
+                      : undefined
+                  }
+                />
                 {sale.txHash && (
                   <a
                     className="text-sm break-all underline"

@@ -8,7 +8,7 @@ import {
 import { toast } from "sonner"
 
 import { Button } from "#/components/ui/button"
-import { Field, FieldLabel, FieldError } from "#/components/ui/field"
+import { Field, FieldLabel } from "#/components/ui/field"
 import { Input } from "#/components/ui/input"
 import { Textarea } from "#/components/ui/textarea"
 
@@ -59,14 +59,9 @@ export function TextField({
           rows={5}
         />
       ) : (
-        <Input
-          id={id}
-          aria-invalid={!!error}
-          aria-describedby={error ? `${id}-error` : undefined}
-          {...props}
-        />
+        <Input id={id} aria-invalid={!!error} {...props} />
       )}
-      {error && <FieldError id={`${id}-error`}>{error}</FieldError>}
+      <RequestState error={error ? new Error(error) : undefined} />
     </Field>
   )
 }
@@ -89,9 +84,23 @@ export function RequestState({
   useEffect(() => {
     if (message && message !== previous.current) {
       if (error) {
-        if (!onRetry) {
-          toast.error(message, { id: `request-error-${message}` })
-        }
+        toast.error(message, {
+          id: `request-error-${message}`,
+          action: onRetry ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              onClick={() => {
+                toast.dismiss(`request-error-${message}`)
+                previous.current = ""
+                onRetry()
+              }}
+            >
+              Retry
+            </Button>
+          ) : undefined,
+        })
       } else {
         toast.success(message)
       }
@@ -99,19 +108,6 @@ export function RequestState({
     previous.current = message
   }, [message, error, onRetry])
 
-  if (error && onRetry) {
-    return (
-      <div
-        role="alert"
-        className="status-notice flex flex-wrap items-center justify-between gap-3"
-      >
-        <p>{error.message}</p>
-        <Button variant="outline" onClick={onRetry}>
-          Retry
-        </Button>
-      </div>
-    )
-  }
   return pending ? (
     <p role="status" className="request-status">
       {label}
