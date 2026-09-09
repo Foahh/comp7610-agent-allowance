@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs"
 import { useMarketplace, useMarketplaceAction } from "#/hooks/use-marketplace"
 import { marketplaceRequest } from "#/lib/marketplace"
+import { deliveryStatusLabel, paymentStatusLabel } from "#/lib/presentation"
 
 export const Route = createFileRoute("/orders")({ component: OrdersPage })
 
@@ -20,10 +21,7 @@ function OrdersPage() {
   )
 
   return (
-    <MarketplacePage
-      title="Orders"
-      description="Purchases and sales, from payment to delivery."
-    >
+    <MarketplacePage title="Orders">
       <RequestState
         onRetry={
           purchases.error || sales.error
@@ -41,16 +39,9 @@ function OrdersPage() {
           <TabsTrigger value="sales">Sales</TabsTrigger>
         </TabsList>
         <TabsContent value="purchases" className="flex flex-col gap-5">
-          {purchases.data && (
-            <p className="text-sm text-muted-foreground">
-              {purchases.data.length}{" "}
-              {purchases.data.length === 1 ? "purchase" : "purchases"}
-            </p>
-          )}
           {purchases.data?.length === 0 && (
             <div className="provider-empty">
               <h2>No purchases yet</h2>
-              <p>Your purchases will appear here.</p>
             </div>
           )}
           {purchases.data?.map((purchase) => (
@@ -67,11 +58,10 @@ function OrdersPage() {
                       disabled={retry.isPending}
                       onClick={() => retry.mutate(purchase.id)}
                     >
-                      {retry.isPending ? "Recovering…" : "Recover purchase"}
+                      {retry.isPending
+                        ? "Checking…"
+                        : "Check payment or retry delivery"}
                     </Button>
-                    <p className="text-xs text-muted-foreground">
-                      Check payment or retry delivery without another charge.
-                    </p>
                   </div>
                 )}
               </PurchaseCard>
@@ -79,15 +69,9 @@ function OrdersPage() {
           ))}
         </TabsContent>
         <TabsContent value="sales" className="grid gap-5">
-          {sales.data && (
-            <p className="text-sm text-muted-foreground">
-              {sales.data.length} quoted orders
-            </p>
-          )}
           {sales.data?.length === 0 && (
             <div className="provider-empty">
               <h2>No sales yet</h2>
-              <p>Quoted orders will appear here.</p>
             </div>
           )}
           {sales.data?.map((sale) => (
@@ -104,7 +88,7 @@ function OrdersPage() {
                 <p className="text-sm">{sale.offer.deliverable}</p>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary">
-                    Payment: {sale.paymentStatus}
+                    Payment: {paymentStatusLabel(sale.paymentStatus)}
                   </Badge>
                   <Badge
                     variant={
@@ -113,7 +97,7 @@ function OrdersPage() {
                         : "outline"
                     }
                   >
-                    Delivery: {sale.delivery?.status || "not started"}
+                    Delivery: {deliveryStatusLabel(sale.delivery?.status)}
                   </Badge>
                 </div>
                 {sale.delivery?.error && (

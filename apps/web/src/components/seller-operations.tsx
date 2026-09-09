@@ -9,13 +9,7 @@ import { assertWallet } from "#/lib/wallet"
 import { useWorkspaceAssistant } from "./assistant-context"
 import { RequestState } from "./marketplace-page"
 import { Button } from "./ui/button"
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "./ui/card"
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/card"
 
 type Submission = { address: Address; enabled: boolean; balance: string }
 type SellerAction = "register" | "revoke" | "fund" | "toggle"
@@ -82,9 +76,6 @@ export function SellerOperations() {
     <Card>
       <CardHeader>
         <CardTitle>Seller signing & gas</CardTitle>
-        <CardDescription>
-          Authorize signing and manage the seller’s gas balance.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <details className="detail-disclosure">
@@ -113,21 +104,20 @@ export function SellerOperations() {
           </Button>
         </div>
         <div className="section-heading">
-          <h3>Automatic submission</h3>
+          <h3>Automatic order submission</h3>
           <span className="text-xs text-muted-foreground">
             {status.data?.enabled ? "Enabled" : "Disabled"}
           </span>
         </div>
         <p className="text-xs text-muted-foreground">
-          When enabled, your seller submits purchases and pays gas.
+          Uses the seller gas balance.
         </p>
         <details className="detail-disclosure">
           <summary>Gas limits and responsibilities</summary>
           <p>
             Include gas in listing prices. Limits: 20 gwei maximum fee, 0.002
-            ETH per transaction, and 0.01 ETH reserved per UTC day. Reverted
-            attempts still cost gas. These software limits cannot protect a
-            stolen funded key.
+            ETH per transaction, and 0.01 ETH per UTC day. Failed transactions
+            still use gas. Keep only the required test ETH in this account.
           </p>
         </details>
         <p>

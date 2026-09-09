@@ -13,29 +13,24 @@ export function DemoItems() {
   )
 
   return (
-    <div className="my-4 space-y-2">
+    <>
       <Button
         variant="outline"
         disabled={demo.isPending}
         onClick={() => demo.mutate(undefined)}
       >
-        {demo.isPending ? "Adding demo items…" : "Add demo items"}
+        {demo.isPending ? "Adding sample listings…" : "Add sample listings"}
       </Button>
-      <p className="text-sm text-muted-foreground">
-        Publishes a guide, a synthetic CSV dataset, and a Markdown checklist for
-        1, 2, and 3 demo tokens. Existing demo items keep your edits and status.
-        Purchases use the normal Sepolia payment flow.
-      </p>
       <RequestState
         error={demo.error}
         success={
           demo.isSuccess
             ? demo.data.added
-              ? `${demo.data.added} demo items added and published.`
-              : "Demo items already exist. No changes made."
+              ? `${demo.data.added} sample listings added.`
+              : "Sample listings already exist."
             : undefined
         }
       />
-    </div>
+    </>
   )
 }

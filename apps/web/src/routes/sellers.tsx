@@ -21,9 +21,10 @@ import {
   CardTitle,
   CardFooter,
 } from "#/components/ui/card"
+import { FieldGroup } from "#/components/ui/field"
 import { useMarketplace, useMarketplaceAction } from "#/hooks/use-marketplace"
 import { marketplaceRequest, formText } from "#/lib/marketplace"
-import { listingTypeLabel } from "#/lib/presentation"
+import { listingTypeLabel, sellerStatusLabel } from "#/lib/presentation"
 
 export const Route = createFileRoute("/sellers")({ component: SellersPage })
 
@@ -58,10 +59,7 @@ function SellersPage() {
   const update = useMarketplaceAction(updateConnection)
 
   return (
-    <MarketplacePage
-      title="Sellers"
-      description="Connect sellers and explore their listings."
-    >
+    <MarketplacePage title="Sellers">
       <form
         className="dashboard-toolbar"
         onSubmit={(event) => {
@@ -72,22 +70,21 @@ function SellersPage() {
           })
         }}
       >
-        <div className="min-w-0 flex-1">
-          <TextField
-            label="Seller endpoint"
-            name="endpoint"
-            placeholder="http://localhost:3005"
-            type="url"
-            required
-          />
-        </div>
-        <Button type="submit" disabled={connect.isPending}>
-          {connect.isPending ? "Connecting…" : "Connect seller"}
-        </Button>
+        <FieldGroup className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1">
+            <TextField
+              label="Seller endpoint"
+              name="endpoint"
+              placeholder="http://localhost:3005"
+              type="url"
+              required
+            />
+          </div>
+          <Button type="submit" disabled={connect.isPending}>
+            {connect.isPending ? "Connecting…" : "Connect seller"}
+          </Button>
+        </FieldGroup>
       </form>
-      <p className="my-3 text-sm text-muted-foreground">
-        Spending access is managed in your conversation allowance.
-      </p>
       <RequestState
         onRetry={
           connections.error
@@ -122,7 +119,6 @@ function SellersPage() {
       {!connections.error && connections.data?.length === 0 && (
         <div className="provider-empty">
           <h2>No connected sellers</h2>
-          <p>Add a seller endpoint to explore its listings.</p>
         </div>
       )}
       <div className="provider-grid">
@@ -136,18 +132,18 @@ function SellersPage() {
                     seller.status === "online" ? "secondary" : "destructive"
                   }
                 >
-                  {seller.enabled ? seller.status : "disabled"}
+                  {seller.enabled
+                    ? sellerStatusLabel(seller.status)
+                    : "Disabled"}
                 </Badge>
               </div>
               <CardDescription>{seller.identity.description}</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              <div className="section-heading">
-                <span className="text-xs text-muted-foreground">
-                  {seller.listings.length}{" "}
-                  {seller.listings.length === 1 ? "listing" : "listings"}
-                </span>
-              </div>
+              <span className="text-xs text-muted-foreground">
+                {seller.listings.length}{" "}
+                {seller.listings.length === 1 ? "listing" : "listings"}
+              </span>
               <details className="detail-disclosure">
                 <summary>Seller details</summary>
                 <dl className="receipt">
@@ -160,11 +156,6 @@ function SellersPage() {
                   <p className="purchase-error">{seller.error}</p>
                 )}
               </details>
-              {seller.listings.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  This seller has no active listings.
-                </p>
-              )}
               {seller.listings.map((listing) => (
                 <div
                   key={`${listing.id}:${listing.version}`}
@@ -193,7 +184,6 @@ function SellersPage() {
               ))}
             </CardContent>
             <CardFooter>
-              {" "}
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"

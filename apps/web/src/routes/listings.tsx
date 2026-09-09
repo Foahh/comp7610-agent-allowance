@@ -28,11 +28,8 @@ function ListingsPage() {
   )
 
   return (
-    <MarketplacePage
-      title="My listings"
-      description="Manage the resources and services you sell."
-    >
-      <div className="flex flex-wrap gap-2">
+    <MarketplacePage title="My listings">
+      <div className="providers-toolbar">
         <Button
           onClick={() => {
             if (!editor || editor.listing) {
@@ -44,8 +41,8 @@ function ListingsPage() {
           Create listing
         </Button>
         <ListingTemplates />
+        <DemoItems />
       </div>
-      <DemoItems />
       <RequestState
         onRetry={
           listings.error
@@ -87,7 +84,6 @@ function ListingsPage() {
       {!listings.error && listings.data?.length === 0 && (
         <div className="provider-empty">
           <h2>No listings yet</h2>
-          <p>Create a listing or start with a template.</p>
         </div>
       )}
       <div className="provider-grid">

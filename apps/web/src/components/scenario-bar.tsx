@@ -9,7 +9,7 @@ export function ScenarioBar({ assistant }: { assistant: AssistantController }) {
   return (
     <div className="demo-bar">
       <ToggleGroup
-        aria-label="Try a scenario"
+        aria-label="Example tasks"
         multiple={false}
         className="flex-wrap"
         value={[scenario]}
@@ -20,8 +20,10 @@ export function ScenarioBar({ assistant }: { assistant: AssistantController }) {
           }
         }}
       >
-        <ToggleGroupItem value="success">Complete task</ToggleGroupItem>
-        <ToggleGroupItem value="insufficient">Budget limit</ToggleGroupItem>
+        <ToggleGroupItem value="success">Exchange semester</ToggleGroupItem>
+        <ToggleGroupItem value="insufficient">
+          Budget limit example
+        </ToggleGroupItem>
       </ToggleGroup>
     </div>
   )

@@ -156,6 +156,43 @@ test("unpaid or unknown downloads never reach the seller", async () => {
   expect(fetch).not.toHaveBeenCalled()
 })
 
+test("file deletion requires an owner session and same origin", async () => {
+  const cookie = await session()
+  const body = new FormData()
+  body.set("file", new File(["unused"], "unused.txt"))
+  const uploaded = await app.request("/api/marketplace/seller/assets", {
+    method: "POST",
+    headers: { origin, cookie },
+    body,
+  })
+  expect(uploaded.status).toBe(201)
+  const asset = (await uploaded.json()) as { id: string }
+  const path = `/api/marketplace/seller/assets/${asset.id}`
+  expect(
+    (await app.request(path, { method: "DELETE", headers: { origin } })).status
+  ).toBe(401)
+  expect(
+    (
+      await app.request(path, {
+        method: "DELETE",
+        headers: { cookie, origin: "https://attacker.invalid" },
+      })
+    ).status
+  ).toBe(403)
+  expect(
+    (await app.request(path, { method: "DELETE", headers: { origin, cookie } }))
+      .status
+  ).toBe(200)
+  expect(
+    (await app.request(path, { method: "DELETE", headers: { origin, cookie } }))
+      .status
+  ).toBe(404)
+  const listed = await app.request("/api/marketplace/seller/assets", {
+    headers: { cookie },
+  })
+  expect(await listed.json()).toEqual([])
+})
+
 test("model validation errors never echo submitted credentials", async () => {
   const cookie = await session()
   const apiKey = "private-test-value".repeat(300)

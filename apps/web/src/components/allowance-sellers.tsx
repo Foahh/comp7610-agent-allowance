@@ -27,9 +27,11 @@ export function AllowanceSellers() {
         </span>
       </div>
       <div className="flex flex-col gap-3">
-        <p className="text-xs text-muted-foreground">
-          {locked ? "Fixed for this allowance." : "Select up to 16 sellers."}
-        </p>
+        {!locked && (
+          <p className="text-xs text-muted-foreground">
+            Select up to 16 sellers.
+          </p>
+        )}
         <RequestState
           onRetry={
             connections.error

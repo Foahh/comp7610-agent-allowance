@@ -19,6 +19,7 @@ export function ListingTemplates() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger
+          data-slot="button"
           render={<Button variant="outline" disabled={template.isPending} />}
         >
           {template.isPending ? "Creating…" : "Use template"}

@@ -9,13 +9,7 @@ import { EditorSheet } from "./editor-sheet"
 import { RequestState } from "./marketplace-page"
 import { ModelForm } from "./model-form"
 import { Button } from "./ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "./ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 export function ModelSettings({
   models,
   loading,
@@ -38,17 +32,9 @@ export function ModelSettings({
     <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>Model connections</CardTitle>
-          <CardDescription>
-            Private connections for chat and AI services.
-          </CardDescription>
+          <CardTitle>AI models</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {models.length === 0 && !loading && !error && (
-            <p className="text-sm text-muted-foreground">
-              Add a model for chat and AI services.
-            </p>
-          )}
           {models.map((model) => (
             <div
               key={model.id}
@@ -56,9 +42,7 @@ export function ModelSettings({
             >
               <div>
                 <strong className="text-sm">{model.name}</strong>
-                <p className="text-xs text-muted-foreground">
-                  {model.model} · key saved
-                </p>
+                <p className="text-xs text-muted-foreground">{model.model}</p>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -75,7 +59,7 @@ export function ModelSettings({
                   disabled={check.isPending}
                   onClick={() => check.mutate(model.id)}
                 >
-                  {check.isPending ? "Checking…" : "Check"}
+                  {check.isPending ? "Testing…" : "Test connection"}
                 </Button>
               </div>
             </div>
@@ -89,18 +73,11 @@ export function ModelSettings({
           >
             Add connection
           </Button>
-          <p className="text-xs text-muted-foreground">
-            Connection checks invoke the selected model.
-          </p>
           <RequestState
             pending={loading}
             onRetry={error ? onRetry : undefined}
             error={error || check.error}
-            success={
-              check.isSuccess
-                ? "Streaming, tool calls, and structured output passed."
-                : undefined
-            }
+            success={check.isSuccess ? "Connection verified." : undefined}
           />
         </CardContent>
       </Card>

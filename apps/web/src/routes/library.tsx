@@ -25,10 +25,7 @@ function LibraryPage() {
     ) || []
 
   return (
-    <MarketplacePage
-      title="Library"
-      description="Your purchased resources and results."
-    >
+    <MarketplacePage title="Library">
       <RequestState
         onRetry={
           purchases.error
@@ -42,9 +39,8 @@ function LibraryPage() {
       />
       {!purchases.isPending && !purchases.error && completed.length === 0 && (
         <div className="provider-empty">
-          <h2>Your library is empty</h2>
-          <p>Completed purchases will appear here.</p>
-          <Link to="/sellers">Explore connected sellers</Link>
+          <h2>No completed purchases</h2>
+          <Link to="/sellers">Explore sellers</Link>
         </div>
       )}
       <div className="grid gap-6">
@@ -90,7 +86,7 @@ function LibraryPage() {
               variant="outline"
               onClick={() =>
                 assistant.setDraft(
-                  `Use my existing library purchase ${purchase.id} (${purchase.offer.listing.name}). `
+                  `Use the “${purchase.offer.listing.name}” purchase from my library. `
                 )
               }
             >

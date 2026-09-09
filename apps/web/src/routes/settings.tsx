@@ -17,10 +17,7 @@ function SettingsPage() {
   const models = useMarketplace("seller/models")
 
   return (
-    <MarketplacePage
-      title="Settings"
-      description="Manage your profile, connections, and seller."
-    >
+    <MarketplacePage title="Settings">
       <RequestState
         onRetry={
           profile.error

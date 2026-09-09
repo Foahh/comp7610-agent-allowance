@@ -7,7 +7,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "#/components/ui/sheet"
 import { Spinner } from "#/components/ui/spinner"
 import { useWorkspaceLayout } from "#/hooks/use-workspace-layout"
@@ -82,9 +81,6 @@ export function AssistantWorkspace() {
           >
             <SheetHeader>
               <SheetTitle>Wallet & allowance</SheetTitle>
-              <SheetDescription>
-                Manage spending for this conversation.
-              </SheetDescription>
             </SheetHeader>
             {allowance}
           </SheetContent>
@@ -166,7 +162,7 @@ function WorkspaceHeader({
     <header className="workspace-header">
       <div className="workspace-heading">
         <div className="workspace-title">
-          <h1>{details?.conversation.title || "Your workspace"}</h1>
+          <h1>{details?.conversation.title || "New conversation"}</h1>
         </div>
         {layout !== "desktop" && (
           <Button

@@ -14,7 +14,11 @@ import {
   CardFooter,
 } from "#/components/ui/card"
 import { useMarketplaceAction } from "#/hooks/use-marketplace"
-import { listingTypeLabel } from "#/lib/presentation"
+import {
+  deliveryStatusLabel,
+  listingTypeLabel,
+  paymentStatusLabel,
+} from "#/lib/presentation"
 import { confirmPurchase } from "#/lib/wallet"
 
 import { useWorkspaceAssistant } from "./assistant-context"
@@ -54,7 +58,7 @@ export function PurchaseCard({
                 : "secondary"
             }
           >
-            Payment: {paymentStatus}
+            Payment: {paymentStatusLabel(paymentStatus)}
           </Badge>
           {delivery && (
             <Badge
@@ -62,7 +66,7 @@ export function PurchaseCard({
             >
               {paymentStatus === "confirmed" && delivery.status === "failed"
                 ? "Paid, delivery failed"
-                : `Delivery: ${delivery.status}`}
+                : `Delivery: ${deliveryStatusLabel(delivery.status)}`}
             </Badge>
           )}
         </div>
@@ -126,12 +130,12 @@ function PurchaseConfirmation({ purchase }: { purchase: Purchase }) {
       {purchase.authorization &&
         ["prepared", "pending"].includes(purchase.paymentStatus) && (
           <div className="space-y-2">
-            <p className="text-sm">
-              Confirm this purchase and pay gas in your wallet.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              If a submission is pending, refresh before trying again.
-            </p>
+            <p className="text-sm">Wallet confirmation and gas required.</p>
+            {purchase.paymentStatus === "pending" && (
+              <p className="text-xs text-muted-foreground">
+                Refresh before trying again; payment may already be pending.
+              </p>
+            )}
             <Button
               disabled={confirm.isPending}
               onClick={() => confirm.mutate(undefined)}

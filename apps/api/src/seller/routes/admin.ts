@@ -134,6 +134,23 @@ export function createAdminRoutes(market: Marketplace, service: SellerService) {
       }
     })
     .get("/assets", (context) => context.json(market.assets.list()))
+    .delete("/assets/:id", (context) => {
+      const id = context.req.param("id")
+      if (!market.assets.get(id)) {
+        return context.json({ error: "File not found." }, 404)
+      }
+      if (market.assets.isReferenced(id)) {
+        return context.json(
+          {
+            error:
+              "This file is used by a saved listing version and cannot be deleted. Existing listings and purchases still need it.",
+          },
+          409
+        )
+      }
+      market.deleteAsset(id)
+      return context.json({ ok: true })
+    })
     .post("/assets", async (context) => {
       const body = await context.req.parseBody()
 

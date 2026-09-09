@@ -1,18 +1,10 @@
 import type { ModelConnection } from "@repo/schemas"
 
-import { useWorkspaceAssistant } from "#/components/assistant-context"
 import { RequestState, TextField } from "#/components/marketplace-page"
 import { Button } from "#/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "#/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import { Field, FieldLabel, FieldGroup } from "#/components/ui/field"
 import { NativeSelect, NativeSelectOption } from "#/components/ui/native-select"
-import { useMarketplace } from "#/hooks/use-marketplace"
 import { useMarketplaceAction } from "#/hooks/use-marketplace"
 import {
   marketplaceRequest,
@@ -26,9 +18,6 @@ export function ProfileForm({
   profile: SellerProfile
   models: ModelConnection[]
 }) {
-  const { config } = useWorkspaceAssistant()
-  const identity = useMarketplace("seller/identity")
-
   const save = useMarketplaceAction((input: SellerProfile) =>
     marketplaceRequest("seller/profile", input, "PUT")
   )
@@ -36,26 +25,9 @@ export function ProfileForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Seller profile</CardTitle>
-        <CardDescription>
-          Your name and description appear in connected catalogs.
-        </CardDescription>
+        <CardTitle>Public seller profile</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="space-y-2 text-sm">
-          <details className="detail-disclosure">
-            <summary>Endpoint and signing accounts</summary>
-            <dl className="receipt">
-              <dt>Seller endpoint</dt>
-              <dd>{config?.sellerEndpoint}</dd>
-              <dt>Seller signer</dt>
-              <dd>{identity.data?.address || "Unavailable"}</dd>
-              <dt>Buyer signer · no ETH funding required</dt>
-              <dd>{config?.buyerSigner}</dd>
-            </dl>
-          </details>
-          <RequestState error={identity.error} />
-        </div>
+      <CardContent>
         <form
           onSubmit={(event) => {
             event.preventDefault()

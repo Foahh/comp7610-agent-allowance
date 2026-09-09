@@ -95,13 +95,6 @@ export function ConversationSidebar({
         className="conversation-navigation"
       >
         <p className="eyebrow">Conversations</p>
-        {assistant.conversations.length === 0 && (
-          <p className="sidebar-empty">
-            {wallet
-              ? "Your conversations will appear here."
-              : "Connect your wallet to start a conversation."}
-          </p>
-        )}
         {assistant.conversations.map((conversation) => (
           <div key={conversation.id} className="conversation-row">
             <Button

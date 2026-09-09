@@ -2,20 +2,14 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { toast } from "sonner"
 
+import { Field, FieldLabel, FieldGroup } from "#/components/ui/field"
 import { requestJson } from "#/lib/client"
 
 import { useWorkspaceAssistant } from "./assistant-context"
-import { RequestState } from "./marketplace-page"
+import { RequestState, TextField } from "./marketplace-page"
 import { Button } from "./ui/button"
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "./ui/card"
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/card"
 import { Checkbox } from "./ui/checkbox"
-import { Input } from "./ui/input"
 
 export function ConnectionSettings() {
   const { config } = useWorkspaceAssistant()
@@ -47,7 +41,6 @@ export function ConnectionSettings() {
     <Card>
       <CardHeader>
         <CardTitle>Seller access</CardTitle>
-        <CardDescription>Manage how buyers reach your seller.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <form
@@ -57,36 +50,39 @@ export function ConnectionSettings() {
             void save(new FormData(event.currentTarget))
           }}
         >
-          <label className="grid gap-2">
-            Seller base URL
-            <Input
+          <FieldGroup>
+            <TextField
+              label="Seller base URL"
               name="endpoint"
               required
               defaultValue={config?.sellerEndpoint.split("/sellers/")[0]}
             />
-          </label>
-          <label className="flex gap-2">
-            <Checkbox
-              value="on"
-              name="public"
-              defaultChecked={config?.sellerPublic}
-            />
-            Allow remote connections
-          </label>
-          <details className="detail-disclosure">
-            <summary>Remote connection setup</summary>
-            <p>
-              For another computer, replace 127.0.0.1 with this computer's
-              reachable LAN address or HTTPS endpoint. Keep the seller port.
-              Firewall or tunnel setup may be needed; saving a URL does not make
-              it reachable.
-            </p>
-          </details>
-          <Button disabled={busy} type="submit">
-            {busy ? "Saving…" : "Save access"}
-          </Button>
+            <Field orientation="horizontal">
+              <Checkbox
+                id="seller-public"
+                value="on"
+                name="public"
+                defaultChecked={config?.sellerPublic}
+              />
+              <FieldLabel htmlFor="seller-public">
+                Allow remote connections
+              </FieldLabel>
+            </Field>
+            <details className="detail-disclosure">
+              <summary>Remote connection setup</summary>
+              <p>
+                For another computer, replace 127.0.0.1 with this computer's
+                reachable LAN address or HTTPS endpoint. Keep the seller port.
+                Firewall or tunnel setup may be needed; saving a URL does not
+                make it reachable.
+              </p>
+            </details>
+            <Button disabled={busy} type="submit">
+              {busy ? "Saving…" : "Save access"}
+            </Button>
+          </FieldGroup>
         </form>
-        <p className="break-all">Share: {config?.sellerEndpoint}</p>
+        <p className="break-all">Seller endpoint: {config?.sellerEndpoint}</p>
         <RequestState error={error ? new Error(error) : undefined} />
       </CardContent>
     </Card>
@@ -117,10 +113,7 @@ export function LocalInstances() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Local instances</CardTitle>
-        <CardDescription>
-          Run a separate workspace for another account.
-        </CardDescription>
+        <CardTitle>Additional account</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button
@@ -130,7 +123,7 @@ export function LocalInstances() {
             void create()
           }}
         >
-          {busy ? "Starting…" : "Start instance"}
+          {busy ? "Opening…" : "Open another workspace"}
         </Button>
         {instance && (
           <p role="status">
@@ -141,17 +134,14 @@ export function LocalInstances() {
               rel="noreferrer"
             >
               Open {instance.name}
-            </a>{" "}
-            · allow a few seconds for startup.
+            </a>
           </p>
         )}
         <details className="detail-disclosure">
-          <summary>Using multiple accounts</summary>
+          <summary>Keep accounts separate</summary>
           <p>
-            Tabs on the same URL share an account. Use a separate instance or
-            browser profile for another account. Some wallet extensions share
-            their selected account across tabs; separate browser profiles are
-            most reliable.
+            Tabs at the same address share an account. Use a separate browser
+            profile for each account.
           </p>
         </details>
         <RequestState error={error ? new Error(error) : undefined} />

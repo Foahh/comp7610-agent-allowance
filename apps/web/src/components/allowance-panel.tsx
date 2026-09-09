@@ -125,17 +125,9 @@ export function AllowancePanel({
             </Field>
             <p className="text-xs text-muted-foreground">
               {automatic
-                ? "Allow purchases within your limits."
-                : "Confirm each purchase in your wallet and pay gas."}
+                ? "Approved sellers can charge this allowance without wallet confirmation."
+                : "Each purchase requires wallet confirmation and gas."}
             </p>
-            <details className="detail-disclosure">
-              <summary>How purchases work</summary>
-              <p>
-                {automatic
-                  ? "Your buyer signer can spend this allowance with approved sellers. An opted-in seller pays gas; otherwise your wallet must confirm the purchase."
-                  : "Your backend signer can retrieve paid deliveries, but cannot purchase with this allowance."}
-              </p>
-            </details>
           </section>
         )}
       </CardContent>
@@ -211,9 +203,8 @@ function AllowanceActions({
       {canCreate && (
         <p className="allowance-guidance">
           {connected
-            ? "Approve ATT, then confirm in your wallet. "
-            : "Select a conversation to authorize spending. "}
-          Valid for 24 hours. Setup gas is paid in test ETH.
+            ? "Expires after 24 hours. Requires wallet confirmation and test ETH for gas."
+            : "Select a conversation first."}
         </p>
       )}
       {canCreate ? (

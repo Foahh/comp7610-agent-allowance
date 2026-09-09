@@ -14,10 +14,7 @@ export function AssistantNotifications({ error }: { error?: string }) {
     }
     previousError.current = error
     if (error) {
-      toast.error("Something went wrong", {
-        id: errorToastId,
-        description: error,
-      })
+      toast.error(error, { id: errorToastId })
     } else {
       toast.dismiss(errorToastId)
     }

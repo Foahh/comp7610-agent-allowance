@@ -2,7 +2,7 @@ import type { Listing } from "@repo/schemas"
 
 import { formatUnits } from "viem"
 
-import { listingTypeLabel } from "#/lib/presentation"
+import { listingStatusLabel, listingTypeLabel } from "#/lib/presentation"
 
 import { ListingPreview } from "./listing-editor"
 import { Badge } from "./ui/badge"
@@ -32,7 +32,7 @@ export function ListingCard({
         <div className="flex justify-between gap-2">
           <Badge variant="outline">{listingTypeLabel(listing.type)}</Badge>
           <Badge variant="secondary">
-            {listing.status} · v{listing.version}
+            {listingStatusLabel(listing.status)} · v{listing.version}
           </Badge>
         </div>
         <CardTitle>{listing.name}</CardTitle>
@@ -51,7 +51,7 @@ export function ListingCard({
             {publishing
               ? "Updating…"
               : listing.status === "active"
-                ? "Deactivate"
+                ? "Unpublish"
                 : "Publish"}
           </Button>
         </div>

@@ -14,7 +14,7 @@ import { SheetActions } from "#/components/editor-sheet"
 import { RequestState, TextField } from "#/components/marketplace-page"
 import { PurchaseCard } from "#/components/purchase-card"
 import { Button } from "#/components/ui/button"
-import { Field, FieldLabel } from "#/components/ui/field"
+import { Field, FieldLabel, FieldGroup } from "#/components/ui/field"
 import { NativeSelect, NativeSelectOption } from "#/components/ui/native-select"
 import { useMarketplaceAction } from "#/hooks/use-marketplace"
 import { createConversation } from "#/lib/client"
@@ -102,34 +102,43 @@ export function ListingPurchase({
         }}
         onChange={resetQuote}
       >
-        <Field>
-          <FieldLabel htmlFor={`${formId}-conversation`}>
-            Conversation and allowance
-          </FieldLabel>
-          <NativeSelect
-            id={`${formId}-conversation`}
-            value={conversationId}
-            onChange={(event) => setConversationId(event.target.value)}
-          >
-            <NativeSelectOption value="">
-              Create a new conversation
-            </NativeSelectOption>
-            {assistant.conversations.map((conversation) => (
-              <NativeSelectOption key={conversation.id} value={conversation.id}>
-                {conversation.title}
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor={`${formId}-conversation`}>
+              Conversation and allowance
+            </FieldLabel>
+            <NativeSelect
+              id={`${formId}-conversation`}
+              value={conversationId}
+              onChange={(event) => setConversationId(event.target.value)}
+            >
+              <NativeSelectOption value="">
+                Create a new conversation
               </NativeSelectOption>
-            ))}
-          </NativeSelect>
-        </Field>
-        {listing.type === "ai-service" && (
-          <>
-            <p className="text-sm text-muted-foreground">
-              Required inputs: {listing.requiredInputs}
-            </p>
-            <TextField label="Your request" name="brief" multiline />
-            <TextField label="Supporting evidence" name="evidence" multiline />
-          </>
-        )}
+              {assistant.conversations.map((conversation) => (
+                <NativeSelectOption
+                  key={conversation.id}
+                  value={conversation.id}
+                >
+                  {conversation.title}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
+          {listing.type === "ai-service" && (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Required inputs: {listing.requiredInputs}
+              </p>
+              <TextField label="Your request" name="brief" multiline />
+              <TextField
+                label="Supporting evidence"
+                name="evidence"
+                multiline
+              />
+            </>
+          )}
+        </FieldGroup>
       </form>
       <RequestState error={quote.error || purchase.error} />
       <QuoteActions
@@ -146,7 +155,7 @@ export function ListingPurchase({
         <div role="status" className="flex flex-col gap-2">
           <p>{quote.data.clarification}</p>
           <Link to="/" onClick={() => assistant.select(conversationId)}>
-            Open chat and manage this conversation’s allowance
+            Manage allowance
           </Link>
         </div>
       )}

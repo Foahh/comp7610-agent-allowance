@@ -1,12 +1,13 @@
 "use client"
 
-// Adapted from Vercel AI Elements for this app's text-only assistant protocol.
 import type { ChatStatus } from "ai"
 import type { ComponentProps, FormEvent, HTMLAttributes } from "react"
 
 import { CornerDownLeftIcon, SquareIcon, XIcon } from "lucide-react"
 import { useCallback, useRef } from "react"
 
+// Adapted from Vercel AI Elements for this app's text-only assistant protocol.
+import { FieldGroup } from "#/components/ui/field"
 import {
   InputGroup,
   InputGroupAddon,
@@ -41,7 +42,9 @@ export const PromptInput = ({
     }}
     {...props}
   >
-    <InputGroup className="overflow-hidden">{children}</InputGroup>
+    <FieldGroup>
+      <InputGroup className="overflow-hidden">{children}</InputGroup>
+    </FieldGroup>
   </form>
 )
 

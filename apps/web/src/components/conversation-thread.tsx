@@ -75,9 +75,6 @@ export function ConversationThread({
               What would you like
               <br className="hidden sm:block" /> to work on?
             </h2>
-            <p className="welcome-hint">
-              Describe your task below, or try a scenario below.
-            </p>
             <ScenarioBar assistant={assistant} />
           </ConversationEmptyState>
         )}

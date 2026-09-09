@@ -1,9 +1,20 @@
 import type { Asset } from "@repo/schemas"
 
+import { RiFileLine, RiDeleteBinLine } from "@remixicon/react"
+
 import { useMarketplaceAction } from "#/hooks/use-marketplace"
 import { marketplaceRequest } from "#/lib/marketplace"
 
+import { FileUploadField } from "./file-upload-field"
 import { RequestState } from "./marketplace-page"
+import {
+  Attachment,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentGroup,
+  AttachmentMedia,
+  AttachmentTitle,
+} from "./ui/attachment"
 import { Button } from "./ui/button"
 import {
   Card,
@@ -12,53 +23,113 @@ import {
   CardDescription,
   CardContent,
 } from "./ui/card"
-import { Field, FieldLabel } from "./ui/field"
-import { Input } from "./ui/input"
+import { FieldGroup } from "./ui/field"
 
 export function PrivateAssets({ assets }: { assets: Asset[] }) {
   const upload = useMarketplaceAction((form: FormData) =>
     marketplaceRequest("seller/assets", form)
   )
+  const remove = useMarketplaceAction((id: string) =>
+    marketplaceRequest(`seller/assets/${id}`, undefined, "DELETE")
+  )
   return (
     <Card className="assets-card">
       <CardHeader>
-        <CardTitle>Private assets</CardTitle>
-        <CardDescription>
-          Files for listings and model knowledge. Up to 20 MiB each.
-        </CardDescription>
+        <CardTitle>Listing files</CardTitle>
+        <CardDescription>Up to 20 MiB each.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form
-          className="flex flex-wrap items-end gap-3"
-          onSubmit={(event) => {
-            event.preventDefault()
-            const element = event.currentTarget
-            upload.mutate(new FormData(element), {
-              onSuccess: () => element.reset(),
-            })
-          }}
-        >
-          <Field className="min-w-0 flex-1">
-            <FieldLabel htmlFor="asset-upload">Upload a file</FieldLabel>
-            <Input id="asset-upload" name="file" type="file" required />
-          </Field>
-          <Button type="submit" disabled={upload.isPending}>
-            {upload.isPending ? "Uploading…" : "Upload"}
-          </Button>
-        </form>
+        <FieldGroup>
+          <FileUploadField
+            label="Add a listing file"
+            name="file"
+            disabled={upload.isPending}
+            onChange={(event) => {
+              const input = event.currentTarget
+              const file = input.files?.[0]
+              if (!file || upload.isPending) {
+                return
+              }
+              remove.reset()
+              const form = new FormData()
+              form.set("file", file)
+              upload.mutate(form, {
+                onSettled: () => {
+                  input.value = ""
+                },
+              })
+            }}
+          />
+          {upload.isPending && (
+            <p role="status" className="text-sm text-muted-foreground">
+              Uploading…
+            </p>
+          )}
+        </FieldGroup>
         <RequestState
-          error={upload.error}
-          success={upload.isSuccess ? "File uploaded." : undefined}
+          error={upload.error || remove.error}
+          success={
+            remove.isSuccess
+              ? "File deleted."
+              : upload.isSuccess
+                ? "File uploaded."
+                : undefined
+          }
         />
-        <ul className="mt-4 flex flex-col gap-1 text-sm text-muted-foreground">
-          {assets.map((asset) => (
-            <li className="asset-row" key={asset.id}>
-              {asset.name} · {Math.ceil(asset.size / 1024)} KiB ·{" "}
-              {asset.readable ? "Model readable" : "Download only"}
-            </li>
-          ))}
-        </ul>
+        {assets.length > 0 && (
+          <AttachmentGroup
+            className="mt-5 flex-col overflow-visible"
+            role="group"
+            aria-label="Uploaded listing files"
+            tabIndex={0}
+          >
+            {assets.map((asset) => (
+              <Attachment
+                key={asset.id}
+                className="w-full flex-nowrap"
+                size="sm"
+              >
+                <AttachmentMedia>
+                  <RiFileLine aria-hidden="true" />
+                </AttachmentMedia>
+                <AttachmentContent>
+                  <AttachmentTitle title={asset.name}>
+                    {asset.name}
+                  </AttachmentTitle>
+                  <AttachmentDescription>
+                    {fileType(asset)} · {Math.ceil(asset.size / 1024)} KB
+                  </AttachmentDescription>
+                </AttachmentContent>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Delete ${asset.name}`}
+                  title={`Delete ${asset.name}`}
+                  disabled={remove.isPending || upload.isPending}
+                  onClick={() => {
+                    upload.reset()
+                    remove.mutate(asset.id)
+                  }}
+                >
+                  <RiDeleteBinLine
+                    className="size-4 text-destructive"
+                    aria-hidden="true"
+                  />
+                </Button>
+              </Attachment>
+            ))}
+          </AttachmentGroup>
+        )}
       </CardContent>
     </Card>
   )
+}
+
+function fileType(asset: Asset) {
+  const extension = asset.name.split(".").at(-1)
+
+  return extension && extension !== asset.name
+    ? extension.toUpperCase()
+    : "File"
 }

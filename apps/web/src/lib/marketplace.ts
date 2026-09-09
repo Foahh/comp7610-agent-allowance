@@ -14,7 +14,7 @@ export type SellerProfile = {
 export type Sale = {
   id: string
   offer: Purchase["offer"]
-  paymentStatus: string
+  paymentStatus: Purchase["paymentStatus"] | "awaiting-payment"
   txHash?: string
   delivery?: Purchase["delivery"]
 }

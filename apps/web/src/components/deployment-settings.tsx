@@ -1,19 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 
+import { FieldGroup } from "#/components/ui/field"
 import { requestJson } from "#/lib/client"
 
 import { useWorkspaceAssistant } from "./assistant-context"
+import { FileUploadField } from "./file-upload-field"
 import { RequestState, TextField } from "./marketplace-page"
 import { Button } from "./ui/button"
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "./ui/card"
-import { Input } from "./ui/input"
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/card"
 import { NativeSelect, NativeSelectOption } from "./ui/native-select"
 
 type Validation = {
@@ -142,9 +137,6 @@ export function DeploymentSettings() {
         <CardTitle>
           {config?.configured ? "Network & contracts" : "Connect contracts"}
         </CardTitle>
-        <CardDescription>
-          Import a deployment file, then validate the connection.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {config?.restartRequired && (
@@ -183,9 +175,8 @@ export function DeploymentSettings() {
               </NativeSelect>
             </label>
             <p className="text-xs text-muted-foreground">
-              Switching keeps each deployment's history and old allowances.
-              Return to the old deployment to recover payments or withdraw
-              funds.
+              History and funds stay with each deployment. Switch back to
+              recover payments or withdraw funds.
             </p>
           </>
         )}
@@ -203,25 +194,24 @@ export function DeploymentSettings() {
               void validate(new FormData(event.currentTarget))
             }}
           >
-            <label className="grid gap-2 text-sm">
-              Import deployment JSON
-              <Input
-                type="file"
+            <FieldGroup>
+              <FileUploadField
+                label="Import deployment JSON"
+                disabled={busy}
                 accept="application/json,.json"
                 onChange={(event) => {
                   void importManifest(event.currentTarget.files?.[0])
                 }}
               />
-            </label>
-            <TextField
-              label="RPC URL"
-              name="rpcUrl"
-              required
-              defaultValue="https://ethereum-sepolia-rpc.publicnode.com"
-            />
-            <label className="grid gap-2 text-sm">
-              Token address
-              <Input
+              <TextField
+                label="RPC URL"
+                name="rpcUrl"
+                required
+                defaultValue="https://ethereum-sepolia-rpc.publicnode.com"
+              />
+              <TextField
+                label="Token address"
+                name="tokenAddress"
                 required
                 value={addresses.tokenAddress}
                 onChange={(event) =>
@@ -231,10 +221,9 @@ export function DeploymentSettings() {
                   })
                 }
               />
-            </label>
-            <label className="grid gap-2 text-sm">
-              Vault address
-              <Input
+              <TextField
+                label="Vault address"
+                name="vaultAddress"
                 required
                 value={addresses.vaultAddress}
                 onChange={(event) =>
@@ -244,10 +233,10 @@ export function DeploymentSettings() {
                   })
                 }
               />
-            </label>
-            <Button disabled={busy} type="submit">
-              {busy ? "Checking…" : "Validate connection"}
-            </Button>
+              <Button disabled={busy} type="submit">
+                {busy ? "Checking…" : "Validate connection"}
+              </Button>
+            </FieldGroup>
           </form>
         </details>
         {validated && (

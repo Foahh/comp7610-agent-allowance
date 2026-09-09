@@ -2,13 +2,7 @@ import { RiArrowRightLine, RiWallet3Line } from "@remixicon/react"
 
 import { AssistantNotifications } from "./assistant-notifications"
 import { Button } from "./ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "./ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog"
 import { Spinner } from "./ui/spinner"
 
 export function WalletConnectionGate({
@@ -51,9 +45,6 @@ export function WalletConnectionGate({
           </div>
           <DialogHeader>
             <DialogTitle>Connect your wallet</DialogTitle>
-            <DialogDescription>
-              Connect to start a conversation.
-            </DialogDescription>
           </DialogHeader>
           <Button
             className="connect-primary"

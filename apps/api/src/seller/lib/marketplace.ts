@@ -14,7 +14,7 @@ import { publicListing } from "@repo/schemas"
 import { endpointUrl } from "@repo/utils/http"
 import { decryptSecret, encryptSecret } from "@repo/utils/secrets"
 import { randomUUID } from "node:crypto"
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs"
 import { basename, extname, join } from "node:path"
 import { keccak256, stringToHex } from "viem"
 
@@ -135,6 +135,20 @@ export function createMarketplace(config: Config, store: SellerStore) {
     assets.save(asset.id, asset)
 
     return asset
+  }
+
+  function deleteAsset(id: string) {
+    const asset = assets.get(id)
+    if (!asset) {
+      throw new Error("File not found.")
+    }
+    if (assets.isReferenced(id)) {
+      throw new Error(
+        "This file is used by a saved listing version and cannot be deleted. Existing listings and purchases still need it."
+      )
+    }
+    rmSync(join(assetDirectory, asset.id), { force: true })
+    assets.remove(id)
   }
 
   function readAsset(id: string) {
@@ -291,6 +305,7 @@ export function createMarketplace(config: Config, store: SellerStore) {
     runtimeModel,
     saveListing,
     saveAsset,
+    deleteAsset,
     readAsset,
     snapshot,
     publish,

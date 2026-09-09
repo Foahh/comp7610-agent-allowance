@@ -14,11 +14,9 @@ import { Textarea } from "#/components/ui/textarea"
 
 export function MarketplacePage({
   title,
-  description,
   children,
 }: {
   title: string
-  description: string
   children: ReactNode
 }) {
   return (
@@ -29,7 +27,6 @@ export function MarketplacePage({
       >
         <div className="providers-intro">
           <h1 id="marketplace-title">{title}</h1>
-          {description && <p>{description}</p>}
         </div>
         {children}
       </section>
@@ -92,18 +89,23 @@ export function RequestState({
   useEffect(() => {
     if (message && message !== previous.current) {
       if (error) {
-        toast.error(message, { id: `request-error-${message}` })
+        if (!onRetry) {
+          toast.error(message, { id: `request-error-${message}` })
+        }
       } else {
         toast.success(message)
       }
     }
     previous.current = message
-  }, [message, error])
+  }, [message, error, onRetry])
 
   if (error && onRetry) {
     return (
-      <div className="status-notice flex flex-wrap items-center justify-between gap-3">
-        <p>Unable to load this section.</p>
+      <div
+        role="alert"
+        className="status-notice flex flex-wrap items-center justify-between gap-3"
+      >
+        <p>{error.message}</p>
         <Button variant="outline" onClick={onRetry}>
           Retry
         </Button>

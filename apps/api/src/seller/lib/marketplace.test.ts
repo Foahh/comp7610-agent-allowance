@@ -1,7 +1,7 @@
 import type { ListingInput } from "@repo/schemas"
 import type { Config } from "@repo/utils/config"
 
-import { mkdtempSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test"
@@ -46,6 +46,38 @@ afterEach(() => {
   rmSync(directory, { recursive: true, force: true })
   vi.unstubAllEnvs()
 })
+
+test("deleting an unused file removes its bytes and metadata", () => {
+  const asset = market.saveAsset(
+    "unused.txt",
+    "text/plain",
+    Buffer.from("unused")
+  )
+  market.deleteAsset(asset.id)
+  expect(market.assets.get(asset.id)).toBeUndefined()
+  expect(existsSync(join(directory, "seller-assets", asset.id))).toBe(false)
+  expect(() => market.deleteAsset(asset.id)).toThrow("File not found")
+})
+
+test.each(["file", "ai-service"] as const)(
+  "deletion protects files referenced by historical %s listings",
+  (type) => {
+    const asset = market.saveAsset(
+      "evidence.txt",
+      "text/plain",
+      Buffer.from("evidence")
+    )
+    const listing = market.saveListing({
+      ...textListing,
+      type,
+      assetId: type === "file" ? asset.id : "",
+      assetIds: type === "ai-service" ? [asset.id] : [],
+    })
+    market.saveListing(textListing, listing.id)
+    expect(() => market.deleteAsset(asset.id)).toThrow("saved listing version")
+    expect(market.readAsset(asset.id).bytes.toString()).toBe("evidence")
+  }
+)
 
 test("catalog excludes private content and preserves purchased versions after edits and deactivation", () => {
   const first = market.saveListing(textListing)

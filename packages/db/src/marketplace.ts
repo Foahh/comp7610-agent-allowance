@@ -174,6 +174,23 @@ export function createSellerQueries(db: Database) {
       },
     },
     assets: {
+      isReferenced(id: string) {
+        return !!(
+          db
+            .select({ id: listingVersions.id })
+            .from(listingVersions)
+            .where(eq(listingVersions.assetId, id))
+            .get() ||
+          db
+            .select({ id: listingAssets.assetId })
+            .from(listingAssets)
+            .where(eq(listingAssets.assetId, id))
+            .get()
+        )
+      },
+      remove(id: string) {
+        db.delete(assets).where(eq(assets.id, id)).run()
+      },
       get(id: string) {
         return db.select().from(assets).where(eq(assets.id, id)).get()
       },

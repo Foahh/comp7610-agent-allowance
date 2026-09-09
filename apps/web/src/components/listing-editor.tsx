@@ -220,7 +220,7 @@ export function ListingEditor({
             />
           )}
           <p className="text-sm text-muted-foreground">
-            Saved as a draft. Existing purchases keep their original version.
+            Edits don’t change existing purchases.
           </p>
           <SheetActions>
             <Button
@@ -263,18 +263,19 @@ export function ListingPreview({ listing }: { listing: Listing }) {
           preview.mutate(new FormData(event.currentTarget))
         }}
       >
-        <p className="text-sm text-muted-foreground">
-          Uses your model connection; no ATT purchase.
-        </p>
-        <TextField label="Test request" name="brief" multiline required />
-        <TextField label="Supporting evidence" name="evidence" multiline />
-        <Button type="submit" disabled={preview.isPending}>
-          {preview.isPending ? "Running…" : "Run preview"}
-        </Button>
-        <RequestState error={preview.error} />
-        {preview.data && (
-          <p className="text-sm whitespace-pre-wrap">{preview.data.content}</p>
-        )}
+        <FieldGroup>
+          <TextField label="Test request" name="brief" multiline required />
+          <TextField label="Supporting evidence" name="evidence" multiline />
+          <Button type="submit" disabled={preview.isPending}>
+            {preview.isPending ? "Running…" : "Run preview"}
+          </Button>
+          <RequestState error={preview.error} />
+          {preview.data && (
+            <p className="text-sm whitespace-pre-wrap">
+              {preview.data.content}
+            </p>
+          )}
+        </FieldGroup>
       </form>
     </details>
   )
@@ -329,21 +330,23 @@ function ListingServiceFields({
         multiline
         maxLength={2000}
       />
-      <fieldset className="flex flex-col gap-3">
-        <legend className="mb-3 text-sm font-medium">Knowledge assets</legend>
-        {readableAssets.map((asset) => (
-          <Field key={asset.id} orientation="horizontal">
-            <Checkbox
-              id={`knowledge-${asset.id}`}
-              checked={selectedAssets.has(asset.id)}
-              onCheckedChange={(checked) => onAssetChange(asset.id, checked)}
-            />
-            <FieldLabel htmlFor={`knowledge-${asset.id}`}>
-              {asset.name}
-            </FieldLabel>
-          </Field>
-        ))}
-      </fieldset>
+      {readableAssets.length > 0 && (
+        <fieldset className="flex flex-col gap-3">
+          <legend className="mb-3 text-sm font-medium">Knowledge assets</legend>
+          {readableAssets.map((asset) => (
+            <Field key={asset.id} orientation="horizontal">
+              <Checkbox
+                id={`knowledge-${asset.id}`}
+                checked={selectedAssets.has(asset.id)}
+                onCheckedChange={(checked) => onAssetChange(asset.id, checked)}
+              />
+              <FieldLabel htmlFor={`knowledge-${asset.id}`}>
+                {asset.name}
+              </FieldLabel>
+            </Field>
+          ))}
+        </fieldset>
+      )}
     </>
   )
 }

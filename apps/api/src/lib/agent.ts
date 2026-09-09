@@ -29,6 +29,13 @@ import { createSellerClient } from "./seller-client.ts"
 
 type Emit = (event: ChatEvent) => Promise<void>
 
+const TOOL_STATUS = {
+  discoverListings: "Finding available items…",
+  requestQuote: "Requesting a quote…",
+  purchaseQuote: "Purchasing…",
+  retrievePurchase: "Opening a purchase…",
+} as const
+
 export function createAgent(
   config: Config,
   store: BuyerStore,
@@ -265,7 +272,9 @@ export function createAgent(
         if (part.type === "tool-call") {
           await emit({
             type: "status",
-            text: `Assistant requested ${part.toolName}.`,
+            text:
+              TOOL_STATUS[part.toolName as keyof typeof TOOL_STATUS] ||
+              "Working…",
           })
         }
 
