@@ -1,5 +1,5 @@
 {
-  "name": "@repo/agent-spend-guard",
+  "name": "@repo/mandate",
   "version": "0.0.0",
   "private": true,
   "type": "module",

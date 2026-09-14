@@ -43,7 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <RiMenuLine />
             </Button>
-            <strong>Agent Spend</strong>
+            <strong>Mandate</strong>
           </header>
           <Sheet open={navigation} onOpenChange={setNavigation}>
             <SheetContent

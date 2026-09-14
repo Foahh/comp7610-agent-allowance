@@ -9,7 +9,7 @@ export function projectRoot() {
 
     if (parent === directory) {
       throw new Error(
-        "Run from the Agent Spend Guard repository or set PROJECT_ROOT."
+        "Run from the Mandate repository or set PROJECT_ROOT."
       )
     }
 

@@ -31,7 +31,7 @@ export function ConversationSidebar({
         <div className="brand" hidden={collapsed}>
           <span className="brand-copy">
             <span className="eyebrow">COMP7610</span>
-            <strong>Agent Spend</strong>
+            <strong>Mandate</strong>
           </span>
         </div>
         {onToggle && (
