@@ -57,7 +57,7 @@ export const demoItems = [
       "- [ ] Compare the result with the promised scope.",
       "- [ ] Record remaining allowance and any follow-up work.",
       "",
-      "Demo template for the Agent Spend Guard walkthrough.",
+      "Demo template for the Mandate walkthrough.",
     ].join("\n"),
   },
 ] as const

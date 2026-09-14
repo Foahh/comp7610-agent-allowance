@@ -1,4 +1,4 @@
-# Agent Spend Guard
+# Mandate
 
 A COMP7610 group project where participants buy and sell digital items and AI services. An AI assistant makes purchases using a conversation allowance enforced by a smart contract on Ethereum Sepolia.
 

@@ -21,7 +21,7 @@ export function WalletConnectionGate({
       <AssistantNotifications error={error || undefined} />
       <div className="signin-shell app-surface" inert aria-hidden="true">
         <aside>
-          <strong>Agent Spend</strong>
+          <strong>Mandate</strong>
           <div className="signin-placeholder" />
           <div className="signin-placeholder" />
         </aside>
