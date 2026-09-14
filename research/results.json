@@ -1,0 +1,304 @@
+{
+  "complete": true,
+  "recordedAt": "2026-09-14T06:43:12.768Z",
+  "implementationCommit": "90cf3913801bbdbd67ff35b9d787d9ea814e9f0d",
+  "harnessSha256": "caa5071c5c601e5bfce53b058ffaaa19d334af2fd1688357b6fc2075f811c435",
+  "contractSha256": "e7741af18d17ce142b8820be3fd6becb43bac62680a17369fb5c57e915889bdb",
+  "node": "v24.21.0",
+  "solc": "0.8.30",
+  "optimizer": {
+    "enabled": true,
+    "runs": 200
+  },
+  "chain": "Hardhat local EVM (31337)",
+  "tokenDecimals": 6,
+  "budgetPerWalletOrAllowance": "5000000",
+  "perPurchaseCap": "2000000",
+  "sampleCountPerScenario": 1,
+  "allowanceCreationGasSample": "280968",
+  "limitations": [
+    "Deterministic direct contract calls; no LLM prompt-injection success rate measured.",
+    "Local gas samples only; not Sepolia latency, fiat costs, or a statistical benchmark.",
+    "Seller signatures supplied for attempted quotes, including an approved colluding seller.",
+    "Blocked outcomes are EVM simulation reverts, so no failed-transaction gas is measured.",
+    "EOA baseline has the same token funding; no additional funding during each scenario.",
+    "Separate signer experiment assumes only one signing key is compromised, not the whole host."
+  ],
+  "observations": [
+    {
+      "scenario": "legitimate",
+      "system": "prefunded-eoa",
+      "outcomes": [
+        {
+          "status": "success",
+          "gasUsed": "51543"
+        }
+      ],
+      "tokensSpent": "1000000"
+    },
+    {
+      "scenario": "legitimate",
+      "system": "mandate",
+      "outcomes": [
+        {
+          "status": "success",
+          "gasUsed": "161499"
+        }
+      ],
+      "tokensSpent": "1000000"
+    },
+    {
+      "scenario": "per-purchase-cap",
+      "system": "prefunded-eoa",
+      "outcomes": [
+        {
+          "status": "success",
+          "gasUsed": "51543"
+        }
+      ],
+      "tokensSpent": "3000000"
+    },
+    {
+      "scenario": "per-purchase-cap",
+      "system": "mandate",
+      "outcomes": [
+        {
+          "status": "blocked",
+          "error": "LimitExceeded"
+        }
+      ],
+      "tokensSpent": "0"
+    },
+    {
+      "scenario": "unapproved-recipient",
+      "system": "prefunded-eoa",
+      "outcomes": [
+        {
+          "status": "success",
+          "gasUsed": "51555"
+        }
+      ],
+      "tokensSpent": "1000000"
+    },
+    {
+      "scenario": "unapproved-recipient",
+      "system": "mandate",
+      "outcomes": [
+        {
+          "status": "blocked",
+          "error": "InvalidQuote"
+        }
+      ],
+      "tokensSpent": "0"
+    },
+    {
+      "scenario": "total-budget",
+      "system": "prefunded-eoa",
+      "outcomes": [
+        {
+          "status": "success",
+          "gasUsed": "51543"
+        },
+        {
+          "status": "success",
+          "gasUsed": "34443"
+        },
+        {
+          "status": "success",
+          "gasUsed": "29643"
+        },
+        {
+          "status": "blocked",
+          "error": "ERC20InsufficientBalance"
+        }
+      ],
+      "tokensSpent": "5000000"
+    },
+    {
+      "scenario": "total-budget",
+      "system": "mandate",
+      "outcomes": [
+        {
+          "status": "success",
+          "gasUsed": "161511"
+        },
+        {
+          "status": "success",
+          "gasUsed": "127323"
+        },
+        {
+          "status": "success",
+          "gasUsed": "122523"
+        },
+        {
+          "status": "blocked",
+          "error": "LimitExceeded"
+        }
+      ],
+      "tokensSpent": "5000000"
+    },
+    {
+      "scenario": "confirmed-revocation",
+      "system": "prefunded-eoa",
+      "outcomes": [
+        {
+          "status": "success",
+          "gasUsed": "51543"
+        }
+      ],
+      "tokensSpent": "1000000"
+    },
+    {
+      "scenario": "confirmed-revocation",
+      "system": "mandate",
+      "outcomes": [
+        {
+          "status": "blocked",
+          "error": "InactiveAllowance"
+        }
+      ],
+      "tokensSpent": "0"
+    },
+    {
+      "scenario": "expired-allowance",
+      "system": "prefunded-eoa",
+      "outcomes": [
+        {
+          "status": "success",
+          "gasUsed": "51543"
+        }
+      ],
+      "tokensSpent": "1000000"
+    },
+    {
+      "scenario": "expired-allowance",
+      "system": "mandate",
+      "outcomes": [
+        {
+          "status": "blocked",
+          "error": "InactiveAllowance"
+        }
+      ],
+      "tokensSpent": "0"
+    },
+    {
+      "scenario": "unwanted-approved-purchases",
+      "system": "prefunded-eoa",
+      "outcomes": [
+        {
+          "status": "success",
+          "gasUsed": "51543"
+        },
+        {
+          "status": "success",
+          "gasUsed": "34443"
+        },
+        {
+          "status": "success",
+          "gasUsed": "29643"
+        }
+      ],
+      "tokensSpent": "5000000"
+    },
+    {
+      "scenario": "unwanted-approved-purchases",
+      "system": "mandate",
+      "outcomes": [
+        {
+          "status": "success",
+          "gasUsed": "161523"
+        },
+        {
+          "status": "success",
+          "gasUsed": "127323"
+        },
+        {
+          "status": "success",
+          "gasUsed": "122523"
+        }
+      ],
+      "tokensSpent": "5000000"
+    },
+    {
+      "scenario": "exact-replay-then-fresh-nonce",
+      "system": "mandate",
+      "outcomes": [
+        {
+          "status": "success",
+          "gasUsed": "161523"
+        },
+        {
+          "status": "blocked",
+          "error": "DuplicatePurchase"
+        },
+        {
+          "status": "success",
+          "gasUsed": "127323"
+        }
+      ],
+      "tokensSpent": "2000000"
+    },
+    {
+      "scenario": "shared-signer-two-allowances",
+      "system": "mandate",
+      "outcomes": [
+        {
+          "status": "success",
+          "gasUsed": "161523"
+        },
+        {
+          "status": "success",
+          "gasUsed": "127311"
+        },
+        {
+          "status": "success",
+          "gasUsed": "127311"
+        },
+        {
+          "status": "success",
+          "gasUsed": "144423"
+        },
+        {
+          "status": "success",
+          "gasUsed": "127323"
+        },
+        {
+          "status": "success",
+          "gasUsed": "122511"
+        }
+      ],
+      "tokensSpent": "10000000"
+    },
+    {
+      "scenario": "isolated-signer-two-allowances",
+      "system": "mandate",
+      "outcomes": [
+        {
+          "status": "success",
+          "gasUsed": "161511"
+        },
+        {
+          "status": "success",
+          "gasUsed": "127323"
+        },
+        {
+          "status": "success",
+          "gasUsed": "127323"
+        },
+        {
+          "status": "blocked",
+          "error": "Unauthorized"
+        },
+        {
+          "status": "blocked",
+          "error": "Unauthorized"
+        },
+        {
+          "status": "blocked",
+          "error": "Unauthorized"
+        }
+      ],
+      "tokensSpent": "5000000"
+    }
+  ]
+}
