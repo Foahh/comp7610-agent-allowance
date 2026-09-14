@@ -8,9 +8,7 @@ export function projectRoot() {
     const parent = dirname(directory)
 
     if (parent === directory) {
-      throw new Error(
-        "Run from the Mandate repository or set PROJECT_ROOT."
-      )
+      throw new Error("Run from the Mandate repository or set PROJECT_ROOT.")
     }
 
     directory = parent
