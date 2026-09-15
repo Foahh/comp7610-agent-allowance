@@ -1,4 +1,3 @@
-import type { Conversation } from "@repo/schemas"
 import type { Address } from "viem"
 
 import { useQueryClient } from "@tanstack/react-query"
@@ -20,17 +19,9 @@ import {
 import { useAssistantQueries } from "./use-assistant-queries.ts"
 import { useAssistantRun } from "./use-assistant-run.ts"
 
-type Scenario = Conversation["scenario"]
-
-const EXCHANGE_SEMESTER_PROMPT = [
-  "Compare Tokyo, Seoul, and Taipei for an exchange semester, then prepare",
-  "a recommendation brief.",
-].join(" ")
-
 export function useAssistant(wallet: ConnectedWallet, logout: () => void) {
   const cache = useQueryClient()
   const [selected, setSelected] = useState<string | null>(null)
-  const [scenario, setScenario] = useState<Scenario>("success")
   const [approvedSellers, setApprovedSellers] = useState<Address[]>([])
   const [automatic, setAutomatic] = useState(false)
   const [draft, setDraft] = useState("")
@@ -39,25 +30,24 @@ export function useAssistant(wallet: ConnectedWallet, logout: () => void) {
   const { run, dispatch, perform } = useAssistantRun(refresh)
   const config = configuration.data
 
-  async function createConversation(nextScenario: Scenario, message?: string) {
+  async function createConversation(message?: string) {
     const title =
-      message?.replace(/\s+/g, " ").slice(0, 120) ||
-      (nextScenario === "insufficient"
-        ? "Allowance boundary"
-        : "Exchange semester")
-    const conversation = await requestConversation(title, nextScenario)
+      message?.replace(/\s+/g, " ").slice(0, 120) || "New conversation"
+    const conversation = await requestConversation(title, "success")
     setSelected(conversation.id)
 
     return conversation
   }
 
-  function preset(next: Scenario) {
-    setScenario(next)
-    setDraft(EXCHANGE_SEMESTER_PROMPT)
+  function newConversation() {
+    if (run.busy) {
+      return
+    }
+    setDraft("")
 
     if (wallet) {
       void perform(async () => {
-        await createConversation(next)
+        await createConversation()
       })
     }
   }
@@ -95,18 +85,18 @@ export function useAssistant(wallet: ConnectedWallet, logout: () => void) {
     })
   }
 
-  function send() {
-    if (!wallet || run.busy || !draft.trim()) {
+  function send(text = draft) {
+    if (!wallet || run.busy || !text.trim()) {
       return
     }
 
-    const message = draft.trim()
+    const message = text.trim()
     setDraft("")
     void perform(async () => {
       let conversationId = selected
       if (!conversationId) {
         try {
-          conversationId = (await createConversation(scenario, message)).id
+          conversationId = (await createConversation(message)).id
         } catch (error) {
           setDraft(message)
           throw error
@@ -152,14 +142,15 @@ export function useAssistant(wallet: ConnectedWallet, logout: () => void) {
   )
 
   for (const item of run.purchases) {
-    purchases.set(item.id, item)
+    if (purchases.get(item.id)?.paymentStatus !== "confirmed") {
+      purchases.set(item.id, item)
+    }
   }
 
   return {
     config,
     wallet,
     selected,
-    scenario,
     draft,
     run,
     details: details.data,
@@ -176,13 +167,17 @@ export function useAssistant(wallet: ConnectedWallet, logout: () => void) {
     setAutomatic,
     setApprovedSellers,
     setDraft,
-    select: setSelected,
+    select: (id: string) => {
+      setSelected(id)
+      setDraft("")
+    },
     connect: logout,
     logout,
-    preset,
+    newConversation,
     fund,
     allowanceAction,
     send,
+    continuePurchases: () => send("Continue remaining purchases."),
     recover,
     removeConversation,
   }

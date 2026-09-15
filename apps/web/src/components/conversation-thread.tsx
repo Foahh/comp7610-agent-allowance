@@ -17,14 +17,17 @@ import {
 import { Shimmer } from "#/components/ai-elements/shimmer"
 
 import { PurchaseCard } from "./purchase-card.tsx"
-import { ScenarioBar } from "./scenario-bar"
+import { PurchasePlan } from "./purchase-plan.tsx"
 
 export function ConversationThread({
   assistant,
 }: {
   assistant: AssistantController
 }) {
-  const messages = [...(assistant.details?.messages || [])]
+  const messages = (assistant.details?.messages || []).filter(
+    (message) =>
+      !assistant.run.user || message.createdAt < assistant.run.startedAt
+  )
   if (assistant.run.user) {
     messages.push({
       id: "stream-user",
@@ -75,7 +78,6 @@ export function ConversationThread({
               What would you like
               <br className="hidden sm:block" /> to work on?
             </h2>
-            <ScenarioBar assistant={assistant} />
           </ConversationEmptyState>
         )}
         {timeline.map((entry) => {
@@ -117,6 +119,7 @@ export function ConversationThread({
             <Shimmer>{assistant.run.status}</Shimmer>
           </div>
         )}
+        <PurchasePlan assistant={assistant} />
       </ConversationContent>
       <ConversationScrollButton aria-label="Scroll to latest message" />
     </Conversation>

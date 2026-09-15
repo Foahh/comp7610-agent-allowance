@@ -3,6 +3,7 @@ import type { Config } from "@repo/utils/config"
 import type { Address } from "viem"
 
 import { quoteId, listingHash, taskHash } from "@repo/utils"
+import { formatUnits } from "viem"
 
 type QuoteValidation = {
   conversation: Conversation
@@ -59,6 +60,8 @@ export function assertPurchasableQuote({
     amount > BigInt(allowance.perPurchase) ||
     amount > BigInt(allowance.remaining)
   ) {
-    throw new Error("Purchase exceeds the per-purchase or remaining allowance.")
+    throw new Error(
+      `Purchase exceeds the per-purchase or remaining allowance. Price: ${formatUnits(amount, 6)} ATT; per-purchase cap: ${formatUnits(BigInt(allowance.perPurchase), 6)} ATT; remaining: ${formatUnits(BigInt(allowance.remaining), 6)} ATT.`
+    )
   }
 }

@@ -114,6 +114,18 @@ export const AllowanceSchema = v.object({
   revoked: v.boolean(),
 })
 
+export const PurchasePlanItemSchema = v.object({
+  task: TaskSchema,
+  listing: PublicListingSchema,
+  recipient: AddressSchema,
+})
+export const PurchasePlanEntrySchema = v.object({
+  ...PurchasePlanItemSchema.entries,
+  purchase: v.optional(PurchaseSchema),
+})
+export type PurchasePlanItem = v.InferOutput<typeof PurchasePlanItemSchema>
+export type PurchasePlanEntry = v.InferOutput<typeof PurchasePlanEntrySchema>
+
 export const ChatEventSchema = v.variant("type", [
   v.object({ type: v.literal("text"), text: v.string() }),
   v.object({ type: v.literal("status"), text: v.string() }),

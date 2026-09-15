@@ -43,6 +43,18 @@ export function paymentStatusLabel(
   }[status]
 }
 
+export function purchasePaymentLabel(purchase: Purchase) {
+  if (purchase.paymentStatus === "prepared") {
+    return "Awaiting wallet confirmation"
+  }
+  if (purchase.paymentStatus === "pending") {
+    return purchase.txHash
+      ? "Submitted · awaiting confirmation"
+      : "Submission unconfirmed"
+  }
+  return paymentStatusLabel(purchase.paymentStatus)
+}
+
 export function deliveryStatusLabel(
   status: NonNullable<Purchase["delivery"]>["status"] | undefined
 ) {

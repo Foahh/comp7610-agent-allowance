@@ -7,6 +7,7 @@ import {
   ConversationSchema,
   MessageSchema,
   PurchaseSchema,
+  PurchasePlanEntrySchema,
   type ChatEvent,
   type Conversation,
 } from "@repo/schemas"
@@ -48,6 +49,7 @@ const ConversationDetailsSchema = v.object({
   conversation: ConversationSchema,
   messages: v.array(MessageSchema),
   purchases: v.array(PurchaseSchema),
+  purchasePlan: v.optional(v.array(PurchasePlanEntrySchema), []),
   allowance: v.nullable(AllowanceSchema),
 })
 

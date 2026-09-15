@@ -80,7 +80,7 @@ export function ConversationSidebar({
           title="New conversation"
           disabled={run.busy || !wallet}
           onClick={() => {
-            assistant.preset("success")
+            assistant.newConversation()
             onNavigate?.()
           }}
         >

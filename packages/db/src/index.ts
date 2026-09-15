@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { DatabaseSync } from "node:sqlite"
 
+import { migratePurchasePlans } from "./migrate-purchase-plans.ts"
 import * as schema from "./schema.ts"
 
 export * from "./schema.ts"
@@ -27,15 +28,25 @@ export function openDatabase(filename: string) {
       user_version: number
     }
 
-    if (version.user_version !== 0 && version.user_version !== 2) {
+    if (![0, 2, 3].includes(version.user_version)) {
       throw new Error(
         "Unsupported database schema. Use a data directory created by this release."
       )
     }
-    sqlite.exec(
-      readFileSync(resolve(projectRoot(), "packages/db/src/schema.sql"), "utf8")
-    )
-    sqlite.exec("PRAGMA user_version = 2")
+    sqlite.exec("BEGIN IMMEDIATE")
+    try {
+      sqlite.exec(
+        readFileSync(
+          resolve(projectRoot(), "packages/db/src/schema.sql"),
+          "utf8"
+        )
+      )
+      migratePurchasePlans(sqlite)
+      sqlite.exec("PRAGMA user_version = 3; COMMIT")
+    } catch (error) {
+      sqlite.exec("ROLLBACK")
+      throw error
+    }
     const db = drizzle({ client: sqlite, relations: defineRelations(schema) })
 
     return {

@@ -7,7 +7,6 @@ import * as v from "valibot"
 import type { Marketplace } from "../lib/marketplace.ts"
 import type { SellerService } from "../lib/seller-service.ts"
 
-import { dataset, writingTemplate } from "../lib/catalog.ts"
 import { checkModel } from "../lib/model-check.ts"
 import { executeTask } from "../lib/specialist.ts"
 
@@ -20,36 +19,6 @@ const PreviewInputSchema = v.object({
   brief: v.pipe(v.string(), v.maxLength(12000)),
   evidence: v.optional(v.pipe(v.string(), v.maxLength(30000)), ""),
 })
-
-const listingTemplates = {
-  analysis: {
-    assetName: "exchange-cities-synthetic-v1.json",
-    assetContent: dataset,
-    name: "City evidence analysis",
-    description:
-      "Compare Tokyo, Seoul, and Taipei using a synthetic teaching dataset.",
-    amount: "10000",
-    requiredInputs: "Cities and comparison priorities",
-    deliverable: "A comparison table and cited recommendation",
-    scope: "Up to three cities from the supplied dataset",
-  },
-  writing: {
-    assetName: "brief-template.json",
-    assetContent: writingTemplate,
-    name: "Recommendation brief",
-    description: "Write a brief using supplied evidence and retain references.",
-    amount: "5000",
-    requiredInputs: "Evidence and writing requirements",
-    deliverable: "A recommendation brief up to 600 words",
-    scope: "One brief using supplied evidence",
-  },
-} as const
-
-function isListingTemplate(
-  value: string
-): value is keyof typeof listingTemplates {
-  return Object.hasOwn(listingTemplates, value)
-}
 
 export function createAdminRoutes(market: Marketplace, service: SellerService) {
   const app = new Hono()
@@ -228,39 +197,5 @@ export function createAdminRoutes(market: Marketplace, service: SellerService) {
         })
       }
     )
-    .post("/templates/:type", (context) => {
-      const type = context.req.param("type")
-
-      if (!isListingTemplate(type)) {
-        throw new Error("Unknown template.")
-      }
-
-      const template = listingTemplates[type]
-      const asset = market.saveAsset(
-        template.assetName,
-        "application/json",
-        Buffer.from(JSON.stringify(template.assetContent, null, 2))
-      )
-
-      return context.json(
-        market.saveListing({
-          type: "ai-service",
-          name: template.name,
-          description: template.description,
-          preview: "",
-          amount: template.amount,
-          content: "",
-          assetId: "",
-          modelId: "",
-          instructions:
-            "Use the selected assets. Clearly label synthetic teaching data. Cite filenames and row IDs. Do not invent factual sources.",
-          requiredInputs: template.requiredInputs,
-          deliverable: template.deliverable,
-          scope: template.scope,
-          assetIds: [asset.id],
-        }),
-        201
-      )
-    })
     .get("/orders", (context) => context.json(service.orders()))
 }

@@ -17,6 +17,8 @@ import type { BuyerAgent } from "../lib/agent.ts"
 import type { Payments } from "../lib/payments.ts"
 import type { BuyerStore } from "../lib/store.ts"
 
+import { purchasePlanProgress } from "../lib/purchase-plan.ts"
+
 type ServerBindings = {
   incoming?: { socket: { remoteAddress?: string } }
 }
@@ -46,6 +48,22 @@ export function createConversationRoutes(
 ) {
   const router = new Hono<AppEnv>()
   const active = new Set<string>()
+  const refreshing = new Map<string, Promise<void>>()
+
+  function reconcile(id: string) {
+    const existing = refreshing.get(id)
+    if (existing) {
+      return existing
+    }
+    const operation = (async () => {
+      await payments.recoverAll(id)
+      for (const item of store.listPurchases(id)) {
+        await agent.deliver(item, async () => {})
+      }
+    })().finally(() => refreshing.delete(id))
+    refreshing.set(id, operation)
+    return operation
+  }
 
   function owned(id: string, owner: string) {
     const conversation = store.getConversation(id)
@@ -129,10 +147,20 @@ export function createConversationRoutes(
     .get("/:id", async (context) => {
       const conversation = owned(context.req.param("id"), context.get("owner"))
 
+      // Reconcile receipts before reading both cards and the allowance balance.
+      // Never submit a transaction or start another purchase from a page read.
+      if (!active.has(conversation.id)) {
+        await reconcile(conversation.id)
+      }
+
       return context.json({
         conversation,
         messages: store.listMessages(conversation.id),
         purchases: store.listPurchases(conversation.id),
+        purchasePlan: purchasePlanProgress(
+          store.getPurchasePlan(conversation.id),
+          store.listPurchases()
+        ),
         allowance: conversation.allowanceId
           ? await payments.allowance(conversation.allowanceId)
           : null,
@@ -191,12 +219,14 @@ export function createConversationRoutes(
     .post(
       "/:id/messages",
       validator("json", SendMessageRequestSchema),
-      (context) => {
+      async (context) => {
         const { text, requestId } = context.req.valid("json")
         const conversation = owned(
           context.req.param("id"),
           context.get("owner")
         )
+
+        await refreshing.get(conversation.id)
 
         if (active.has(conversation.id)) {
           throw new HTTPException(409, {

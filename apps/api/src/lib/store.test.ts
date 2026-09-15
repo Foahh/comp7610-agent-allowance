@@ -6,15 +6,19 @@ import {
   purchases,
   deliveries,
   deliveryReferences,
+  purchasePlanItems,
   eq,
 } from "@repo/db"
 import assert from "node:assert/strict"
+import { randomUUID } from "node:crypto"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { DatabaseSync } from "node:sqlite"
 import { describe, test } from "vite-plus/test"
 
 import { openSellerDatabase } from "../seller/lib/store.ts"
+import { purchasePlanProgress } from "./purchase-plan.ts"
 import { openBuyerDatabase } from "./store.ts"
 
 const conversation: Conversation = {
@@ -77,6 +81,247 @@ function purchase(id = "quote-1"): Purchase {
 }
 
 describe("relational storage", () => {
+  test("plan rows preserve order and exact prices, replace atomically, and clear by conversation", () => {
+    const store = openBuyerDatabase(":memory:")
+    try {
+      store.saveConversation(conversation)
+      store.saveConversation({ ...conversation, id: "other" })
+      const value = offer()
+      const first = {
+        task: value.task,
+        listing: { ...value.listing, amount: (2n ** 255n).toString() },
+        recipient: value.quote.recipient,
+      }
+      const second = { ...first, task: { ...first.task, requestId: "second" } }
+      store.savePurchasePlan(conversation.id, [second, first])
+      store.savePurchasePlan("other", [first])
+      assert.deepEqual(store.getPurchasePlan(conversation.id), [second, first])
+      const rows = store.db
+        .select()
+        .from(purchasePlanItems)
+        .where(eq(purchasePlanItems.conversationId, conversation.id))
+        .orderBy(purchasePlanItems.position)
+        .all()
+      assert.deepEqual(
+        rows.map((row) => [row.position, row.requestId, row.amount]),
+        [
+          [0, "second", first.listing.amount],
+          [1, "request", first.listing.amount],
+        ]
+      )
+      // A database constraint failure after DELETE must restore the previous plan.
+      const invalid = {
+        ...first,
+        task: { ...first.task, version: 0 },
+        listing: { ...first.listing, version: 0 },
+      }
+      assert.throws(() => store.savePurchasePlan(conversation.id, [invalid]))
+      assert.deepEqual(store.getPurchasePlan(conversation.id), [second, first])
+      store.savePurchasePlan(conversation.id, [first])
+      assert.deepEqual(store.getPurchasePlan(conversation.id), [first])
+      store.savePurchasePlan(conversation.id, [])
+      assert.deepEqual(store.getPurchasePlan(conversation.id), [])
+      assert.deepEqual(store.getPurchasePlan("other"), [first])
+    } finally {
+      store.close()
+    }
+  })
+
+  test("startup migrates legacy JSON plans to ordered rows and preserves them across reopen", () => {
+    const filename = join(tmpdir(), `mandate-plan-${randomUUID()}.sqlite`)
+    const value = offer()
+    const first = {
+      task: value.task,
+      listing: { ...value.listing, amount: (2n ** 255n).toString() },
+      recipient: value.quote.recipient,
+    }
+    const plan = [
+      first,
+      { ...first, task: { ...first.task, requestId: "second" } },
+    ]
+    try {
+      const initial = openBuyerDatabase(filename)
+      initial.saveConversation(conversation)
+      initial.close()
+      const legacy = new DatabaseSync(filename)
+      try {
+        legacy.exec(
+          "DROP TABLE purchase_plan_items; CREATE TABLE purchase_plans (conversation_id TEXT PRIMARY KEY REFERENCES conversations(id), items TEXT NOT NULL); PRAGMA user_version = 2"
+        )
+        legacy
+          .prepare("INSERT INTO purchase_plans VALUES (?, ?)")
+          .run(conversation.id, JSON.stringify(plan))
+      } finally {
+        legacy.close()
+      }
+      const migrated = openBuyerDatabase(filename)
+      try {
+        assert.deepEqual(migrated.getPurchasePlan(conversation.id), plan)
+      } finally {
+        migrated.close()
+      }
+      const reopened = openBuyerDatabase(filename)
+      try {
+        assert.deepEqual(reopened.getPurchasePlan(conversation.id), plan)
+      } finally {
+        reopened.close()
+      }
+      const inspect = new DatabaseSync(filename)
+      try {
+        assert.equal(
+          inspect
+            .prepare(
+              "SELECT name FROM sqlite_master WHERE name = 'purchase_plans'"
+            )
+            .get(),
+          undefined
+        )
+        assert.equal(
+          inspect.prepare("PRAGMA user_version").get()?.user_version,
+          3
+        )
+      } finally {
+        inspect.close()
+      }
+    } finally {
+      rmSync(filename, { force: true })
+    }
+  })
+
+  test("a failed plan migration preserves legacy data and schema version", () => {
+    const filename = join(tmpdir(), `mandate-plan-${randomUUID()}.sqlite`)
+    try {
+      const initial = openBuyerDatabase(filename)
+      initial.saveConversation(conversation)
+      initial.close()
+      const legacy = new DatabaseSync(filename)
+      try {
+        legacy.exec(
+          "DROP TABLE purchase_plan_items; CREATE TABLE purchase_plans (conversation_id TEXT PRIMARY KEY REFERENCES conversations(id), items TEXT NOT NULL); PRAGMA user_version = 2"
+        )
+        legacy
+          .prepare("INSERT INTO purchase_plans VALUES (?, ?)")
+          .run(conversation.id, "invalid JSON")
+      } finally {
+        legacy.close()
+      }
+      assert.throws(() => openBuyerDatabase(filename))
+      const inspect = new DatabaseSync(filename)
+      try {
+        assert.equal(
+          inspect.prepare("SELECT items FROM purchase_plans").get()?.items,
+          "invalid JSON"
+        )
+        assert.equal(
+          inspect.prepare("PRAGMA user_version").get()?.user_version,
+          2
+        )
+        assert.equal(
+          inspect
+            .prepare(
+              "SELECT name FROM sqlite_master WHERE name = 'purchase_plan_items'"
+            )
+            .get(),
+          undefined
+        )
+      } finally {
+        inspect.close()
+      }
+    } finally {
+      rmSync(filename, { force: true })
+    }
+  })
+
+  test("saved plans retain task identity and prefer paid static items over failed retries", () => {
+    const store = openBuyerDatabase(":memory:")
+    try {
+      store.saveConversation(conversation)
+      const item = offer()
+      const plan = [
+        {
+          task: item.task,
+          listing: item.listing,
+          recipient: item.quote.recipient,
+        },
+      ]
+      store.savePurchasePlan(conversation.id, plan)
+      const paid = { ...purchase(), paymentStatus: "confirmed" as const }
+      const retry = { ...purchase("retry"), paymentStatus: "rejected" as const }
+      store.savePurchase(paid)
+      store.savePurchase(retry)
+      const progress = purchasePlanProgress(
+        store.getPurchasePlan(conversation.id),
+        store.listPurchases()
+      )
+      assert.equal(progress[0]?.purchase?.id, paid.id)
+      assert.deepEqual(progress[0]?.task, item.task)
+      store.deleteConversation(conversation.id)
+      assert.deepEqual(store.getPurchasePlan(conversation.id), [])
+    } finally {
+      store.close()
+    }
+  })
+
+  test("a plan does not mistake another seller, version, or AI request for its purchase", () => {
+    const paid = { ...purchase(), paymentStatus: "confirmed" as const }
+    const item = paid.offer
+    const base = {
+      task: item.task,
+      listing: item.listing,
+      recipient: item.quote.recipient,
+    }
+    assert.equal(
+      purchasePlanProgress([{ ...base, recipient: "0x99" }], [paid])[0]
+        ?.purchase,
+      undefined
+    )
+    assert.equal(
+      purchasePlanProgress(
+        [{ ...base, listing: { ...item.listing, version: 2 } }],
+        [paid]
+      )[0]?.purchase,
+      undefined
+    )
+    assert.equal(
+      purchasePlanProgress(
+        [
+          {
+            ...base,
+            listing: { ...item.listing, type: "ai-service" },
+            task: { ...item.task, requestId: "new-work" },
+          },
+        ],
+        [paid]
+      )[0]?.purchase,
+      undefined
+    )
+  })
+
+  test("generic conversation titles follow the first message while custom titles remain intact", () => {
+    const store = openBuyerDatabase(":memory:")
+    try {
+      store.saveConversation({ ...conversation, title: "Exchange semester" })
+      store.saveMessage({
+        id: "first",
+        conversationId: conversation.id,
+        role: "user",
+        content: "Show me available items",
+        createdAt: 1,
+      })
+      assert.equal(
+        store.getConversation(conversation.id)?.title,
+        "Show me available items"
+      )
+      assert.equal(
+        store.listConversations(conversation.owner)[0]?.title,
+        "Show me available items"
+      )
+      store.saveConversation({ ...conversation, title: "My research" })
+      assert.equal(store.getConversation(conversation.id)?.title, "My research")
+    } finally {
+      store.close()
+    }
+  })
   test("deletes chat messages and hides the conversation while retaining payment records", () => {
     const store = openBuyerDatabase(":memory:")
 

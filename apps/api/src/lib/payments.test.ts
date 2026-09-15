@@ -222,6 +222,33 @@ test("an unresolved authorization blocks a different quote without submitting ag
   expect(submit).toHaveBeenCalledOnce()
 })
 
+test("a purchase awaiting wallet confirmation blocks another quote too", async () => {
+  const value = await offer()
+  store.savePurchase({
+    id: value.id,
+    conversationId: conversation.id,
+    offer: value,
+    paymentStatus: "prepared",
+    authorization: { fromBlock: "123" },
+    createdAt: 1,
+  })
+  await expect(
+    payments.purchase(conversation, await offer("other"))
+  ).rejects.toThrow("unresolved")
+  expect(submit).not.toHaveBeenCalled()
+  expect(store.listPurchases()).toHaveLength(1)
+})
+
+test("recovery retains a discovered transaction hash while confirmations are pending", async () => {
+  const value = await offer()
+  submit.mockRejectedValueOnce(new Error("Reply lost"))
+  await payments.purchase(conversation, value)
+  rpc.getLogs.mockResolvedValue([{ transactionHash: txHash }])
+  await payments.recoverAll(conversation.id)
+  expect(store.getPurchase(value.id)?.txHash).toBe(txHash)
+  expect(store.getPurchase(value.id)?.paymentStatus).toBe("pending")
+})
+
 test("concurrent purchases for one static version share the successful payment", async () => {
   const first = await offer()
   const second = await offer("second")

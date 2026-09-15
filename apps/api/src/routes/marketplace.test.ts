@@ -48,6 +48,22 @@ function json(body: unknown, cookie = "") {
   }
 }
 
+function listingInput(assetIds: string[] = []) {
+  return {
+    type: "ai-service",
+    name: "Knowledge service",
+    description: "Answer using supplied knowledge files.",
+    preview: "",
+    amount: "10000",
+    content: "",
+    instructions: "Use the supplied knowledge files.",
+    requiredInputs: "A question",
+    deliverable: "An answer",
+    scope: "One question",
+    assetIds,
+  }
+}
+
 async function session() {
   const response = await app.request(
     "/api/auth/challenge",
@@ -194,11 +210,20 @@ test("file deletion requires an owner session and same origin", async () => {
   expect(await listed.json()).toEqual([])
 })
 
-test("a deleted template no longer blocks deletion of its uploaded knowledge file", async () => {
+test("a deleted listing no longer blocks deletion of its uploaded knowledge file", async () => {
   const cookie = await session()
+  const body = new FormData()
+  body.set("file", new File(["Knowledge content"], "knowledge.txt"))
+  const uploaded = await app.request("/api/marketplace/seller/assets", {
+    method: "POST",
+    headers: { origin, cookie },
+    body,
+  })
+  expect(uploaded.status).toBe(201)
+  const asset = (await uploaded.json()) as { id: string }
   const created = await app.request(
-    "/api/marketplace/seller/templates/analysis",
-    json({}, cookie)
+    "/api/marketplace/seller/listings",
+    json(listingInput([asset.id]), cookie)
   )
   expect(created.status).toBe(201)
   const listing = (await created.json()) as { id: string; assetIds: string[] }
@@ -227,7 +252,7 @@ test.each(["models", "listings"])(
     const created = await app.request(
       resource === "models"
         ? "/api/marketplace/seller/models"
-        : "/api/marketplace/seller/templates/writing",
+        : "/api/marketplace/seller/listings",
       json(
         resource === "models"
           ? {
@@ -236,7 +261,7 @@ test.each(["models", "listings"])(
               model: "chat",
               apiKey: "test-key",
             }
-          : {},
+          : listingInput(),
         cookie
       )
     )

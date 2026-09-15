@@ -1,5 +1,4 @@
-import type { Purchase } from "@repo/schemas"
-
+import { PurchaseSchema, type Purchase } from "@repo/schemas"
 import {
   confirmationCount,
   getChain,
@@ -9,6 +8,7 @@ import {
   buyerTypedData,
   quoteMessage,
 } from "@repo/utils"
+import * as v from "valibot"
 import {
   createWalletClient,
   custom,
@@ -235,6 +235,28 @@ export async function confirmPurchase(
   purchase: Purchase
 ) {
   await assertWallet(wallet, config)
+  // Reconcile before asking the wallet to sign or send: the previous submission
+  // may already have succeeded even if its response never reached this browser.
+  purchase = v.parse(
+    PurchaseSchema,
+    await marketplaceRequest(`purchases/${purchase.id}/retry`, {})
+  )
+  if (purchase.paymentStatus === "confirmed") {
+    return purchase
+  }
+  if (purchase.txHash) {
+    throw new Error(
+      "This purchase has already been submitted. Wait for confirmation and refresh its status."
+    )
+  }
+  if (
+    !purchase.authorization ||
+    !["prepared", "pending"].includes(purchase.paymentStatus)
+  ) {
+    throw new Error(
+      "This purchase cannot be submitted. Refresh the conversation before continuing."
+    )
+  }
   const signature =
     (purchase.authorization?.signature as `0x${string}` | undefined) ||
     (await wallet.signTypedData(

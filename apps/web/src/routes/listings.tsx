@@ -7,7 +7,6 @@ import { DemoItems } from "#/components/demo-items"
 import { EditorSheet } from "#/components/editor-sheet"
 import { ListingCard } from "#/components/listing-card"
 import { ListingEditor } from "#/components/listing-editor"
-import { ListingTemplates } from "#/components/listing-templates"
 import { MarketplacePage, RequestState } from "#/components/marketplace-page"
 import { PrivateAssets } from "#/components/private-assets"
 import { Button } from "#/components/ui/button"
@@ -40,7 +39,6 @@ function ListingsPage() {
         >
           Create listing
         </Button>
-        <ListingTemplates />
         <DemoItems />
       </div>
       <RequestState

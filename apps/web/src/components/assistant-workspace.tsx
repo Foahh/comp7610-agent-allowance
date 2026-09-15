@@ -26,7 +26,7 @@ export function AssistantWorkspace() {
   }>({ layout, open: null })
   const allowanceTrigger = useRef<HTMLButtonElement>(null)
   const { selected, details } = assistant
-  const scenario = details?.conversation.scenario || assistant.scenario
+  const scenario = details?.conversation.scenario || "success"
   const amounts = useAllowanceAmounts(selected || scenario, scenario)
   if (panel.layout !== layout) {
     setPanel({ layout, open: null })
@@ -93,8 +93,8 @@ export function AssistantWorkspace() {
 function useAllowanceAmounts(scope: string, scenario: string) {
   const defaults = {
     scope,
-    budget: scenario === "insufficient" ? "0.005" : "0.02",
-    cap: scenario === "insufficient" ? "0.005" : "0.01",
+    budget: scenario === "insufficient" ? "0.5" : "10",
+    cap: scenario === "insufficient" ? "0.5" : "3",
   }
   const [amounts, setAmounts] = useState(defaults)
   // Reset on conversation changes, but retain edits across responsive panel mounts.

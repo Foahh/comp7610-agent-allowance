@@ -9,6 +9,28 @@ CREATE TABLE IF NOT EXISTS conversations (
 
 CREATE INDEX IF NOT EXISTS conversations_lookup_idx ON conversations (owner, created_at);
 
+CREATE TABLE IF NOT EXISTS purchase_plan_items (
+  conversation_id TEXT NOT NULL REFERENCES conversations(id),
+  position INTEGER NOT NULL CHECK (position >= 0),
+  seller_id TEXT NOT NULL,
+  recipient TEXT NOT NULL,
+  listing_id TEXT NOT NULL,
+  listing_version INTEGER NOT NULL CHECK (listing_version >= 1),
+  request_id TEXT NOT NULL,
+  brief TEXT NOT NULL,
+  evidence TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  preview TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('text', 'link', 'file', 'ai-service')),
+  amount TEXT NOT NULL,
+  required_inputs TEXT NOT NULL,
+  deliverable TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  PRIMARY KEY (conversation_id, position)
+);
+
 CREATE TABLE IF NOT EXISTS allowances (
   allowance_id TEXT PRIMARY KEY NOT NULL,
   conversation_id TEXT NOT NULL REFERENCES conversations(id)

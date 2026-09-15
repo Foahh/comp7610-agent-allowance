@@ -38,6 +38,46 @@ export const deletedConversations = sqliteTable("deleted_conversations", {
   deletedAt: integer("deleted_at").notNull(),
 })
 
+export const purchasePlanItems = sqliteTable(
+  "purchase_plan_items",
+  {
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversations.id),
+    position: integer("position").notNull(),
+    sellerId: text("seller_id").notNull(),
+    recipient: text("recipient").notNull(),
+    listingId: text("listing_id").notNull(),
+    listingVersion: integer("listing_version").notNull(),
+    requestId: text("request_id").notNull(),
+    brief: text("brief").notNull(),
+    evidence: text("evidence").notNull(),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    preview: text("preview").notNull(),
+    type: text("type", {
+      enum: ["text", "link", "file", "ai-service"],
+    }).notNull(),
+    amount: text("amount").notNull(),
+    requiredInputs: text("required_inputs").notNull(),
+    deliverable: text("deliverable").notNull(),
+    scope: text("scope").notNull(),
+    contentHash: text("content_hash").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.conversationId, table.position] }),
+    check("purchase_plan_items_position_check", sql`${table.position} >= 0`),
+    check(
+      "purchase_plan_items_version_check",
+      sql`${table.listingVersion} >= 1`
+    ),
+    check(
+      "purchase_plan_items_type_check",
+      sql`${table.type} in ('text', 'link', 'file', 'ai-service')`
+    ),
+  ]
+)
+
 export const allowances = sqliteTable(
   "allowances",
   {

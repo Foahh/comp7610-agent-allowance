@@ -35,6 +35,17 @@ export function useAssistantQueries(
       }
       return getConversation(selectedConversationId)
     },
+    refetchInterval: (query) =>
+      query.state.data?.purchases.some(
+        (purchase) =>
+          purchase.paymentStatus === "prepared" ||
+          purchase.paymentStatus === "pending" ||
+          (purchase.paymentStatus === "confirmed" &&
+            (!purchase.delivery ||
+              ["pending", "running"].includes(purchase.delivery.status)))
+      )
+        ? 10000
+        : false,
     enabled:
       selectedConversationId !== null &&
       walletAddress !== undefined &&

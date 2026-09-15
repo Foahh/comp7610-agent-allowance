@@ -14,10 +14,11 @@ import {
   CardFooter,
 } from "#/components/ui/card"
 import { useMarketplaceAction } from "#/hooks/use-marketplace"
+import { marketplaceRequest } from "#/lib/marketplace"
 import {
   deliveryStatusLabel,
   listingTypeLabel,
-  paymentStatusLabel,
+  purchasePaymentLabel,
 } from "#/lib/presentation"
 import { confirmPurchase } from "#/lib/wallet"
 
@@ -58,7 +59,7 @@ export function PurchaseCard({
                 : "secondary"
             }
           >
-            Payment: {paymentStatusLabel(paymentStatus)}
+            Payment: {purchasePaymentLabel(purchase)}
           </Badge>
           {delivery && (
             <Badge
@@ -120,6 +121,9 @@ export function PurchaseCard({
 
 function PurchaseConfirmation({ purchase }: { purchase: Purchase }) {
   const { wallet, config } = useWorkspaceAssistant()
+  const refresh = useMarketplaceAction(() =>
+    marketplaceRequest(`purchases/${purchase.id}/retry`, {})
+  )
   const confirm = useMarketplaceAction(async () => {
     if (!config) {
       throw new Error("Configuration unavailable.")
@@ -131,19 +135,31 @@ function PurchaseConfirmation({ purchase }: { purchase: Purchase }) {
       {purchase.authorization &&
         ["prepared", "pending"].includes(purchase.paymentStatus) && (
           <div className="space-y-2">
-            <p className="text-sm">Wallet confirmation and gas required.</p>
-            {purchase.paymentStatus === "pending" && (
-              <p className="text-xs text-muted-foreground">
-                Refresh before trying again; payment may already be pending.
-              </p>
-            )}
-            <Button
-              disabled={confirm.isPending}
-              onClick={() => confirm.mutate(undefined)}
-            >
-              {confirm.isPending ? "Confirming…" : "Confirm purchase"}
-            </Button>
-            <RequestState error={confirm.error} />
+            <p className="text-sm">
+              {purchase.txHash
+                ? "Transaction submitted. Waiting for chain confirmation."
+                : purchase.paymentStatus === "pending"
+                  ? "Submission has not been confirmed. Refresh status before submitting this same purchase in your wallet."
+                  : "Confirm this purchase in your wallet. Test ETH is required for gas."}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                disabled={refresh.isPending || confirm.isPending}
+                onClick={() => refresh.mutate(undefined)}
+              >
+                {refresh.isPending ? "Refreshing…" : "Refresh status"}
+              </Button>
+              {!purchase.txHash && (
+                <Button
+                  disabled={confirm.isPending || refresh.isPending}
+                  onClick={() => confirm.mutate(undefined)}
+                >
+                  {confirm.isPending ? "Confirming…" : "Confirm purchase"}
+                </Button>
+              )}
+            </div>
+            <RequestState error={confirm.error || refresh.error} />
           </div>
         )}
     </>

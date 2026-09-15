@@ -1,4 +1,9 @@
-import type { Conversation, Message, Purchase } from "@repo/schemas"
+import type {
+  Conversation,
+  Message,
+  Purchase,
+  PurchasePlanItem,
+} from "@repo/schemas"
 
 import {
   openDatabase,
@@ -15,6 +20,7 @@ import {
   runs,
   challenges,
   sessions,
+  purchasePlanItems,
 } from "@repo/db"
 import { createRecordQueries } from "@repo/db/records"
 
@@ -109,6 +115,33 @@ export function openBuyerDatabase(filename: string) {
       .run()
   }
 
+  function withConversationTitle(conversation: Conversation): Conversation {
+    if (
+      !["Exchange semester", "Allowance boundary", "New conversation"].includes(
+        conversation.title
+      )
+    ) {
+      return conversation
+    }
+    const first = db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.conversationId, conversation.id),
+          eq(messages.role, "user")
+        )
+      )
+      .orderBy(messages.createdAt)
+      .get()
+    return first
+      ? {
+          ...conversation,
+          title: first.content.replace(/\s+/g, " ").slice(0, 120),
+        }
+      : conversation
+  }
+
   return {
     ...connection,
     ...records,
@@ -116,6 +149,66 @@ export function openBuyerDatabase(filename: string) {
     savePurchase,
     listPurchases,
     saveConversation,
+    savePurchasePlan(conversationId: string, items: PurchasePlanItem[]) {
+      const rows = items.map(({ task, listing, recipient }, position) => {
+        if (task.service !== listing.id || task.version !== listing.version) {
+          throw new Error("Planned task must match its listing and version.")
+        }
+        const { id: listingId, version: listingVersion, ...details } = listing
+        return {
+          conversationId,
+          position,
+          recipient,
+          listingId,
+          listingVersion,
+          sellerId: task.sellerId,
+          requestId: task.requestId,
+          brief: task.brief,
+          evidence: task.evidence,
+          ...details,
+        }
+      })
+      db.transaction((tx) => {
+        tx.delete(purchasePlanItems)
+          .where(eq(purchasePlanItems.conversationId, conversationId))
+          .run()
+        if (rows.length) {
+          tx.insert(purchasePlanItems).values(rows).run()
+        }
+      })
+    },
+    getPurchasePlan(conversationId: string): PurchasePlanItem[] {
+      return db
+        .select()
+        .from(purchasePlanItems)
+        .where(eq(purchasePlanItems.conversationId, conversationId))
+        .orderBy(purchasePlanItems.position)
+        .all()
+        .map((row) => ({
+          recipient: row.recipient,
+          task: {
+            service: row.listingId,
+            version: row.listingVersion,
+            sellerId: row.sellerId,
+            requestId: row.requestId,
+            brief: row.brief,
+            evidence: row.evidence,
+          },
+          listing: {
+            id: row.listingId,
+            version: row.listingVersion,
+            name: row.name,
+            description: row.description,
+            preview: row.preview,
+            type: row.type,
+            amount: row.amount,
+            requiredInputs: row.requiredInputs,
+            deliverable: row.deliverable,
+            scope: row.scope,
+            contentHash: row.contentHash,
+          },
+        }))
+    },
     deleteConversation(id: string) {
       db.transaction((tx) => {
         // Keep allowance bindings and the payment journal for reconciliation.
@@ -124,13 +217,16 @@ export function openBuyerDatabase(filename: string) {
           .onConflictDoNothing()
           .run()
         tx.delete(messages).where(eq(messages.conversationId, id)).run()
+        tx.delete(purchasePlanItems)
+          .where(eq(purchasePlanItems.conversationId, id))
+          .run()
       })
     },
     listUnresolvedPurchases() {
       return listPurchases(undefined, true)
     },
     getConversation(id: string) {
-      return db
+      const conversation = db
         .select()
         .from(conversations)
         .where(
@@ -145,6 +241,7 @@ export function openBuyerDatabase(filename: string) {
           )
         )
         .get()
+      return conversation ? withConversationTitle(conversation) : undefined
     },
     listConversations(owner: string) {
       return db
@@ -163,6 +260,7 @@ export function openBuyerDatabase(filename: string) {
         )
         .orderBy(conversations.createdAt)
         .all()
+        .map(withConversationTitle)
     },
     saveMessage(message: Message) {
       db.insert(messages).values(message).run()

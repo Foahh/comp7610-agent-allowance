@@ -40,6 +40,8 @@ export async function recoverIntent(
       return purchase
     }
 
+    purchase.txHash = hash
+    purchase.paymentStatus = "pending"
     const receipt = await client.waitForTransactionReceipt({
       hash,
       confirmations: config.confirmations,

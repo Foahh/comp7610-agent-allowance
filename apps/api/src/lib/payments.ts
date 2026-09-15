@@ -121,9 +121,12 @@ export function createPayments(
       for (const item of unresolved) {
         const recovered = await recover(item)
 
-        if (recovered.paymentStatus === "pending") {
+        if (
+          recovered.paymentStatus === "pending" ||
+          recovered.paymentStatus === "prepared"
+        ) {
           throw new Error(
-            "Another payment is unresolved. No new charge was created."
+            `Another payment is unresolved (${recovered.id}). Complete or refresh its purchase card before continuing. No new charge was created.`
           )
         }
       }
@@ -258,9 +261,12 @@ export function createPayments(
     })
   }
 
-  async function recoverAll() {
+  async function recoverAll(conversationId?: string) {
     return serialized(async () => {
       for (const item of store.listUnresolvedPurchases()) {
+        if (conversationId && item.conversationId !== conversationId) {
+          continue
+        }
         await recover(item)
       }
     })

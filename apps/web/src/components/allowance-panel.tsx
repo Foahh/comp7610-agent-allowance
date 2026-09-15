@@ -125,7 +125,7 @@ export function AllowancePanel({
             </Field>
             <p className="text-xs text-muted-foreground">
               {automatic
-                ? "Approved sellers can charge this allowance without wallet confirmation."
+                ? "Approved sellers can charge this allowance. Automatic submission also requires the seller's relay; otherwise you must submit each purchase in your wallet."
                 : "Each purchase requires wallet confirmation and gas."}
             </p>
           </section>
