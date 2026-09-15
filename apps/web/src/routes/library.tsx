@@ -68,7 +68,7 @@ function LibraryPage() {
                   <summary className="cursor-pointer text-sm">
                     Read purchased content
                   </summary>
-                  <div className="mt-3 overflow-x-auto rounded-lg border bg-muted/30 p-4">
+                  <div className="mt-3 overflow-x-auto border bg-muted/30 p-4">
                     <MessageResponse className="message-markdown" mode="static">
                       {purchase.delivery.content}
                     </MessageResponse>
