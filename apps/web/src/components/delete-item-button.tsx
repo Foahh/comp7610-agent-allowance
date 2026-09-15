@@ -24,12 +24,14 @@ export function DeleteItemButton({
   description,
   disabled,
   onDeleted,
+  className = "text-destructive",
 }: {
   name: string
   path: string
   description: string
   disabled?: boolean
   onDeleted?: () => void
+  className?: string
 }) {
   const [open, setOpen] = useState(false)
   const remove = useMarketplaceAction(async () => {
@@ -56,16 +58,14 @@ export function DeleteItemButton({
             type="button"
             variant="ghost"
             size="icon-sm"
+            className={className}
             disabled={disabled || remove.isPending}
             aria-label={`Delete ${name}`}
             title={`Delete ${name}`}
           />
         }
       >
-        <RiDeleteBinLine
-          className="size-4 text-destructive"
-          aria-hidden="true"
-        />
+        <RiDeleteBinLine className="size-4" aria-hidden="true" />
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

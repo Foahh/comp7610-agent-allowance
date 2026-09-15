@@ -11,7 +11,6 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from "#/components/ui/card"
 import { useMarketplaceAction } from "#/hooks/use-marketplace"
 import { marketplaceRequest } from "#/lib/marketplace"
@@ -29,9 +28,11 @@ export function PurchaseCard({
   purchase,
   chainId,
   children,
+  actions,
 }: {
   purchase: Purchase
   children?: ReactNode
+  actions?: ReactNode
   chainId: number
 }) {
   const { offer, paymentStatus, delivery } = purchase
@@ -78,43 +79,44 @@ export function PurchaseCard({
               : undefined
           }
         />
-        <details>
-          <summary className="cursor-pointer text-sm">View receipt</summary>
-          <dl className="receipt">
-            <dt>Seller</dt>
-            <dd>{offer.quote.recipient}</dd>
-            <dt>Purchase</dt>
-            <dd>{purchase.id}</dd>
-            {purchase.txHash && (
-              <>
-                <dt>Transaction</dt>
-                <dd>
-                  {chainId === 11155111 ? (
-                    <a
-                      href={`https://sepolia.etherscan.io/tx/${purchase.txHash}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {purchase.txHash}
-                    </a>
-                  ) : (
-                    purchase.txHash
-                  )}
-                </dd>
-              </>
-            )}
-            {purchase.gasWei && (
-              <>
-                <dt>Gas, separate from allowance</dt>
-                <dd>{formatEther(BigInt(purchase.gasWei))} test ETH</dd>
-              </>
-            )}
-          </dl>
-        </details>
+        {children}
+        <div className="purchase-toolbar">
+          <details className="purchase-receipt">
+            <summary className="cursor-pointer text-sm">View receipt</summary>
+            <dl className="receipt">
+              <dt>Seller</dt>
+              <dd>{offer.quote.recipient}</dd>
+              <dt>Purchase</dt>
+              <dd>{purchase.id}</dd>
+              {purchase.txHash && (
+                <>
+                  <dt>Transaction</dt>
+                  <dd>
+                    {chainId === 11155111 ? (
+                      <a
+                        href={`https://sepolia.etherscan.io/tx/${purchase.txHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {purchase.txHash}
+                      </a>
+                    ) : (
+                      purchase.txHash
+                    )}
+                  </dd>
+                </>
+              )}
+              {purchase.gasWei && (
+                <>
+                  <dt>Gas, separate from allowance</dt>
+                  <dd>{formatEther(BigInt(purchase.gasWei))} test ETH</dd>
+                </>
+              )}
+            </dl>
+          </details>
+          {actions && <div className="purchase-actions">{actions}</div>}
+        </div>
       </CardContent>
-      {children && (
-        <CardFooter className="purchase-footer">{children}</CardFooter>
-      )}
     </Card>
   )
 }

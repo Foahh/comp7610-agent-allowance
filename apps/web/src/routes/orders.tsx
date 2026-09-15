@@ -47,31 +47,39 @@ function OrdersPage() {
           )}
           {purchases.data?.map((purchase) => (
             <div key={purchase.id} className="flex flex-col gap-2">
-              <PurchaseCard purchase={purchase} chainId={11155111}>
-                <DeleteItemButton
-                  name={purchase.offer.listing.name}
-                  path={`purchases/${purchase.id}`}
-                  description="This removes this purchase from Orders and Library. It does not cancel or refund payment. Payment records are retained. This cannot be undone."
-                  disabled={retry.isPending}
-                />
-                {(["prepared", "pending"].includes(purchase.paymentStatus) ||
-                  (purchase.paymentStatus === "confirmed" &&
-                    purchase.delivery?.status !== "completed") ||
-                  (!!purchase.error &&
-                    purchase.paymentStatus === "confirmed")) && (
-                  <div className="flex flex-col gap-2">
-                    <Button
-                      variant="outline"
+              <PurchaseCard
+                purchase={purchase}
+                chainId={11155111}
+                actions={
+                  <>
+                    {(["prepared", "pending"].includes(
+                      purchase.paymentStatus
+                    ) ||
+                      (purchase.paymentStatus === "confirmed" &&
+                        purchase.delivery?.status !== "completed") ||
+                      (!!purchase.error &&
+                        purchase.paymentStatus === "confirmed")) && (
+                      <Button
+                        className="min-w-0 flex-1"
+                        variant="outline"
+                        disabled={retry.isPending}
+                        onClick={() => retry.mutate(purchase.id)}
+                      >
+                        {retry.isPending
+                          ? "Checking…"
+                          : "Check payment or retry delivery"}
+                      </Button>
+                    )}
+                    <DeleteItemButton
+                      className="text-muted-foreground hover:text-destructive"
+                      name={purchase.offer.listing.name}
+                      path={`purchases/${purchase.id}`}
+                      description="This removes this purchase from Orders and Library. It does not cancel or refund payment. Payment records are retained. This cannot be undone."
                       disabled={retry.isPending}
-                      onClick={() => retry.mutate(purchase.id)}
-                    >
-                      {retry.isPending
-                        ? "Checking…"
-                        : "Check payment or retry delivery"}
-                    </Button>
-                  </div>
-                )}
-              </PurchaseCard>
+                    />
+                  </>
+                }
+              />
             </div>
           ))}
         </TabsContent>

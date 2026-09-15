@@ -51,6 +51,28 @@ function LibraryPage() {
             key={purchase.id}
             purchase={purchase}
             chainId={11155111}
+            actions={
+              <>
+                <Button
+                  nativeButton={false}
+                  render={<Link to="/" />}
+                  variant="outline"
+                  onClick={() =>
+                    assistant.setDraft(
+                      `Use the “${purchase.offer.listing.name}” purchase from my library. `
+                    )
+                  }
+                >
+                  Chat
+                </Button>
+                <DeleteItemButton
+                  className="text-muted-foreground hover:text-destructive"
+                  name={purchase.offer.listing.name}
+                  path={`purchases/${purchase.id}`}
+                  description="This removes this purchase from Library and Orders. It does not cancel or refund payment. Payment records are retained. This cannot be undone."
+                />
+              </>
+            }
           >
             {purchase.offer.listing.type === "link" &&
             isHttpUrl(purchase.delivery!.content) ? (
@@ -84,23 +106,6 @@ function LibraryPage() {
                 Download {purchase.delivery.file.name}
               </a>
             )}
-            <Button
-              nativeButton={false}
-              render={<Link to="/" />}
-              variant="outline"
-              onClick={() =>
-                assistant.setDraft(
-                  `Use the “${purchase.offer.listing.name}” purchase from my library. `
-                )
-              }
-            >
-              Use in chat
-            </Button>
-            <DeleteItemButton
-              name={purchase.offer.listing.name}
-              path={`purchases/${purchase.id}`}
-              description="This removes this purchase from Library and Orders. It does not cancel or refund payment. Payment records are retained. This cannot be undone."
-            />
           </PurchaseCard>
         ))}
       </div>
