@@ -92,6 +92,12 @@ function ListingsPage() {
             key={listing.id}
             listing={listing}
             publishing={publish.isPending}
+            onDeleted={() => {
+              if (editor?.listing?.id === listing.id) {
+                setEditor(null)
+                setEditorOpen(false)
+              }
+            }}
             onEdit={() => {
               if (editor?.listing?.id !== listing.id) {
                 setEditor({ listing })

@@ -59,6 +59,61 @@ test("deleting an unused file removes its bytes and metadata", () => {
   expect(() => market.deleteAsset(asset.id)).toThrow("File not found")
 })
 
+test("deleting a listing unpublishes it while retaining history and unique version numbers", () => {
+  const listing = market.saveListing(textListing, "reusable-id")
+  market.publish(listing.id, true)
+  market.deleteListing(listing.id)
+  expect(market.listings.list()).toEqual([])
+  expect(market.published.list()).toEqual([])
+  expect(market.versions.get(listing.id, 1)?.content).toBe("Paid content")
+  expect(() => market.deleteListing(listing.id)).toThrow("Listing not found")
+  const replacement = market.saveListing(
+    { ...textListing, content: "New content" },
+    listing.id
+  )
+  expect(replacement.version).toBe(2)
+  expect(market.listings.get(listing.id)?.content).toBe("New content")
+  expect(market.versions.get(listing.id, 1)?.content).toBe("Paid content")
+})
+
+test("model deletion protects buyer, draft and published references, but preserves existing execution snapshots", () => {
+  const model = market.saveModel({
+    name: "Model",
+    baseURL: "https://example.com/v1",
+    model: "chat",
+    apiKey: "key",
+  })
+  market.settings.save("profile", {
+    name: "Seller",
+    description: "",
+    buyerModelId: model.id,
+  })
+  expect(() => market.deleteModel(model.id)).toThrow("buyer model")
+  market.settings.save("profile", {
+    name: "Seller",
+    description: "",
+    buyerModelId: "",
+  })
+  const listing = market.saveListing({
+    ...textListing,
+    type: "ai-service",
+    modelId: model.id,
+    instructions: "Write a guide",
+  })
+  expect(() => market.deleteModel(model.id)).toThrow("used by a listing")
+  market.publish(listing.id, true)
+  const snapshot = market.snapshot(listing)
+  market.saveListing(textListing, listing.id)
+  expect(() => market.deleteModel(model.id)).toThrow("used by a listing")
+  market.deleteListing(listing.id)
+  market.deleteModel(model.id)
+  expect(market.modelList()).toEqual([])
+  expect(snapshot.model?.encryptedKey).toBeTruthy()
+  expect(() => market.deleteModel(model.id)).toThrow(
+    "Model connection not found"
+  )
+})
+
 test.each(["file", "ai-service"] as const)(
   "deletion protects files referenced by historical %s listings",
   (type) => {

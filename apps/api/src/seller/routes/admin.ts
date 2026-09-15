@@ -82,6 +82,10 @@ export function createAdminRoutes(market: Marketplace, service: SellerService) {
       return context.json(profile)
     })
     .get("/models", (context) => context.json(market.modelList()))
+    .delete("/models/:id", (context) => {
+      market.deleteModel(context.req.param("id"))
+      return context.json({ ok: true })
+    })
     .post(
       "/models",
       validator("json", ModelInputSchema, (result, context) => {
@@ -168,6 +172,10 @@ export function createAdminRoutes(market: Marketplace, service: SellerService) {
       )
     })
     .get("/listings", (context) => context.json(market.listings.list()))
+    .delete("/listings/:id", (context) => {
+      market.deleteListing(context.req.param("id"))
+      return context.json({ ok: true })
+    })
     .post("/demo-items", (context) => context.json(market.addDemoItems()))
     .post("/listings", validator("json", ListingInputSchema), (context) =>
       context.json(market.saveListing(context.req.valid("json")), 201)

@@ -13,6 +13,7 @@ import { createSellerQueries } from "@repo/db/marketplace"
 import { publicListing } from "@repo/schemas"
 import { endpointUrl } from "@repo/utils/http"
 import { decryptSecret, encryptSecret } from "@repo/utils/secrets"
+import { HTTPException } from "hono/http-exception"
 import { randomUUID } from "node:crypto"
 import { mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs"
 import { basename, extname, join } from "node:path"
@@ -78,11 +79,10 @@ export function createMarketplace(config: Config, store: SellerStore) {
   }
 
   function saveListing(input: ListingInput, id: string = randomUUID()) {
-    const previous = listings.get(id)
     const listing: Listing = {
       ...input,
       id,
-      version: (previous?.version ?? 0) + 1,
+      version: listings.latestVersion(id) + 1,
       status: "draft",
       createdAt: Date.now(),
     }
@@ -90,6 +90,37 @@ export function createMarketplace(config: Config, store: SellerStore) {
     listings.save(id, listing)
 
     return listing
+  }
+
+  function deleteListing(id: string) {
+    if (!listings.get(id)) {
+      throw new HTTPException(404, { message: "Listing not found." })
+    }
+    // Removing the head also removes publication; historical versions serve purchases.
+    listings.remove(id)
+  }
+
+  function deleteModel(id: string) {
+    if (!models.get(id)) {
+      throw new HTTPException(404, { message: "Model connection not found." })
+    }
+    if (profile().buyerModelId === id) {
+      throw new HTTPException(409, {
+        message:
+          "Select another buyer model in Settings before deleting this connection.",
+      })
+    }
+    if (
+      [...listings.list(), ...published.list()].some(
+        (listing) => listing.modelId === id
+      )
+    ) {
+      throw new HTTPException(409, {
+        message:
+          "This model is used by a listing. Change its model and republish, or delete the listing first.",
+      })
+    }
+    models.remove(id)
   }
 
   function saveAsset(
@@ -301,9 +332,11 @@ export function createMarketplace(config: Config, store: SellerStore) {
     settings,
     profile,
     saveModel,
+    deleteModel,
     modelList,
     runtimeModel,
     saveListing,
+    deleteListing,
     saveAsset,
     deleteAsset,
     readAsset,

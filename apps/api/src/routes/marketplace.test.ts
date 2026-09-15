@@ -25,6 +25,7 @@ beforeEach(() => {
       ...readConfig(),
       local: true,
       dataDir: directory,
+      credentialsDir: join(directory, "credentials"),
       owner: owner.address,
       appOrigin: origin,
     },
@@ -192,6 +193,62 @@ test("file deletion requires an owner session and same origin", async () => {
   })
   expect(await listed.json()).toEqual([])
 })
+
+test.each(["models", "listings"])(
+  "%s deletion requires an owner session and same origin",
+  async (resource) => {
+    const cookie = await session()
+    const created = await app.request(
+      resource === "models"
+        ? "/api/marketplace/seller/models"
+        : "/api/marketplace/seller/templates/writing",
+      json(
+        resource === "models"
+          ? {
+              name: "Disposable model",
+              baseURL: "https://example.com/v1",
+              model: "chat",
+              apiKey: "test-key",
+            }
+          : {},
+        cookie
+      )
+    )
+    expect(created.status).toBe(201)
+    const item = (await created.json()) as { id: string }
+    const path = `/api/marketplace/seller/${resource}/${item.id}`
+    expect(
+      (await app.request(path, { method: "DELETE", headers: { origin } }))
+        .status
+    ).toBe(401)
+    expect(
+      (
+        await app.request(path, {
+          method: "DELETE",
+          headers: { origin: "https://attacker.invalid", cookie },
+        })
+      ).status
+    ).toBe(403)
+    expect(
+      (
+        await app.request(path, {
+          method: "DELETE",
+          headers: { origin, cookie },
+        })
+      ).status
+    ).toBe(200)
+    const missing = await app.request(path, {
+      method: "DELETE",
+      headers: { origin, cookie },
+    })
+    expect(missing.status).toBe(404)
+    expect(await missing.json()).toHaveProperty("error")
+    const listed = await app.request(`/api/marketplace/seller/${resource}`, {
+      headers: { cookie },
+    })
+    expect(await listed.json()).toEqual([])
+  }
+)
 
 test("model validation errors never echo submitted credentials", async () => {
   const cookie = await session()

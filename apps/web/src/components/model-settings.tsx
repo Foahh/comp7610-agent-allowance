@@ -5,6 +5,7 @@ import { useState } from "react"
 import { useMarketplaceAction } from "#/hooks/use-marketplace"
 import { marketplaceRequest } from "#/lib/marketplace"
 
+import { DeleteItemButton } from "./delete-item-button"
 import { EditorSheet } from "./editor-sheet"
 import { RequestState } from "./marketplace-page"
 import { ModelForm } from "./model-form"
@@ -61,6 +62,18 @@ export function ModelSettings({
                 >
                   {check.isPending ? "Testing…" : "Test connection"}
                 </Button>
+                <DeleteItemButton
+                  name={model.name}
+                  path={`seller/models/${model.id}`}
+                  disabled={check.isPending}
+                  description="This removes the saved connection and its API key. Models used by the buyer or a listing must be replaced before deletion."
+                  onDeleted={() => {
+                    if (selected?.id === model.id) {
+                      setSelected(null)
+                      setOpen(false)
+                    }
+                  }}
+                />
               </div>
             </div>
           ))}

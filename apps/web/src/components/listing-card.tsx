@@ -4,6 +4,7 @@ import { formatUnits } from "viem"
 
 import { listingStatusLabel, listingTypeLabel } from "#/lib/presentation"
 
+import { DeleteItemButton } from "./delete-item-button"
 import { ListingPreview } from "./listing-editor"
 import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
@@ -20,11 +21,13 @@ export function ListingCard({
   publishing,
   onEdit,
   onPublish,
+  onDeleted,
 }: {
   listing: Listing
   publishing: boolean
   onEdit: () => void
   onPublish: () => void
+  onDeleted: () => void
 }) {
   return (
     <Card>
@@ -54,6 +57,13 @@ export function ListingCard({
                 ? "Unpublish"
                 : "Publish"}
           </Button>
+          <DeleteItemButton
+            name={listing.name}
+            path={`seller/listings/${listing.id}`}
+            description="This removes the listing from your listings and the public catalog. Existing orders and purchased content are kept. This cannot be undone."
+            disabled={publishing}
+            onDeleted={onDeleted}
+          />
         </div>
         {listing.type === "ai-service" && <ListingPreview listing={listing} />}
       </CardContent>

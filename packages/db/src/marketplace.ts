@@ -5,7 +5,7 @@ import type {
   StoredModel,
 } from "@repo/schemas"
 
-import { and, eq, isNotNull } from "drizzle-orm"
+import { and, eq, isNotNull, max } from "drizzle-orm"
 
 import type { Database } from "./index.ts"
 
@@ -140,6 +140,18 @@ export function createListingQueries(db: Database) {
     listings: {
       get,
       save,
+      remove(id: string) {
+        db.delete(listingHeads).where(eq(listingHeads.id, id)).run()
+      },
+      latestVersion(id: string) {
+        return (
+          db
+            .select({ version: max(listingVersions.version) })
+            .from(listingVersions)
+            .where(eq(listingVersions.id, id))
+            .get()?.version ?? 0
+        )
+      },
       list: () =>
         db
           .select()
@@ -156,6 +168,9 @@ export function createSellerQueries(db: Database) {
   return {
     ...createListingQueries(db),
     models: {
+      remove(id: string) {
+        db.delete(modelConnections).where(eq(modelConnections.id, id)).run()
+      },
       get(id: string) {
         return db
           .select()
