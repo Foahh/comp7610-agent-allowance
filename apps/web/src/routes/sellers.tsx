@@ -1,5 +1,6 @@
 import type { PublicListing, SellerConnection } from "@repo/schemas"
 
+import { RiDeleteBinLine } from "@remixicon/react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 import { formatUnits } from "viem"
@@ -214,13 +215,20 @@ function SellersPage() {
                   {seller.enabled ? "Disable" : "Enable"}
                 </Button>
                 <Button
+                  type="button"
                   variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Remove ${seller.identity.name}`}
+                  title={`Remove ${seller.identity.name}`}
                   disabled={update.isPending}
                   onClick={() =>
                     update.mutate({ id: seller.id, action: "remove" })
                   }
                 >
-                  Remove
+                  <RiDeleteBinLine
+                    className="size-4 text-destructive"
+                    aria-hidden="true"
+                  />
                 </Button>
               </div>
             </CardFooter>
