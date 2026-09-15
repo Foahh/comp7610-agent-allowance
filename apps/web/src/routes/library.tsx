@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 
+import { MessageResponse } from "#/components/ai-elements/message"
 import { useWorkspaceAssistant } from "#/components/assistant-context"
 import { DeleteItemButton } from "#/components/delete-item-button"
 import { MarketplacePage, RequestState } from "#/components/marketplace-page"
@@ -63,13 +64,15 @@ function LibraryPage() {
               </a>
             ) : (
               purchase.delivery?.content && (
-                <details>
+                <details className="w-full min-w-0">
                   <summary className="cursor-pointer text-sm">
                     Read purchased content
                   </summary>
-                  <p className="mt-3 text-sm whitespace-pre-wrap">
-                    {purchase.delivery.content}
-                  </p>
+                  <div className="mt-3 overflow-x-auto rounded-lg border bg-muted/30 p-4">
+                    <MessageResponse className="message-markdown" mode="static">
+                      {purchase.delivery.content}
+                    </MessageResponse>
+                  </div>
                 </details>
               )
             )}
