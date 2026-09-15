@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { formatUnits } from "viem"
 
+import { DeleteItemButton } from "#/components/delete-item-button"
 import { MarketplacePage, RequestState } from "#/components/marketplace-page"
 import { PurchaseCard } from "#/components/purchase-card"
 import { Badge } from "#/components/ui/badge"
@@ -47,6 +48,12 @@ function OrdersPage() {
           {purchases.data?.map((purchase) => (
             <div key={purchase.id} className="flex flex-col gap-2">
               <PurchaseCard purchase={purchase} chainId={11155111}>
+                <DeleteItemButton
+                  name={purchase.offer.listing.name}
+                  path={`purchases/${purchase.id}`}
+                  description="This removes this purchase from Orders and Library. It does not cancel or refund payment. Payment records are retained. This cannot be undone."
+                  disabled={retry.isPending}
+                />
                 {(["prepared", "pending"].includes(purchase.paymentStatus) ||
                   (purchase.paymentStatus === "confirmed" &&
                     purchase.delivery?.status !== "completed") ||
@@ -85,6 +92,11 @@ function OrdersPage() {
                 </div>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
+                <DeleteItemButton
+                  name={sale.offer.listing.name}
+                  path={`seller/orders/${sale.id}`}
+                  description="This removes this sale from Orders. It does not cancel or refund payment, and the buyer can still retrieve their purchase. This cannot be undone."
+                />
                 <p className="text-sm">{sale.offer.deliverable}</p>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary">

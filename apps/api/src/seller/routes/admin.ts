@@ -198,4 +198,10 @@ export function createAdminRoutes(market: Marketplace, service: SellerService) {
       }
     )
     .get("/orders", (context) => context.json(service.orders()))
+    .delete("/orders/:id", (context) => {
+      if (!service.deleteOrder(context.req.param("id"))) {
+        return context.json({ error: "Order not found." }, 404)
+      }
+      return context.json({ ok: true })
+    })
 }

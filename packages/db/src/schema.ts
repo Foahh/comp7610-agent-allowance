@@ -11,6 +11,16 @@ import {
   check,
 } from "drizzle-orm/sqlite-core"
 
+export const deletedOrders = sqliteTable(
+  "deleted_orders",
+  {
+    id: text("id").notNull(),
+    kind: text("kind", { enum: ["purchase", "sale"] }).notNull(),
+    deletedAt: integer("deleted_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.id, table.kind] })]
+)
+
 export const conversations = sqliteTable(
   "conversations",
   {

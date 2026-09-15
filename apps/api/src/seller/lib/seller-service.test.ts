@@ -155,6 +155,23 @@ test("duplicate quote requests share one signed offer, and reuse with different 
   ).rejects.toThrow("different inputs")
 })
 
+test("deleting a sale persists while preserving delivery and quote idempotency", async () => {
+  const offer = await quoted()
+  chain.waitForTransactionReceipt.mockResolvedValue(payment(offer))
+  const delivery = await service.deliver(offer, txHash)
+  expect(service.deleteOrder("missing")).toBe(false)
+  expect(service.deleteOrder(offer.id)).toBe(true)
+  expect(service.deleteOrder(offer.id)).toBe(false)
+  expect(service.orders()).toEqual([])
+  store.close()
+  store = openSellerDatabase(join(directory, "seller.sqlite"))
+  market = createMarketplace(config, store)
+  service = createSellerService(config, store, market)
+  expect(service.orders()).toEqual([])
+  expect(await quoted()).toEqual(offer)
+  expect(await service.deliver(offer, txHash)).toEqual(delivery)
+})
+
 test("delivery requires an exact successful payment and uses the quoted version after edits", async () => {
   const offer = await quoted()
   chain.waitForTransactionReceipt.mockResolvedValue({

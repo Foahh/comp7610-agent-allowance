@@ -107,7 +107,15 @@ export function createMarketplaceRoutes(
           )
         )
     )
-    .get("/purchases", (context) => context.json(store.listPurchases()))
+    .get("/purchases", (context) => context.json(store.listVisiblePurchases()))
+    .delete("/purchases/:id", (context) => {
+      const id = context.req.param("id")
+      if (!store.getPurchase(id) || store.deletedOrderIds("purchase").has(id)) {
+        return context.json({ error: "Purchase not found." }, 404)
+      }
+      store.deleteOrder(id, "purchase")
+      return context.json({ ok: true })
+    })
     .post(
       "/purchases/:id/authorize",
       validator("json", v.object({ signature: HexSchema })),

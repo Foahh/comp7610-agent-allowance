@@ -9,6 +9,7 @@ import {
   deliveries,
   deliveryReferences,
   operationRecords,
+  deletedOrders,
 } from "./schema.ts"
 
 export function createRecordQueries(
@@ -112,6 +113,23 @@ export function createRecordQueries(
   }
 
   return {
+    deletedOrderIds(kind: "purchase" | "sale") {
+      return new Set(
+        db
+          .select()
+          .from(deletedOrders)
+          .where(eq(deletedOrders.kind, kind))
+          .all()
+          .map((row) => row.id)
+      )
+    },
+    deleteOrder(id: string, kind: "purchase" | "sale") {
+      // Retain payment and fulfillment records for recovery and idempotency.
+      db.insert(deletedOrders)
+        .values({ id, kind, deletedAt: Date.now() })
+        .onConflictDoNothing()
+        .run()
+    },
     saveQuote,
     getQuote,
     saveDelivery,

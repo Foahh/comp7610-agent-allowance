@@ -81,6 +81,38 @@ function purchase(id = "quote-1"): Purchase {
 }
 
 describe("relational storage", () => {
+  test("deleted purchases stay hidden after reopen and recovery without losing payment records", () => {
+    const directory = mkdtempSync(join(tmpdir(), "deleted-purchases-"))
+    const filename = join(directory, "buyer.sqlite")
+    let store = openBuyerDatabase(filename)
+    try {
+      store.saveConversation(conversation)
+      const value = purchase()
+      store.savePurchase(value)
+      const stored = store.getPurchase(value.id)
+      store.savePurchase(purchase("kept"))
+      store.deleteOrder(value.id, "purchase")
+      assert.deepEqual(
+        store.listVisiblePurchases().map((item) => item.id),
+        ["kept"]
+      )
+      assert.equal(store.listUnresolvedPurchases().length, 2)
+      assert.deepEqual(store.getPurchase(value.id), stored)
+      store.close()
+      store = openBuyerDatabase(filename)
+      store.savePurchase({ ...value, paymentStatus: "confirmed" })
+      assert.deepEqual(
+        store.listVisiblePurchases().map((item) => item.id),
+        ["kept"]
+      )
+      assert.equal(store.getPurchase(value.id)?.paymentStatus, "confirmed")
+      assert.equal(store.deletedOrderIds("sale").size, 0)
+    } finally {
+      store.close()
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
   test("plan rows preserve order and exact prices, replace atomically, and clear by conversation", () => {
     const store = openBuyerDatabase(":memory:")
     try {

@@ -135,6 +135,34 @@ test("private routes require an owner session and same-origin mutations", async 
   ).toBe(403)
 })
 
+test.each(["purchases", "seller/orders"])(
+  "%s deletion requires an owner session and same origin, and reports missing items",
+  async (resource) => {
+    const cookie = await session()
+    const path = `/api/marketplace/${resource}/missing`
+    expect(
+      (await app.request(path, { method: "DELETE", headers: { origin } }))
+        .status
+    ).toBe(401)
+    expect(
+      (
+        await app.request(path, {
+          method: "DELETE",
+          headers: { cookie, origin: "https://attacker.invalid" },
+        })
+      ).status
+    ).toBe(403)
+    expect(
+      (
+        await app.request(path, {
+          method: "DELETE",
+          headers: { cookie, origin },
+        })
+      ).status
+    ).toBe(404)
+  }
+)
+
 test("seller administration cannot expose runtime credentials and accepts private asset uploads", async () => {
   const cookie = await session()
   expect(

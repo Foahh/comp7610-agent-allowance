@@ -148,6 +148,10 @@ export function openBuyerDatabase(filename: string) {
     getPurchase,
     savePurchase,
     listPurchases,
+    listVisiblePurchases() {
+      const deleted = records.deletedOrderIds("purchase")
+      return listPurchases().filter((purchase) => !deleted.has(purchase.id))
+    },
     saveConversation,
     savePurchasePlan(conversationId: string, items: PurchasePlanItem[]) {
       const rows = items.map(({ task, listing, recipient }, position) => {

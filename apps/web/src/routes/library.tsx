@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 
 import { useWorkspaceAssistant } from "#/components/assistant-context"
+import { DeleteItemButton } from "#/components/delete-item-button"
 import { MarketplacePage, RequestState } from "#/components/marketplace-page"
 import { PurchaseCard } from "#/components/purchase-card"
 import { Button } from "#/components/ui/button"
@@ -92,6 +93,11 @@ function LibraryPage() {
             >
               Use in chat
             </Button>
+            <DeleteItemButton
+              name={purchase.offer.listing.name}
+              path={`purchases/${purchase.id}`}
+              description="This removes this purchase from Library and Orders. It does not cancel or refund payment. Payment records are retained. This cannot be undone."
+            />
           </PurchaseCard>
         ))}
       </div>

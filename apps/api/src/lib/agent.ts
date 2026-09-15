@@ -262,7 +262,7 @@ export function createAgent(
         store.listPurchases()
       )
       const library = store
-        .listPurchases()
+        .listVisiblePurchases()
         .filter((item) => item.paymentStatus === "confirmed")
         .map((item) => ({
           id: item.id,

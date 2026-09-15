@@ -320,13 +320,17 @@ export function createSellerService(
   }
 
   function orders() {
-    return jobs.list().map((job) => ({
-      id: job.id,
-      offer: store.getQuote(job.id)!,
-      paymentStatus: job.paid ? "confirmed" : "awaiting-payment",
-      txHash: job.txHash,
-      delivery: store.getDelivery(job.id),
-    }))
+    const deleted = store.deletedOrderIds("sale")
+    return jobs
+      .list()
+      .filter((job) => !deleted.has(job.id))
+      .map((job) => ({
+        id: job.id,
+        offer: store.getQuote(job.id)!,
+        paymentStatus: job.paid ? "confirmed" : "awaiting-payment",
+        txHash: job.txHash,
+        delivery: store.getDelivery(job.id),
+      }))
   }
 
   return {
@@ -338,6 +342,13 @@ export function createSellerService(
     deliver,
     file,
     orders,
+    deleteOrder(id: string) {
+      if (!jobs.get(id) || store.deletedOrderIds("sale").has(id)) {
+        return false
+      }
+      store.deleteOrder(id, "sale")
+      return true
+    },
   }
 }
 

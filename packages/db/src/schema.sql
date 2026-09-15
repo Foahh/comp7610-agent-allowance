@@ -1,3 +1,10 @@
+CREATE TABLE IF NOT EXISTS deleted_orders (
+  id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('purchase', 'sale')),
+  deleted_at INTEGER NOT NULL,
+  PRIMARY KEY (id, kind)
+);
+
 CREATE TABLE IF NOT EXISTS conversations (
   id TEXT PRIMARY KEY NOT NULL,
   owner TEXT NOT NULL,
