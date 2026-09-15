@@ -37,7 +37,10 @@ export default defineConfig({
   },
   lint: {
     ignorePatterns: ["**/routeTree.gen.ts", "**/src/components/ui/**"],
-    jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
+    jsPlugins: [
+      { name: "vite-plus", specifier: "vite-plus/oxlint-plugin" },
+      "@shadcn/lint",
+    ],
     rules: { "vite-plus/prefer-vite-plus-imports": "error", curly: "error" },
     options: { typeAware: true, typeCheck: true },
   },

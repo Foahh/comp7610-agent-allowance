@@ -5,7 +5,7 @@ export default defineConfig({
     entry: ["src/index.ts", "src/config.ts", "src/model.ts"],
     platform: "node",
     format: "esm",
-    dts: { tsgo: true },
+    dts: { generator: "tsgo" },
     exports: false,
   },
 })

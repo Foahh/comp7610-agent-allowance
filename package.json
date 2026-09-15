@@ -18,6 +18,7 @@
   "devDependencies": {
     "@repo/db": "workspace:*",
     "@repo/utils": "workspace:*",
+    "@shadcn/lint": "catalog:",
     "@types/node": "catalog:",
     "knip": "catalog:",
     "react-doctor": "catalog:",
