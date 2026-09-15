@@ -165,8 +165,9 @@ export function createListingQueries(db: Database) {
 }
 
 export function createSellerQueries(db: Database) {
+  const listingQueries = createListingQueries(db)
   return {
-    ...createListingQueries(db),
+    ...listingQueries,
     models: {
       remove(id: string) {
         db.delete(modelConnections).where(eq(modelConnections.id, id)).run()
@@ -190,21 +191,31 @@ export function createSellerQueries(db: Database) {
     },
     assets: {
       isReferenced(id: string) {
-        return !!(
+        return (
+          [
+            ...listingQueries.listings.list(),
+            ...listingQueries.published.list(),
+          ].some(
+            (listing) => listing.assetId === id || listing.assetIds.includes(id)
+          ) ||
           db
-            .select({ id: listingVersions.id })
-            .from(listingVersions)
-            .where(eq(listingVersions.assetId, id))
-            .get() ||
-          db
-            .select({ id: listingAssets.assetId })
-            .from(listingAssets)
-            .where(eq(listingAssets.assetId, id))
-            .get()
+            .select()
+            .from(sellerJobs)
+            .all()
+            .some(
+              ({ snapshot }) =>
+                snapshot.listing.type === "file" &&
+                snapshot.listing.assetId === id
+            )
         )
       },
       remove(id: string) {
-        db.delete(assets).where(eq(assets.id, id)).run()
+        db.transaction(() => {
+          // Obsolete knowledge attachments can be detached: jobs retain their
+          // own content snapshots, and live references are checked before removal.
+          db.delete(listingAssets).where(eq(listingAssets.assetId, id)).run()
+          db.delete(assets).where(eq(assets.id, id)).run()
+        })
       },
       get(id: string) {
         return db.select().from(assets).where(eq(assets.id, id)).get()

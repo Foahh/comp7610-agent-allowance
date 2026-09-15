@@ -243,6 +243,8 @@ test("paid file delivery is authenticated, and a failed delivery retries without
   market.publish(listing.id, true)
   task.version = updated.version
   const offer = await quoted()
+  market.deleteListing(listing.id)
+  expect(() => market.deleteAsset(asset.id)).toThrow("file order")
   chain.waitForTransactionReceipt.mockResolvedValue(payment(offer))
   const realRead = market.readAsset
   market.readAsset = () => {
@@ -254,5 +256,6 @@ test("paid file delivery is authenticated, and a failed delivery retries without
   const delivered = await service.deliver(offer, txHash, true)
   expect(delivered.status).toBe("completed")
   expect(service.file(offer.id).bytes.toString()).toBe("Purchased attachment")
+  expect(() => market.deleteAsset(asset.id)).toThrow("file order")
   expect(service.orders()).toHaveLength(1)
 })

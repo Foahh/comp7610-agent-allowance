@@ -175,7 +175,7 @@ export function createMarketplace(config: Config, store: SellerStore) {
     }
     if (assets.isReferenced(id)) {
       throw new Error(
-        "This file is used by a saved listing version and cannot be deleted. Existing listings and purchases still need it."
+        "This file is still needed by a current listing or file order. Remove it from the listing and republish, or delete the listing. Files needed by existing orders must be kept."
       )
     }
     rmSync(join(assetDirectory, asset.id), { force: true })

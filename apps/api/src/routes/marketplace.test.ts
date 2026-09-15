@@ -194,6 +194,32 @@ test("file deletion requires an owner session and same origin", async () => {
   expect(await listed.json()).toEqual([])
 })
 
+test("a deleted template no longer blocks deletion of its uploaded knowledge file", async () => {
+  const cookie = await session()
+  const created = await app.request(
+    "/api/marketplace/seller/templates/analysis",
+    json({}, cookie)
+  )
+  expect(created.status).toBe(201)
+  const listing = (await created.json()) as { id: string; assetIds: string[] }
+  const filePath = `/api/marketplace/seller/assets/${listing.assetIds[0]}`
+  const deletion = { method: "DELETE", headers: { origin, cookie } }
+  expect((await app.request(filePath, deletion)).status).toBe(409)
+  expect(
+    (
+      await app.request(
+        `/api/marketplace/seller/listings/${listing.id}`,
+        deletion
+      )
+    ).status
+  ).toBe(200)
+  expect((await app.request(filePath, deletion)).status).toBe(200)
+  const files = await app.request("/api/marketplace/seller/assets", {
+    headers: { cookie },
+  })
+  expect(await files.json()).toEqual([])
+})
+
 test.each(["models", "listings"])(
   "%s deletion requires an owner session and same origin",
   async (resource) => {

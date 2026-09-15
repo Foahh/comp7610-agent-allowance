@@ -115,7 +115,7 @@ test("model deletion protects buyer, draft and published references, but preserv
 })
 
 test.each(["file", "ai-service"] as const)(
-  "deletion protects files referenced by historical %s listings",
+  "deletion releases files referenced only by historical %s drafts",
   (type) => {
     const asset = market.saveAsset(
       "evidence.txt",
@@ -128,11 +128,33 @@ test.each(["file", "ai-service"] as const)(
       assetId: type === "file" ? asset.id : "",
       assetIds: type === "ai-service" ? [asset.id] : [],
     })
-    market.saveListing(textListing, listing.id)
-    expect(() => market.deleteAsset(asset.id)).toThrow("saved listing version")
+    expect(() => market.deleteAsset(asset.id)).toThrow("current listing")
     expect(market.readAsset(asset.id).bytes.toString()).toBe("evidence")
+    market.saveListing(textListing, listing.id)
+    market.deleteAsset(asset.id)
+    expect(market.assets.list()).toEqual([])
+    expect(existsSync(join(directory, "seller-assets", asset.id))).toBe(false)
   }
 )
+
+test("published files stay protected after draft edits until the listing is deleted", () => {
+  const asset = market.saveAsset(
+    "guide.txt",
+    "text/plain",
+    Buffer.from("guide")
+  )
+  const listing = market.saveListing({
+    ...textListing,
+    type: "file",
+    assetId: asset.id,
+  })
+  market.publish(listing.id, true)
+  market.saveListing(textListing, listing.id)
+  expect(() => market.deleteAsset(asset.id)).toThrow("current listing")
+  market.deleteListing(listing.id)
+  market.deleteAsset(asset.id)
+  expect(market.assets.list()).toEqual([])
+})
 
 test("catalog excludes private content and preserves purchased versions after edits and deactivation", () => {
   const first = market.saveListing(textListing)
