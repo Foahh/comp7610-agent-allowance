@@ -3,6 +3,7 @@ import type { Address } from "viem"
 import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 
+import { handleAssistantEvent } from "#/lib/assistant-events"
 import {
   bindAllowance,
   createConversation as requestConversation,
@@ -105,9 +106,7 @@ export function useAssistant(wallet: ConnectedWallet, logout: () => void) {
         }
       }
       await sendMessage(conversationId, message, (event) => {
-        if (event.type !== "done") {
-          dispatch(event)
-        }
+        handleAssistantEvent(event, conversationId, cache, dispatch)
       })
     }, message)
   }
