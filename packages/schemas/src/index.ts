@@ -40,9 +40,22 @@ export const MessageSchema = v.object({
 })
 
 export const TaskSchema = v.strictObject({
-  service: ServiceSchema,
-  sellerId: v.string(),
-  version: v.pipe(v.number(), v.integer(), v.minValue(1)),
+  service: v.pipe(
+    ServiceSchema,
+    v.description(
+      "Copy listing.id from discoverListings exactly, not its name, type, or on-chain service hash."
+    )
+  ),
+  sellerId: v.pipe(
+    v.string(),
+    v.description("Copy sellerId from the same discovered listing.")
+  ),
+  version: v.pipe(
+    v.number(),
+    v.integer(),
+    v.minValue(1),
+    v.description("Copy listing.version from the same discovered listing.")
+  ),
   requestId: v.string(),
   brief: v.pipe(v.string(), v.maxLength(12000)),
   evidence: v.optional(v.pipe(v.string(), v.maxLength(30000)), ""),

@@ -72,13 +72,11 @@ export function PurchaseCard({
             </Badge>
           )}
         </div>
-        <RequestState
-          error={
-            purchase.error || delivery?.error
-              ? new Error(purchase.error || delivery?.error)
-              : undefined
-          }
-        />
+        {(purchase.error || delivery?.error) && (
+          <p className="text-sm text-destructive">
+            {purchase.error || delivery?.error}
+          </p>
+        )}
         {children}
         <div className="purchase-toolbar">
           <details className="purchase-receipt">

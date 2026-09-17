@@ -59,6 +59,9 @@ export function AllowancePanel({
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         {allowance && <AllowanceSummary allowance={allowance} />}
+        {allowance?.revoked && (
+          <h3 className="text-sm font-medium">New allowance</h3>
+        )}
         {canCreate && (
           <FieldGroup>
             <Field data-invalid={invalidBudget}>
@@ -170,6 +173,15 @@ function AllowanceSummary({ allowance }: { allowance: Allowance }) {
       </div>
       <dl className="allowance-facts">
         <div>
+          <dt>Purchase mode</dt>
+          <dd>
+            {allowance.buyerSigner.toLowerCase() ===
+            allowance.owner.toLowerCase()
+              ? "Wallet confirmation"
+              : "Automatic"}
+          </dd>
+        </div>
+        <div>
           <dt>Per purchase</dt>
           <dd>{amount(allowance.perPurchase)} ATT</dd>
         </div>
@@ -180,6 +192,13 @@ function AllowanceSummary({ allowance }: { allowance: Allowance }) {
           </dd>
         </div>
       </dl>
+      {allowance.buyerSigner.toLowerCase() !==
+        allowance.owner.toLowerCase() && (
+        <p className="text-xs text-muted-foreground">
+          Automatic purchases require the seller’s submission service. If it is
+          unavailable, the purchase card will explain the wallet fallback.
+        </p>
+      )}
       <Separator />
     </>
   )

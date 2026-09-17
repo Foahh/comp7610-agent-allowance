@@ -222,6 +222,29 @@ test("an unresolved authorization blocks a different quote without submitting ag
   expect(submit).toHaveBeenCalledOnce()
 })
 
+test("automatic authorization preserves a disabled seller's explanation through refresh", async () => {
+  const value = await offer()
+  const reason =
+    "Seller submission is disabled. Confirm the purchase in your browser wallet."
+  submit.mockRejectedValueOnce(new Error(reason))
+  const result = await payments.purchase(conversation, value)
+  expect(result.authorization?.signature).toBeTruthy()
+  expect(result.paymentStatus).toBe("pending")
+  expect(result.error).toBe(reason)
+
+  await payments.recoverAll(conversation.id)
+  await payments.recoverAll(conversation.id)
+  expect(store.getPurchase(value.id)?.error).toBe(reason)
+  expect(store.getPurchase(value.id)?.paymentStatus).toBe("pending")
+  expect(submit).toHaveBeenCalledOnce()
+
+  rpc.getLogs.mockResolvedValue([{ transactionHash: txHash }])
+  rpc.waitForTransactionReceipt.mockResolvedValue(confirmed(value))
+  await payments.recoverAll(conversation.id)
+  expect(store.getPurchase(value.id)?.paymentStatus).toBe("confirmed")
+  expect(store.getPurchase(value.id)?.error).toBeUndefined()
+})
+
 test("a purchase awaiting wallet confirmation blocks another quote too", async () => {
   const value = await offer()
   store.savePurchase({

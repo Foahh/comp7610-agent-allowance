@@ -48,7 +48,8 @@ export async function recoverIntent(
       }
 
       if (purchase.authorization.signature) {
-        purchase.error =
+        // Keep the seller's submission failure visible across read-only refreshes.
+        purchase.error ??=
           "Submission not confirmed. Refresh or submit this same purchase in your wallet."
       } else {
         purchase.error = "Confirm this purchase in your wallet."
