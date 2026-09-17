@@ -132,7 +132,8 @@ export function createAgent(
         )
 
       if (existing) {
-        return { purchase: existing }
+        store.restoreOrder(existing.id, "purchase")
+        return { purchase: existing, reused: true, chargedThisRun: false }
       }
     }
 
@@ -216,6 +217,10 @@ export function createAgent(
 
     if (!stored) {
       throw new Error("Unknown purchase.")
+    }
+
+    if (stored.paymentStatus === "confirmed") {
+      store.restoreOrder(stored.id, "purchase")
     }
 
     await payments.recoverAll(stored.conversationId)

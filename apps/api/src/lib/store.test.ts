@@ -107,6 +107,11 @@ describe("relational storage", () => {
       )
       assert.equal(store.getPurchase(value.id)?.paymentStatus, "confirmed")
       assert.equal(store.deletedOrderIds("sale").size, 0)
+      store.deleteOrder(value.id, "sale")
+      store.restoreOrder(value.id, "purchase")
+      assert.equal(store.listVisiblePurchases().length, 2)
+      assert.equal(store.deletedOrderIds("sale").has(value.id), true)
+      assert.deepEqual(store.getPurchase(value.id)?.offer, value.offer)
     } finally {
       store.close()
       rmSync(directory, { recursive: true, force: true })

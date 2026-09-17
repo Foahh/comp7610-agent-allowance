@@ -1,6 +1,6 @@
 import type { Delivery, SignedQuote } from "@repo/schemas"
 
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 
 import type { Database } from "./index.ts"
 
@@ -128,6 +128,11 @@ export function createRecordQueries(
       db.insert(deletedOrders)
         .values({ id, kind, deletedAt: Date.now() })
         .onConflictDoNothing()
+        .run()
+    },
+    restoreOrder(id: string, kind: "purchase" | "sale") {
+      db.delete(deletedOrders)
+        .where(and(eq(deletedOrders.id, id), eq(deletedOrders.kind, kind)))
         .run()
     },
     saveQuote,

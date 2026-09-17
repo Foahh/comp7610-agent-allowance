@@ -115,6 +115,7 @@ export function createPayments(
           throw new Error("Quote belongs to another conversation.")
         }
 
+        store.restoreOrder(existing.id, "purchase")
         return recover(existing)
       }
 
@@ -147,6 +148,7 @@ export function createPayments(
           )
 
         if (owned) {
+          store.restoreOrder(owned.id, "purchase")
           return owned
         }
       }

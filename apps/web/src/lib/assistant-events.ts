@@ -16,10 +16,11 @@ export function handleAssistantEvent(
   if (event.type === "purchase") {
     // The stream updates the card, but the allowance lives in the conversation
     // query. Refresh it now instead of waiting for delivery and the final reply.
-    void cache
-      .invalidateQueries({
+    void Promise.all([
+      cache.invalidateQueries({
         queryKey: ["conversation", conversationId],
-      })
-      .catch(() => undefined)
+      }),
+      cache.invalidateQueries({ queryKey: ["marketplace", "purchases"] }),
+    ]).catch(() => undefined)
   }
 }

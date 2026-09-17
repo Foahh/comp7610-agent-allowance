@@ -13,9 +13,13 @@ import { openBuyerDatabase } from "./store.ts"
 
 const modelFactory = vi.hoisted(() => vi.fn())
 const sellerDeliver = vi.hoisted(() => vi.fn())
+const sellerDiscover = vi.hoisted(() => vi.fn())
 vi.mock("@repo/utils/model", () => ({ createModel: modelFactory }))
 vi.mock("./seller-client.ts", () => ({
-  createSellerClient: () => ({ discover: () => [], deliver: sellerDeliver }),
+  createSellerClient: () => ({
+    discover: sellerDiscover,
+    deliver: sellerDeliver,
+  }),
 }))
 
 const conversation: Conversation = {
@@ -28,8 +32,49 @@ const conversation: Conversation = {
 }
 let store: ReturnType<typeof openBuyerDatabase>
 beforeEach(() => {
+  sellerDiscover.mockReturnValue([])
   store = openBuyerDatabase(":memory:")
   store.saveConversation(conversation)
+})
+
+test("quoting an owned static item restores it and explicitly reports no new charge", async () => {
+  const listing = { id: "dataset", version: 1, type: "file" }
+  sellerDiscover.mockReturnValue([
+    {
+      sellerId: "alice",
+      seller: { address: conversation.owner },
+      listing,
+    },
+  ])
+  const owned = {
+    id: "owned",
+    paymentStatus: "confirmed",
+    offer: { listing, quote: { recipient: conversation.owner } },
+  } as Purchase
+  const restoreOrder = vi.fn()
+  const agent = createAgent(
+    {} as Config,
+    {
+      listPurchases: () => [owned],
+      restoreOrder,
+    } as unknown as typeof store,
+    {} as Payments,
+    {} as Marketplace
+  )
+  const result = await agent.quote(conversation, {
+    service: "dataset",
+    version: 1,
+    sellerId: "alice",
+    requestId: "reuse",
+    brief: "Read the dataset",
+    evidence: "",
+  })
+  expect(result).toEqual({
+    purchase: owned,
+    reused: true,
+    chargedThisRun: false,
+  })
+  expect(restoreOrder).toHaveBeenCalledWith(owned.id, "purchase")
 })
 afterEach(() => {
   store.close()

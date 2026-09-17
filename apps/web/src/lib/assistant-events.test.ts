@@ -59,6 +59,8 @@ test("pending purchase events trigger discovery so the query can begin polling",
   const cache = new QueryClient()
   const queryKey = ["conversation", "chat", "wallet", "deployment"]
   cache.setQueryData(queryKey, { purchases: [] })
+  const libraryKey = ["marketplace", "purchases", "wallet"]
+  cache.setQueryData(libraryKey, [])
   handleAssistantEvent(
     {
       type: "purchase",
@@ -69,6 +71,7 @@ test("pending purchase events trigger discovery so the query can begin polling",
     vi.fn()
   )
   expect(cache.getQueryState(queryKey)?.isInvalidated).toBe(true)
+  expect(cache.getQueryState(libraryKey)?.isInvalidated).toBe(true)
   cache.clear()
 })
 

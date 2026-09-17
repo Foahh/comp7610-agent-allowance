@@ -49,6 +49,7 @@ export function useAssistantQueries(
     await Promise.all([
       cache.invalidateQueries({ queryKey: ["conversations"] }),
       cache.invalidateQueries({ queryKey: ["conversation"] }),
+      cache.invalidateQueries({ queryKey: ["marketplace", "purchases"] }),
     ])
   }
 

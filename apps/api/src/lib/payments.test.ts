@@ -287,6 +287,24 @@ test("concurrent purchases for one static version share the successful payment",
   expect(store.listPurchases()).toHaveLength(1)
 })
 
+test("reusing a hidden static purchase restores Library visibility without another charge", async () => {
+  const first = await offer()
+  rpc.getTransactionReceipt.mockResolvedValue(confirmed(first))
+  await payments.purchase(conversation, first)
+  store.deleteOrder(first.id, "purchase")
+  expect(store.listVisiblePurchases()).toHaveLength(0)
+  const reused = await payments.purchase(
+    conversation,
+    await offer("replacement")
+  )
+  expect(reused.id).toBe(first.id)
+  expect(store.listVisiblePurchases().map((item) => item.id)).toEqual([
+    first.id,
+  ])
+  expect(store.listPurchases()).toHaveLength(1)
+  expect(submit).toHaveBeenCalledOnce()
+})
+
 test("a successful transaction without the exact purchase event never confirms payment", async () => {
   rpc.getTransactionReceipt.mockResolvedValue({
     status: "success",
