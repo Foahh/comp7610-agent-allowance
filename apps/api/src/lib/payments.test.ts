@@ -282,3 +282,73 @@ test("logout prevents creating a purchase authorization", async () => {
   expect(store.listPurchases()).toHaveLength(0)
   expect(submit).not.toHaveBeenCalled()
 })
+
+test.each(["prepared", "pending"] as const)(
+  "recovery resolves a hidden %s purchase after allowance revocation",
+  async (paymentStatus) => {
+    const value = await offer()
+    store.savePurchase({
+      id: value.id,
+      conversationId: conversation.id,
+      offer: value,
+      paymentStatus,
+      authorization: { fromBlock: "123" },
+      createdAt: 1,
+    })
+    store.deleteOrder(value.id, "purchase")
+    rpc.readContract.mockResolvedValue([
+      account.address,
+      account.address,
+      5000000n,
+      2000000n,
+      0n,
+      2000n,
+      true,
+      5000000n,
+    ])
+
+    await payments.recoverAll(conversation.id)
+
+    expect(store.getPurchase(value.id)?.paymentStatus).toBe("rejected")
+    expect(store.listUnresolvedPurchases()).toHaveLength(0)
+    expect(store.listVisiblePurchases()).toHaveLength(0)
+    expect(rpc.getLogs).toHaveBeenLastCalledWith(
+      expect.objectContaining({ toBlock: 123n })
+    )
+    expect(rpc.readContract).toHaveBeenLastCalledWith(
+      expect.objectContaining({ functionName: "allowances", blockNumber: 123n })
+    )
+    expect(submit).not.toHaveBeenCalled()
+  }
+)
+
+test("revocation cannot discard a payment discovered before it or an uncertain scan", async () => {
+  const value = await offer()
+  store.savePurchase({
+    id: value.id,
+    conversationId: conversation.id,
+    offer: value,
+    paymentStatus: "pending",
+    authorization: { fromBlock: "123" },
+    createdAt: 1,
+  })
+  rpc.readContract.mockResolvedValue([
+    account.address,
+    account.address,
+    5000000n,
+    2000000n,
+    10000n,
+    2000n,
+    true,
+    4990000n,
+  ])
+  rpc.getLogs.mockRejectedValueOnce(new Error("RPC unavailable"))
+  await payments.recoverAll(conversation.id)
+  expect(store.getPurchase(value.id)?.paymentStatus).toBe("pending")
+
+  rpc.getLogs.mockResolvedValue([{ transactionHash: txHash }])
+  rpc.waitForTransactionReceipt.mockResolvedValue(confirmed(value))
+  await payments.recoverAll(conversation.id)
+  expect(store.getPurchase(value.id)?.paymentStatus).toBe("confirmed")
+  expect(submit).not.toHaveBeenCalled()
+})

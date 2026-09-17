@@ -108,3 +108,37 @@ test("deletion enforces ownership and protects funded allowances", async () => {
     store.close()
   }
 })
+
+test("deletion refreshes stale purchases and still blocks unresolved payments", async () => {
+  const purchase = { paymentStatus: "pending" } as Purchase
+  let resolved = false
+  let deleted = false
+  const store = {
+    getConversation: () => ({ id: "chat", owner: "alice", allowanceId: "1" }),
+    listPurchases: () => [purchase],
+    deleteConversation: () => {
+      deleted = true
+    },
+  } as unknown as ReturnType<typeof openBuyerDatabase>
+  const payments = {
+    allowance: async () => ({ revoked: true, remaining: "0" }),
+    recoverAll: async (id: string) => {
+      assert.equal(id, "chat")
+      if (resolved) {
+        purchase.paymentStatus = "rejected"
+      }
+    },
+  } as unknown as Payments
+  const agent = { deliver: async () => {} } as unknown as BuyerAgent
+  const app = new Hono<AppEnv>()
+  app.use("*", async (context, next) => {
+    context.set("owner", "alice")
+    await next()
+  })
+  app.route("/", createConversationRoutes({} as Config, store, payments, agent))
+  assert.equal((await app.request("/chat", { method: "DELETE" })).status, 409)
+  assert.equal(deleted, false)
+  resolved = true
+  assert.equal((await app.request("/chat", { method: "DELETE" })).status, 200)
+  assert.equal(deleted, true)
+})

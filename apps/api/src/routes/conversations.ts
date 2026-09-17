@@ -119,6 +119,12 @@ export function createConversationRoutes(
           }
         }
 
+        // Resolve stale authorizations (including revoked allowances) before
+        // deciding whether deleting the conversation would hide pending work.
+        if (store.listPurchases(conversation.id).length) {
+          await reconcile(conversation.id)
+        }
+
         if (
           store
             .listPurchases(conversation.id)

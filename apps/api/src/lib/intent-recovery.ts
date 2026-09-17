@@ -17,6 +17,7 @@ export async function recoverIntent(
   }
   const client = publicClient(config.chainId, config.rpcUrl)
   try {
+    const blockNumber = await client.getBlockNumber()
     // Discover a submission even if the submitting browser/seller crashed before
     // returning its hash. A receipt supplied by a peer is never sufficient alone.
     const logs = await client.getLogs({
@@ -24,12 +25,28 @@ export async function recoverIntent(
       event: purchasedEvent,
       args: { purchaseId: purchase.id as Hex },
       fromBlock: BigInt(purchase.authorization.fromBlock),
-      toBlock: "latest",
+      toBlock: blockNumber,
     })
     const hash =
       logs[0]?.transactionHash || (purchase.txHash as Hex | undefined)
 
     if (!hash) {
+      // Read revocation at the same block as the log scan: a payment mined
+      // before revocation must be recovered, never mistaken for cancellation.
+      const allowance = await client.readContract({
+        address: config.vault,
+        abi: vaultAbi,
+        functionName: "allowances",
+        args: [BigInt(purchase.offer.quote.allowanceId)],
+        blockNumber,
+      })
+      if (allowance[6]) {
+        purchase.paymentStatus = "rejected"
+        purchase.error =
+          "Purchase was not paid before its allowance was revoked."
+        return purchase
+      }
+
       if (purchase.authorization.signature) {
         purchase.error =
           "Submission not confirmed. Refresh or submit this same purchase in your wallet."
