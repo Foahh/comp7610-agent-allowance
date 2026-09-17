@@ -27,7 +27,10 @@ import {
   FINAL_REPLY_INSTRUCTION,
   MAX_AGENT_STEPS,
 } from "./agent-prompts.ts"
-import { createPurchaseExecutor } from "./agent-purchases.ts"
+import {
+  createPurchaseExecutor,
+  waitForSubmittedPurchase,
+} from "./agent-purchases.ts"
 import { purchasePlanProgress } from "./purchase-plan.ts"
 import { createSellerClient } from "./seller-client.ts"
 
@@ -153,15 +156,36 @@ export function createAgent(
     return result
   }
 
-  async function purchase(conversation: Conversation, id: string, emit: Emit) {
+  async function purchase(
+    conversation: Conversation,
+    id: string,
+    emit: Emit,
+    waitForConfirmation = false
+  ) {
     const offer = store.getQuote(id)
 
     if (!offer || !store.hasQuote(id, conversation.id)) {
       throw new Error("Unknown quote for this conversation.")
     }
 
-    const paid = await payments.purchase(conversation, offer)
+    let paid = await payments.purchase(conversation, offer)
     await emit({ type: "purchase", purchase: paid })
+
+    if (
+      waitForConfirmation &&
+      paid.paymentStatus === "pending" &&
+      paid.txHash
+    ) {
+      await emit({
+        type: "status",
+        text: "Payment submitted. Waiting for blockchain confirmation…",
+      })
+      paid = await waitForSubmittedPurchase(paid, async () => {
+        await payments.recoverAll(conversation.id)
+        return store.getPurchase(paid.id)!
+      })
+      await emit({ type: "purchase", purchase: paid })
+    }
 
     return await deliver(paid, emit)
   }
@@ -202,7 +226,7 @@ export function createAgent(
     let purchaseAttempted = false
     const executePurchase = createPurchaseExecutor(
       () => store.listPurchases(),
-      (id) => purchase(conversation, id, emit)
+      (id) => purchase(conversation, id, emit, true)
     )
     const remember = (role: Message["role"], content: string) =>
       store.saveMessage({

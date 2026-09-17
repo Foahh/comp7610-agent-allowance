@@ -167,3 +167,63 @@ test("delivery connection failure leaves a retriable failed state instead of per
   expect(purchase.delivery?.status).toBe("failed")
   expect(purchase.error).toContain("Retry delivery without another payment")
 })
+
+test("an active purchase streams pending state then confirms before delivery without resubmission", async () => {
+  vi.useFakeTimers()
+  try {
+    let purchase = {
+      id: "purchase",
+      paymentStatus: "pending",
+      txHash: "0xsubmitted",
+    } as Purchase
+    const payments = {
+      purchase: vi.fn(async () => purchase),
+      recoverAll: vi.fn(async () => {
+        purchase = { ...purchase, paymentStatus: "confirmed" }
+      }),
+    }
+    const agent = createAgent(
+      {} as Config,
+      {
+        getQuote: () => ({}),
+        hasQuote: () => true,
+        getPurchase: () => purchase,
+        savePurchase: vi.fn(),
+      } as unknown as typeof store,
+      payments as unknown as Payments,
+      {} as Marketplace
+    )
+    sellerDeliver.mockImplementation(async (item: Purchase) => ({
+      ...item.delivery,
+      status: "completed",
+      content: "Delivered",
+    }))
+    const events: ChatEvent[] = []
+    const result = agent.purchase(
+      conversation,
+      purchase.id,
+      async (event) => {
+        events.push(structuredClone(event))
+      },
+      true
+    )
+    await vi.advanceTimersByTimeAsync(0)
+    expect(events[0]).toMatchObject({
+      type: "purchase",
+      purchase: { paymentStatus: "pending" },
+    })
+    expect(sellerDeliver).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect((await result).paymentStatus).toBe("confirmed")
+    expect(sellerDeliver).toHaveBeenCalledOnce()
+    expect(payments.purchase).toHaveBeenCalledOnce()
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "purchase",
+        purchase: expect.objectContaining({ paymentStatus: "confirmed" }),
+      })
+    )
+  } finally {
+    vi.useRealTimers()
+  }
+})

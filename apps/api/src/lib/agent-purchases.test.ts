@@ -1,8 +1,11 @@
 import type { Purchase } from "@repo/schemas"
 
-import { expect, test } from "vite-plus/test"
+import { expect, test, vi } from "vite-plus/test"
 
-import { createPurchaseExecutor } from "./agent-purchases.ts"
+import {
+  createPurchaseExecutor,
+  waitForSubmittedPurchase,
+} from "./agent-purchases.ts"
 
 function record(id: string, status: Purchase["paymentStatus"] = "prepared") {
   return {
@@ -73,4 +76,80 @@ test("a replacement quote that reuses an owned item does not consume a slot", as
   await execute("replacement")
   await execute("one")
   expect(await execute("two")).toHaveProperty("id", "two")
+})
+
+test("submitted payments wait for settlement and release the next sequential purchase", async () => {
+  vi.useFakeTimers()
+  try {
+    const records: Purchase[] = []
+    const submit = vi.fn(async (id: string) => {
+      const pending = { ...record(id, "pending"), txHash: `0x${id}` }
+      records.push(pending)
+      return waitForSubmittedPurchase(pending, async () => {
+        pending.paymentStatus = "confirmed"
+        return pending
+      })
+    })
+    const execute = createPurchaseExecutor(() => records, submit)
+    const result = Promise.all([execute("one"), execute("two")])
+    await vi.advanceTimersByTimeAsync(0)
+    expect(submit).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(submit).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(
+      (await result).map(
+        (item) => "paymentStatus" in item && item.paymentStatus
+      )
+    ).toEqual(["confirmed", "confirmed"])
+    expect(records).toHaveLength(2)
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test("wallet handoffs and terminal payments do not enter the settlement wait", async () => {
+  const refresh = vi.fn()
+  for (const status of [
+    "prepared",
+    "pending",
+    "reverted",
+    "confirmed",
+  ] as const) {
+    const purchase = record("one", status)
+    expect(await waitForSubmittedPurchase(purchase, refresh)).toBe(purchase)
+  }
+  expect(refresh).not.toHaveBeenCalled()
+})
+
+test("settlement waits are bounded and preserve unresolved payment state", async () => {
+  vi.useFakeTimers()
+  try {
+    const pending = { ...record("one", "pending"), txHash: "0xsubmitted" }
+    const refresh = vi.fn(async () => pending)
+    const result = waitForSubmittedPurchase(pending, refresh, 5000)
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(await result).toBe(pending)
+    expect(refresh).toHaveBeenCalledTimes(3)
+    expect(pending.paymentStatus).toBe("pending")
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test("a reverted transaction stops the wait immediately", async () => {
+  vi.useFakeTimers()
+  try {
+    const pending = { ...record("one", "pending"), txHash: "0xsubmitted" }
+    const refresh = vi.fn(async () => ({
+      ...pending,
+      paymentStatus: "reverted" as const,
+    }))
+    const result = waitForSubmittedPurchase(pending, refresh)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect((await result).paymentStatus).toBe("reverted")
+    expect(refresh).toHaveBeenCalledOnce()
+  } finally {
+    vi.useRealTimers()
+  }
 })

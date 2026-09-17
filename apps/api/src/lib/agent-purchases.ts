@@ -1,5 +1,26 @@
 import type { Purchase } from "@repo/schemas"
 
+// Only an active purchasing run waits for settlement. Page reads still recover
+// once in the background, and this loop never signs or submits a transaction.
+export async function waitForSubmittedPurchase(
+  purchase: Purchase,
+  refresh: () => Promise<Purchase>,
+  timeoutMs = 60_000
+): Promise<Purchase> {
+  const deadline = Date.now() + timeoutMs
+  while (purchase.paymentStatus === "pending" && purchase.txHash) {
+    const remaining = deadline - Date.now()
+    if (remaining <= 0) {
+      break
+    }
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.min(2000, remaining))
+    )
+    purchase = await refresh()
+  }
+  return purchase
+}
+
 // Tool calls may arrive in parallel. Count persisted authorizations, not attempts.
 export function createPurchaseExecutor(
   listPurchases: () => Purchase[],
