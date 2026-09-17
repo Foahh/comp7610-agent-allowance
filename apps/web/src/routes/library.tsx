@@ -66,10 +66,10 @@ function LibraryPage() {
                   Chat
                 </Button>
                 <DeleteItemButton
-                  className="text-muted-foreground hover:text-destructive"
+                  action="hide"
                   name={purchase.offer.listing.name}
                   path={`purchases/${purchase.id}`}
-                  description="This removes this purchase from Library and Orders. It does not cancel or refund payment. Payment records are retained. This cannot be undone."
+                  description="This hides the purchase from Library and Orders. Payment records and delivered content are kept. Using this purchase again makes it visible. Hiding does not cancel or refund payment."
                 />
               </>
             }

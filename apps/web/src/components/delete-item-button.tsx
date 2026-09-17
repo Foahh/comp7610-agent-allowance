@@ -1,4 +1,4 @@
-import { RiDeleteBinLine } from "@remixicon/react"
+import { RiDeleteBinLine, RiEyeOffLine } from "@remixicon/react"
 import { useState } from "react"
 
 import { useMarketplaceAction } from "#/hooks/use-marketplace"
@@ -24,15 +24,20 @@ export function DeleteItemButton({
   description,
   disabled,
   onDeleted,
-  className = "text-destructive",
+  action = "delete",
+  className,
 }: {
   name: string
   path: string
   description: string
   disabled?: boolean
   onDeleted?: () => void
+  action?: "delete" | "hide"
   className?: string
 }) {
+  const hide = action === "hide"
+  const label = hide ? "Hide" : "Delete"
+  const Icon = hide ? RiEyeOffLine : RiDeleteBinLine
   const [open, setOpen] = useState(false)
   const remove = useMarketplaceAction(async () => {
     await marketplaceRequest(path, undefined, "DELETE")
@@ -58,18 +63,25 @@ export function DeleteItemButton({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className={className}
+            className={
+              className ??
+              (hide
+                ? "text-muted-foreground hover:text-foreground"
+                : "text-destructive")
+            }
             disabled={disabled || remove.isPending}
-            aria-label={`Delete ${name}`}
-            title={`Delete ${name}`}
+            aria-label={`${label} ${name}`}
+            title={`${label} ${name}`}
           />
         }
       >
-        <RiDeleteBinLine className="size-4" aria-hidden="true" />
+        <Icon className="size-4" aria-hidden="true" />
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete {name}?</AlertDialogTitle>
+          <AlertDialogTitle>
+            {label} {name}?
+          </AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <RequestState error={remove.error} />
@@ -78,11 +90,11 @@ export function DeleteItemButton({
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
-            variant="destructive"
+            variant={hide ? "default" : "destructive"}
             disabled={remove.isPending}
             onClick={() => remove.mutate(undefined)}
           >
-            {remove.isPending ? "Deleting…" : "Delete"}
+            {remove.isPending ? (hide ? "Hiding…" : "Deleting…") : label}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

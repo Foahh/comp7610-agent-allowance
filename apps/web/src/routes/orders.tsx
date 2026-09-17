@@ -71,10 +71,10 @@ function OrdersPage() {
                       </Button>
                     )}
                     <DeleteItemButton
-                      className="text-muted-foreground hover:text-destructive"
+                      action="hide"
                       name={purchase.offer.listing.name}
                       path={`purchases/${purchase.id}`}
-                      description="This removes this purchase from Orders and Library. It does not cancel or refund payment. Payment records are retained. This cannot be undone."
+                      description="This hides the purchase from Orders and Library. Payment records and delivered content are kept. Using this purchase again makes it visible. Hiding does not cancel or refund payment."
                       disabled={retry.isPending}
                     />
                   </>
@@ -101,9 +101,10 @@ function OrdersPage() {
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
                 <DeleteItemButton
+                  action="hide"
                   name={sale.offer.listing.name}
                   path={`seller/orders/${sale.id}`}
-                  description="This removes this sale from Orders. It does not cancel or refund payment, and the buyer can still retrieve their purchase. This cannot be undone."
+                  description="This hides the sale from Orders. Payment records are kept, and the buyer can still retrieve their purchase. Hiding does not cancel or refund payment."
                 />
                 <p className="text-sm">{sale.offer.deliverable}</p>
                 <div className="flex flex-wrap gap-2">
