@@ -201,7 +201,7 @@ function AllowanceSummary({ allowance }: { allowance: Allowance }) {
           unavailable, the purchase card will explain the wallet fallback.
         </p>
       )}
-      <Separator />
+      {allowance.revoked && <Separator />}
     </>
   )
 }
