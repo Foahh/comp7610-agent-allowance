@@ -107,7 +107,19 @@ export function createMarketplaceRoutes(
           )
         )
     )
-    .get("/purchases", (context) => context.json(store.listVisiblePurchases()))
+    .get("/purchases", (context) => {
+      void payments
+        .recoverAll()
+        .then(() => {
+          for (const purchase of store.listVisiblePurchases()) {
+            void agent
+              .deliver(purchase, ignoreAgentEvent)
+              .catch(() => undefined)
+          }
+        })
+        .catch(() => undefined)
+      return context.json(store.listVisiblePurchases())
+    })
     .delete("/purchases/:id", (context) => {
       const id = context.req.param("id")
       if (!store.getPurchase(id) || store.deletedOrderIds("purchase").has(id)) {
@@ -135,7 +147,13 @@ export function createMarketplaceRoutes(
           context.req.param("id"),
           context.req.valid("json").txHash as `0x${string}`
         )
-        return context.json(await agent.deliver(purchase, ignoreAgentEvent))
+        void payments
+          .recoverAll(purchase.conversationId)
+          .then(() =>
+            agent.deliver(store.getPurchase(purchase.id)!, ignoreAgentEvent)
+          )
+          .catch(() => undefined)
+        return context.json(purchase)
       }
     )
     .post("/purchases/:id/retry", async (context) => {
@@ -145,15 +163,13 @@ export function createMarketplaceRoutes(
         throw new Error("Purchase not found.")
       }
 
-      await payments.recoverAll()
+      await payments.recoverAll(purchase.conversationId)
 
-      return context.json(
-        await agent.deliver(
-          store.getPurchase(purchase.id)!,
-          ignoreAgentEvent,
-          true
-        )
-      )
+      const recovered = store.getPurchase(purchase.id)!
+      void agent
+        .deliver(recovered, ignoreAgentEvent, true)
+        .catch(() => undefined)
+      return context.json(recovered)
     })
     .get("/purchases/:id/file", async (context) => {
       const purchase = store.getPurchase(context.req.param("id"))

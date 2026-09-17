@@ -1,4 +1,4 @@
-import type { ChatEvent, Conversation } from "@repo/schemas"
+import type { ChatEvent, Conversation, Purchase, Delivery } from "@repo/schemas"
 import type { Config } from "@repo/utils/config"
 
 import { MockLanguageModelV3 } from "ai/test"
@@ -12,9 +12,10 @@ import { createAgent } from "./agent.ts"
 import { openBuyerDatabase } from "./store.ts"
 
 const modelFactory = vi.hoisted(() => vi.fn())
+const sellerDeliver = vi.hoisted(() => vi.fn())
 vi.mock("@repo/utils/model", () => ({ createModel: modelFactory }))
 vi.mock("./seller-client.ts", () => ({
-  createSellerClient: () => ({ discover: () => [] }),
+  createSellerClient: () => ({ discover: () => [], deliver: sellerDeliver }),
 }))
 
 const conversation: Conversation = {
@@ -124,4 +125,45 @@ test("a looping workflow gets a final text-only turn before the bound", async ()
     "Do not claim unfinished work is complete"
   )
   expect(answer).toBe("Here is the completed result.")
+})
+
+test("overlapping delivery refreshes share a job and expose running status immediately", async () => {
+  let complete!: (value: Delivery) => void
+  sellerDeliver.mockReturnValue(
+    new Promise<Delivery>((resolve) => {
+      complete = resolve
+    })
+  )
+  const savePurchase = vi.fn()
+  const agent = createAgent(
+    {} as Config,
+    { savePurchase } as unknown as typeof store,
+    {} as Payments,
+    {} as Marketplace
+  )
+  const purchase = { id: "purchase", paymentStatus: "confirmed" } as Purchase
+  const first = agent.deliver(purchase, async () => {})
+  const second = agent.deliver(purchase, async () => {})
+  expect(purchase.delivery?.status).toBe("running")
+  expect(savePurchase).toHaveBeenCalledOnce()
+  await Promise.resolve()
+  expect(sellerDeliver).toHaveBeenCalledOnce()
+  complete({ ...purchase.delivery!, status: "completed", content: "Delivered" })
+  await Promise.all([first, second])
+  expect(purchase.delivery?.content).toBe("Delivered")
+})
+
+test("delivery connection failure leaves a retriable failed state instead of permanent running", async () => {
+  sellerDeliver.mockRejectedValue(new Error("Connection failed"))
+  const agent = createAgent(
+    {} as Config,
+    { savePurchase: vi.fn() } as unknown as typeof store,
+    {} as Payments,
+    {} as Marketplace
+  )
+  const purchase = { id: "purchase", paymentStatus: "confirmed" } as Purchase
+  await agent.deliver(purchase, async () => {})
+  expect(purchase.paymentStatus).toBe("confirmed")
+  expect(purchase.delivery?.status).toBe("failed")
+  expect(purchase.error).toContain("Retry delivery without another payment")
 })

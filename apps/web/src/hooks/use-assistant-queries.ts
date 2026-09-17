@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { getConfig, getConversation, listConversations } from "#/lib/client"
+import { purchaseRefreshInterval } from "#/lib/purchase-refresh"
 
 export function useAssistantQueries(
   walletAddress: string | undefined,
@@ -36,16 +37,7 @@ export function useAssistantQueries(
       return getConversation(selectedConversationId)
     },
     refetchInterval: (query) =>
-      query.state.data?.purchases.some(
-        (purchase) =>
-          purchase.paymentStatus === "prepared" ||
-          purchase.paymentStatus === "pending" ||
-          (purchase.paymentStatus === "confirmed" &&
-            (!purchase.delivery ||
-              ["pending", "running"].includes(purchase.delivery.status)))
-      )
-        ? 10000
-        : false,
+      purchaseRefreshInterval(query.state.data?.purchases),
     enabled:
       selectedConversationId !== null &&
       walletAddress !== undefined &&

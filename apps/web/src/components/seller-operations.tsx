@@ -5,6 +5,7 @@ import { formatEther, parseEther, type Address } from "viem"
 import { useMarketplaceAction } from "#/hooks/use-marketplace"
 import { marketplaceRequest } from "#/lib/marketplace"
 import { assertWallet, authorizeAndFundSeller } from "#/lib/wallet"
+import { walletReceiptOptions } from "#/lib/wallet-receipt"
 
 import { useWorkspaceAssistant } from "./assistant-context"
 import { RequestState } from "./marketplace-page"
@@ -68,7 +69,7 @@ export function SellerOperations() {
     const receipt = await publicClient(
       config.chainId,
       config.rpcUrl
-    ).waitForTransactionReceipt({ hash, confirmations: 2 })
+    ).waitForTransactionReceipt({ hash, ...walletReceiptOptions })
 
     if (receipt.status !== "success") {
       throw new Error("Wallet transaction reverted.")

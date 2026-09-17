@@ -13,6 +13,7 @@ import {
   encodeAbiParameters,
   encodeEventTopics,
   parseAbiParameters,
+  TransactionReceiptNotFoundError,
   type Hex,
 } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
@@ -26,7 +27,7 @@ const rpc = vi.hoisted(() => ({
   getBlock: vi.fn(),
   getBlockNumber: vi.fn(),
   getLogs: vi.fn(),
-  waitForTransactionReceipt: vi.fn(),
+  getTransactionReceipt: vi.fn(),
 }))
 const submit = vi.hoisted(() => vi.fn())
 vi.mock("@repo/utils", async (original) => ({
@@ -75,6 +76,7 @@ const conversation: Conversation = {
 const txHash = `0x${"a".repeat(64)}` as Hex
 function confirmed(value: SignedQuote) {
   return {
+    blockNumber: 122n,
     status: "success",
     gasUsed: 100n,
     effectiveGasPrice: 1n,
@@ -129,7 +131,7 @@ beforeEach(() => {
   rpc.getBlock.mockResolvedValue({ timestamp: 1000n })
   rpc.getBlockNumber.mockResolvedValue(123n)
   rpc.getLogs.mockResolvedValue([])
-  rpc.waitForTransactionReceipt.mockRejectedValue(new Error("Timeout"))
+  rpc.getTransactionReceipt.mockRejectedValue(new Error("Timeout"))
   submit.mockImplementation(async (_endpoint, path, options) => {
     const id = path.split("/")[3]
     // A restart must retain the authorization before it leaves this process.
@@ -206,7 +208,7 @@ test("a lost submission response recovers the exact authorized payment after res
   expect(first.txHash).toBeUndefined()
   const restarted = createPayments(config, store)
   rpc.getLogs.mockResolvedValue([{ transactionHash: txHash }])
-  rpc.waitForTransactionReceipt.mockResolvedValue(confirmed(value))
+  rpc.getTransactionReceipt.mockResolvedValue(confirmed(value))
   const recovered = await restarted.purchase(conversation, value)
   expect(recovered.paymentStatus).toBe("confirmed")
   expect(recovered.authorization).toEqual(first.authorization)
@@ -239,7 +241,7 @@ test("automatic authorization preserves a disabled seller's explanation through 
   expect(submit).toHaveBeenCalledOnce()
 
   rpc.getLogs.mockResolvedValue([{ transactionHash: txHash }])
-  rpc.waitForTransactionReceipt.mockResolvedValue(confirmed(value))
+  rpc.getTransactionReceipt.mockResolvedValue(confirmed(value))
   await payments.recoverAll(conversation.id)
   expect(store.getPurchase(value.id)?.paymentStatus).toBe("confirmed")
   expect(store.getPurchase(value.id)?.error).toBeUndefined()
@@ -275,7 +277,7 @@ test("recovery retains a discovered transaction hash while confirmations are pen
 test("concurrent purchases for one static version share the successful payment", async () => {
   const first = await offer()
   const second = await offer("second")
-  rpc.waitForTransactionReceipt.mockResolvedValue(confirmed(first))
+  rpc.getTransactionReceipt.mockResolvedValue(confirmed(first))
   const results = await Promise.all([
     payments.purchase(conversation, first),
     payments.purchase(conversation, second),
@@ -286,8 +288,9 @@ test("concurrent purchases for one static version share the successful payment",
 })
 
 test("a successful transaction without the exact purchase event never confirms payment", async () => {
-  rpc.waitForTransactionReceipt.mockResolvedValue({
+  rpc.getTransactionReceipt.mockResolvedValue({
     status: "success",
+    blockNumber: 122n,
     logs: [],
     gasUsed: 1n,
     effectiveGasPrice: 1n,
@@ -304,6 +307,48 @@ test("logout prevents creating a purchase authorization", async () => {
   )
   expect(store.listPurchases()).toHaveLength(0)
   expect(submit).not.toHaveBeenCalled()
+})
+
+test("mined payments return pending immediately until settlement depth, without scanning logs", async () => {
+  const value = await offer()
+  rpc.getTransactionReceipt.mockResolvedValue({
+    ...confirmed(value),
+    blockNumber: 123n,
+  })
+  const pending = await payments.purchase(conversation, value)
+  expect(pending.paymentStatus).toBe("pending")
+  expect(pending.txHash).toBe(txHash)
+  expect(rpc.getLogs).not.toHaveBeenCalled()
+  rpc.getBlockNumber.mockResolvedValue(124n)
+  await payments.recoverAll(conversation.id)
+  expect(store.getPurchase(value.id)?.paymentStatus).toBe("confirmed")
+  expect(submit).toHaveBeenCalledOnce()
+})
+
+test("a replaced transaction can be discovered when its saved hash has no receipt", async () => {
+  const value = await offer()
+  await payments.purchase(conversation, value)
+  const replacement = `0x${"b".repeat(64)}` as Hex
+  rpc.getTransactionReceipt
+    .mockRejectedValueOnce(
+      new TransactionReceiptNotFoundError({ hash: txHash })
+    )
+    .mockResolvedValue(confirmed(value))
+  rpc.getLogs.mockResolvedValue([{ transactionHash: replacement }])
+  await payments.recoverAll(conversation.id)
+  expect(store.getPurchase(value.id)?.txHash).toBe(replacement)
+  expect(store.getPurchase(value.id)?.paymentStatus).toBe("confirmed")
+})
+
+test("a reverted payment stops polling instead of remaining pending forever", async () => {
+  const value = await offer()
+  rpc.getTransactionReceipt.mockResolvedValue({
+    ...confirmed(value),
+    status: "reverted",
+  })
+  const reverted = await payments.purchase(conversation, value)
+  expect(reverted.paymentStatus).toBe("reverted")
+  expect(store.listUnresolvedPurchases()).toHaveLength(0)
 })
 
 test.each(["prepared", "pending"] as const)(
@@ -370,7 +415,7 @@ test("revocation cannot discard a payment discovered before it or an uncertain s
   expect(store.getPurchase(value.id)?.paymentStatus).toBe("pending")
 
   rpc.getLogs.mockResolvedValue([{ transactionHash: txHash }])
-  rpc.waitForTransactionReceipt.mockResolvedValue(confirmed(value))
+  rpc.getTransactionReceipt.mockResolvedValue(confirmed(value))
   await payments.recoverAll(conversation.id)
   expect(store.getPurchase(value.id)?.paymentStatus).toBe("confirmed")
   expect(submit).not.toHaveBeenCalled()

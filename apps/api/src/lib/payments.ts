@@ -31,6 +31,7 @@ export function createPayments(
   const client = publicClient(config.chainId, config.rpcUrl)
   const account = signer("buyer", config)
   let tail = Promise.resolve()
+  const recoveries = new Map<string, Promise<void>>()
 
   async function serialized<T>(operation: () => Promise<T>): Promise<T> {
     const previous = tail
@@ -50,12 +51,20 @@ export function createPayments(
   }
 
   async function allowance(id: string): Promise<Allowance> {
-    const value = await client.readContract({
-      address: config.vault,
-      abi: vaultAbi,
-      functionName: "allowances",
-      args: [BigInt(id)],
-    })
+    const [value, sellers] = await Promise.all([
+      client.readContract({
+        address: config.vault,
+        abi: vaultAbi,
+        functionName: "allowances",
+        args: [BigInt(id)],
+      }),
+      client.readContract({
+        address: config.vault,
+        abi: vaultAbi,
+        functionName: "allowanceSellers",
+        args: [BigInt(id)],
+      }),
+    ])
     const [
       owner,
       buyerSigner,
@@ -71,14 +80,7 @@ export function createPayments(
       id,
       owner,
       buyerSigner: buyerSigner,
-      sellers: [
-        ...(await client.readContract({
-          address: config.vault,
-          abi: vaultAbi,
-          functionName: "allowanceSellers",
-          args: [BigInt(id)],
-        })),
-      ],
+      sellers: [...sellers],
       budget: budget.toString(),
       perPurchase: perPurchase.toString(),
       spent: spent.toString(),
@@ -261,15 +263,22 @@ export function createPayments(
     })
   }
 
-  async function recoverAll(conversationId?: string) {
-    return serialized(async () => {
+  function recoverAll(conversationId?: string) {
+    const key = conversationId ?? "*"
+    const existing = recoveries.get(key)
+    if (existing) {
+      return existing
+    }
+    const operation = serialized(async () => {
       for (const item of store.listUnresolvedPurchases()) {
         if (conversationId && item.conversationId !== conversationId) {
           continue
         }
         await recover(item)
       }
-    })
+    }).finally(() => recoveries.delete(key))
+    recoveries.set(key, operation)
+    return operation
   }
 
   async function authorizePurchase(id: string, signature: Hex) {
@@ -300,7 +309,7 @@ export function createPayments(
     purchase.txHash = txHash
     purchase.paymentStatus = "pending"
     save(purchase)
-    return recover(purchase)
+    return purchase
   }
   return {
     account,

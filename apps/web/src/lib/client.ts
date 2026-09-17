@@ -72,6 +72,7 @@ export async function requestJson(
 ): Promise<unknown> {
   const response = await fetch(`/api${path}`, {
     method,
+    signal: AbortSignal.timeout(method === "GET" ? 15_000 : 30_000),
     headers:
       body === undefined ? undefined : { "content-type": "application/json" },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),

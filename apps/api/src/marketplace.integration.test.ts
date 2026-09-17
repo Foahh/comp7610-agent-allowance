@@ -476,6 +476,12 @@ test("wallet confirmation persists authorization before payment and retrieves de
     `/api/marketplace/purchases/${offer.id}/transaction`,
     { txHash }
   )
-  expect(paid.paymentStatus).toBe("confirmed")
-  expect(paid.delivery?.content).toBe("Manual delivery")
+  expect(paid.paymentStatus).toBe("pending")
+  // Payment acknowledgement no longer waits for seller delivery.
+  await expect
+    .poll(() => buyer!.store.getPurchase(offer.id)?.delivery?.content, {
+      timeout: 5000,
+    })
+    .toBe("Manual delivery")
+  expect(buyer!.store.getPurchase(offer.id)?.paymentStatus).toBe("confirmed")
 }, 30000)

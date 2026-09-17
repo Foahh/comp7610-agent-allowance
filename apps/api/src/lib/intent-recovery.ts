@@ -2,7 +2,13 @@ import type { Purchase } from "@repo/schemas"
 import type { Config } from "@repo/utils/config"
 
 import { publicClient, vaultAbi } from "@repo/utils"
-import { decodeEventLog, parseAbiItem, type Hex } from "viem"
+import {
+  decodeEventLog,
+  parseAbiItem,
+  TransactionReceiptNotFoundError,
+  type Hex,
+  type TransactionReceipt,
+} from "viem"
 
 const purchasedEvent = parseAbiItem(
   "event Purchased(bytes32 indexed purchaseId,uint256 indexed allowanceId,address indexed recipient,uint256 amount,bytes32 service,bytes32 requestHash)"
@@ -20,15 +26,33 @@ export async function recoverIntent(
     const blockNumber = await client.getBlockNumber()
     // Discover a submission even if the submitting browser/seller crashed before
     // returning its hash. A receipt supplied by a peer is never sufficient alone.
-    const logs = await client.getLogs({
-      address: config.vault,
-      event: purchasedEvent,
-      args: { purchaseId: purchase.id as Hex },
-      fromBlock: BigInt(purchase.authorization.fromBlock),
-      toBlock: blockNumber,
-    })
-    const hash =
-      logs[0]?.transactionHash || (purchase.txHash as Hex | undefined)
+    let hash = purchase.txHash as Hex | undefined
+    let receipt: TransactionReceipt | undefined
+    if (hash) {
+      try {
+        receipt = await client.getTransactionReceipt({ hash })
+      } catch (error) {
+        if (!(error instanceof TransactionReceiptNotFoundError)) {
+          throw error
+        }
+      }
+    }
+    if (!receipt) {
+      const logs = await client.getLogs({
+        address: config.vault,
+        event: purchasedEvent,
+        args: { purchaseId: purchase.id as Hex },
+        fromBlock: BigInt(purchase.authorization.fromBlock),
+        toBlock: blockNumber,
+      })
+      const discovered = logs[0]?.transactionHash
+      if (discovered) {
+        hash = discovered
+        purchase.txHash = hash
+        purchase.paymentStatus = "pending"
+        receipt = await client.getTransactionReceipt({ hash })
+      }
+    }
 
     if (!hash) {
       // Read revocation at the same block as the log scan: a payment mined
@@ -60,11 +84,21 @@ export async function recoverIntent(
 
     purchase.txHash = hash
     purchase.paymentStatus = "pending"
-    const receipt = await client.waitForTransactionReceipt({
-      hash,
-      confirmations: config.confirmations,
-      timeout: 5000,
-    })
+    // A refresh checks the current state once; polling must not wait for a block
+    // per purchase while holding up the entire conversation or payment queue.
+    if (!receipt) {
+      purchase.error = undefined
+      return purchase
+    }
+    if (blockNumber - receipt.blockNumber + 1n < BigInt(config.confirmations)) {
+      purchase.error = undefined
+      return purchase
+    }
+    if (receipt.status === "reverted") {
+      purchase.paymentStatus = "reverted"
+      purchase.error = "Payment transaction reverted. No payment was made."
+      return purchase
+    }
     const quote = purchase.offer.quote
     const matches =
       receipt.status === "success" &&

@@ -48,8 +48,13 @@ export function createAgent(
   market: Marketplace
 ) {
   const sellers = createSellerClient(config, store)
+  const deliveryFlights = new Map<string, Promise<Purchase>>()
 
-  async function deliver(purchase: Purchase, emit: Emit, retry = false) {
+  async function performDelivery(
+    purchase: Purchase,
+    emit: Emit,
+    retry: boolean
+  ) {
     if (
       purchase.paymentStatus !== "confirmed" ||
       (purchase.delivery?.status === "completed" &&
@@ -59,18 +64,45 @@ export function createAgent(
       return purchase
     }
 
+    purchase.delivery = {
+      purchaseId: purchase.id,
+      content: "",
+      references: [],
+      modelMs: 0,
+      deliveryMs: 0,
+      ...purchase.delivery,
+      status: "running",
+    }
+    purchase.error = undefined
+    store.savePurchase(purchase)
+    await emit({ type: "purchase", purchase })
+
     try {
       purchase.delivery = await sellers.deliver(purchase, retry)
       purchase.error = undefined
     } catch {
       purchase.error =
         "Seller connection interrupted. Retry delivery without another payment."
+      purchase.delivery.status = "failed"
+      purchase.delivery.error = purchase.error
     }
 
     store.savePurchase(purchase)
     await emit({ type: "purchase", purchase: purchase })
 
     return purchase
+  }
+
+  function deliver(purchase: Purchase, emit: Emit, retry = false) {
+    const existing = deliveryFlights.get(purchase.id)
+    if (existing) {
+      return existing
+    }
+    const operation = performDelivery(purchase, emit, retry).finally(() =>
+      deliveryFlights.delete(purchase.id)
+    )
+    deliveryFlights.set(purchase.id, operation)
+    return operation
   }
 
   async function quote(conversation: Conversation, input: Task) {

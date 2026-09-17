@@ -58,7 +58,7 @@ export function createConversationRoutes(
     const operation = (async () => {
       await payments.recoverAll(id)
       for (const item of store.listPurchases(id)) {
-        await agent.deliver(item, async () => {})
+        void agent.deliver(item, async () => {}).catch(() => undefined)
       }
     })().finally(() => refreshing.delete(id))
     refreshing.set(id, operation)
@@ -153,10 +153,10 @@ export function createConversationRoutes(
     .get("/:id", async (context) => {
       const conversation = owned(context.req.param("id"), context.get("owner"))
 
-      // Reconcile receipts before reading both cards and the allowance balance.
-      // Never submit a transaction or start another purchase from a page read.
+      // Recovery and delivery can involve slow external services. Return the
+      // current snapshot while one shared refresh progresses in the background.
       if (!active.has(conversation.id)) {
-        await reconcile(conversation.id)
+        void reconcile(conversation.id).catch(() => undefined)
       }
 
       return context.json({
@@ -277,10 +277,10 @@ export function createConversationRoutes(
       active.add(conversation.id)
 
       try {
-        await payments.recoverAll()
+        await payments.recoverAll(conversation.id)
 
         for (const item of store.listPurchases(conversation.id)) {
-          await agent.deliver(item, async () => {})
+          void agent.deliver(item, async () => {}).catch(() => undefined)
         }
 
         return context.json({ ok: true })

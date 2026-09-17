@@ -38,6 +38,7 @@ export async function marketplaceRequest<T>(
   const form = body instanceof FormData
   const response = await fetch(`/api/marketplace/${path}`, {
     method,
+    signal: AbortSignal.timeout(method === "GET" ? 15_000 : 120_000),
     headers:
       body === undefined || form
         ? undefined

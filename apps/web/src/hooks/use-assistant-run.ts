@@ -67,30 +67,43 @@ function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
 
-export function useAssistantRun(refresh: () => Promise<void>) {
-  const [run, dispatch] = useReducer(runReducer, initialRunState)
+export async function performAssistantAction(
+  operation: () => Promise<void>,
+  refresh: () => Promise<void>,
+  dispatch: (action: RunAction) => void,
+  user?: string
+) {
+  dispatch({ type: "start", user })
 
-  async function perform(operation: () => Promise<void>, user?: string) {
-    dispatch({ type: "start", user })
-
+  try {
+    await operation()
+  } catch (error) {
+    dispatch({ type: "error", text: errorMessage(error, "Action failed.") })
+  } finally {
     try {
-      await operation()
-    } catch (error) {
-      dispatch({ type: "error", text: errorMessage(error, "Action failed.") })
-    } finally {
-      try {
+      if (user) {
         await refresh()
-      } catch (error) {
-        dispatch({
-          type: "error",
-          text: errorMessage(error, "Unable to refresh application data."),
-        })
-      } finally {
-        // Refresh failures must not leave every action disabled indefinitely.
-        dispatch({ type: "finish" })
+      } else {
+        // Wallet actions are complete before cache revalidation. Query errors
+        // remain visible through the query state without locking every control.
+        void refresh().catch(() => undefined)
       }
+    } catch (error) {
+      dispatch({
+        type: "error",
+        text: errorMessage(error, "Unable to refresh application data."),
+      })
+    } finally {
+      // Refresh failures must not leave every action disabled indefinitely.
+      dispatch({ type: "finish" })
     }
   }
+}
+
+export function useAssistantRun(refresh: () => Promise<void>) {
+  const [run, dispatch] = useReducer(runReducer, initialRunState)
+  const perform = (operation: () => Promise<void>, user?: string) =>
+    performAssistantAction(operation, refresh, dispatch, user)
 
   return {
     run,

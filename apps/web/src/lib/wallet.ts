@@ -1,6 +1,5 @@
 import { PurchaseSchema, type Purchase } from "@repo/schemas"
 import {
-  confirmationCount,
   getChain,
   publicClient,
   tokenAbi,
@@ -24,6 +23,7 @@ import {
 import type { AppConfig } from "./client.ts"
 
 import { marketplaceRequest } from "./marketplace.ts"
+import { walletReceiptOptions } from "./wallet-receipt.ts"
 
 const tokenAmountPattern = /^\d+(\.\d{1,6})?$/
 
@@ -99,7 +99,6 @@ export async function fundAllowance(
   }
 
   const client = publicClient(config.chainId, config.rpcUrl)
-  const confirmations = confirmationCount(config.chainId)
 
   if ((await client.getBalance({ address: wallet.account.address })) === 0n) {
     throw new Error("Your wallet needs test ETH to pay gas.")
@@ -177,7 +176,7 @@ export async function fundAllowance(
     })
     const faucet = await client.waitForTransactionReceipt({
       hash,
-      confirmations,
+      ...walletReceiptOptions,
     })
 
     if (faucet.status !== "success") {
@@ -207,7 +206,7 @@ export async function fundAllowance(
   })
   const approved = await client.waitForTransactionReceipt({
     hash: approval,
-    confirmations,
+    ...walletReceiptOptions,
   })
 
   if (approved.status !== "success") {
@@ -235,7 +234,7 @@ export async function fundAllowance(
   })
   const receipt = await client.waitForTransactionReceipt({
     hash: creation,
-    confirmations,
+    ...walletReceiptOptions,
   })
 
   if (receipt.status !== "success") {
@@ -287,8 +286,12 @@ async function sendAtomicCalls(
   await assertWallet(wallet, config)
   // Never retry as separate transactions after a request may have been sent.
   const { id } = await wallet.sendCalls({ calls, forceAtomic: true })
-  onStatus("Waiting for wallet confirmation…")
-  const batch = await wallet.waitForCallsStatus({ id, timeout: 120_000 })
+  onStatus("Transaction submitted. Waiting for it to be mined…")
+  const batch = await wallet.waitForCallsStatus({
+    id,
+    timeout: 60_000,
+    pollingInterval: 1000,
+  })
   if (
     batch.status !== "success" ||
     !batch.atomic ||
@@ -304,7 +307,7 @@ async function sendAtomicCalls(
     batch.receipts.map(({ transactionHash }) =>
       client.waitForTransactionReceipt({
         hash: transactionHash,
-        confirmations: confirmationCount(config.chainId),
+        ...walletReceiptOptions,
       })
     )
   )
@@ -333,7 +336,7 @@ export async function executeWalletCalls(
     const hash = await wallet.sendTransaction(call)
     const receipt = await client.waitForTransactionReceipt({
       hash,
-      confirmations: confirmationCount(config.chainId),
+      ...walletReceiptOptions,
     })
     if (receipt.status !== "success") {
       throw new Error(
@@ -459,7 +462,7 @@ export async function updateAllowance(
     config.rpcUrl
   ).waitForTransactionReceipt({
     hash,
-    confirmations: confirmationCount(config.chainId),
+    ...walletReceiptOptions,
   })
 
   if (receipt.status !== "success") {

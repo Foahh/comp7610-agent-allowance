@@ -30,7 +30,10 @@ beforeEach(() => {
       appOrigin: origin,
     },
     store,
-    { account: { address: owner.address } } as Payments
+    {
+      account: { address: owner.address },
+      recoverAll: async () => {},
+    } as unknown as Payments
   )
 })
 

@@ -11,7 +11,7 @@ import type { Payments } from "../lib/payments.ts"
 import { openBuyerDatabase } from "../lib/store.ts"
 import { createConversationRoutes, type AppEnv } from "./conversations.ts"
 
-test("conversation reads reconcile payment and delivery before returning the balance", async () => {
+test("conversation reads return while delivery runs in the background", async () => {
   const events: string[] = []
   const purchase = {
     id: "paid",
@@ -57,7 +57,7 @@ test("conversation reads reconcile payment and delivery before returning the bal
   }
   assert.equal(data.purchases[0]!.paymentStatus, "confirmed")
   assert.equal(data.allowance.spent, "3000000")
-  assert.deepEqual(events, ["recover", "deliver", "balance"])
+  assert.deepEqual(events, ["recover", "balance", "deliver"])
 })
 
 test("deletion enforces ownership and protects funded allowances", async () => {
@@ -142,3 +142,41 @@ test("deletion refreshes stale purchases and still blocks unresolved payments", 
   assert.equal((await app.request("/chat", { method: "DELETE" })).status, 200)
   assert.equal(deleted, true)
 })
+
+test("slow recovery cannot block conversation reads and overlapping reads share it", async () => {
+  let release!: () => void
+  const pending = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let recoveries = 0
+  const store = {
+    getConversation: () => ({ id: "chat", owner: "alice", allowanceId: null }),
+    listPurchases: () => [],
+    listMessages: () => [],
+    getPurchasePlan: () => [],
+  } as unknown as ReturnType<typeof openBuyerDatabase>
+  const payments = {
+    recoverAll: () => {
+      recoveries += 1
+      return pending
+    },
+  } as unknown as Payments
+  const app = new Hono<AppEnv>()
+  app.use("*", async (context, next) => {
+    context.set("owner", "alice")
+    await next()
+  })
+  app.route(
+    "/",
+    createConversationRoutes({} as Config, store, payments, {} as BuyerAgent)
+  )
+  try {
+    const first = await app.request("/chat")
+    const second = await app.request("/chat")
+    assert.equal(first.status, 200)
+    assert.equal(second.status, 200)
+    assert.equal(recoveries, 1)
+  } finally {
+    release()
+  }
+}, 1000)

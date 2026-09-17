@@ -137,7 +137,9 @@ test.each(["supported", "ready"])(
     })
     expect(rpc.waitForTransactionReceipt).toHaveBeenCalledWith({
       hash,
-      confirmations: 2,
+      confirmations: 1,
+      pollingInterval: 1000,
+      timeout: 60_000,
     })
     expect(walletMock.writeContract).not.toHaveBeenCalled()
   }
