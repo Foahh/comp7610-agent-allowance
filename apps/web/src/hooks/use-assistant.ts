@@ -71,7 +71,9 @@ export function useAssistant(wallet: ConnectedWallet, logout: () => void) {
     })
   }
 
-  function allowanceAction(action: "revokeAllowance" | "withdrawUnused") {
+  function allowanceAction(
+    action: "revokeAllowance" | "withdrawUnused" | "closeAllowance"
+  ) {
     if (!wallet || !config || !details.data?.allowance) {
       return
     }

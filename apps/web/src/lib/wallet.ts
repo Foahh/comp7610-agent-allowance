@@ -13,9 +13,12 @@ import {
   createWalletClient,
   custom,
   decodeEventLog,
+  encodeFunctionData,
   parseUnits,
   type Address,
   type EIP1193Provider,
+  type Hex,
+  type TransactionReceipt,
 } from "viem"
 
 import type { AppConfig } from "./client.ts"
@@ -101,12 +104,68 @@ export async function fundAllowance(
   if ((await client.getBalance({ address: wallet.account.address })) === 0n) {
     throw new Error("Your wallet needs test ETH to pay gas.")
   }
-  const balance = await client.readContract({
-    address: config.token,
-    abi: tokenAbi,
-    functionName: "balanceOf",
-    args: [wallet.account.address],
-  })
+  const [balance, atomic] = await Promise.all([
+    client.readContract({
+      address: config.token,
+      abi: tokenAbi,
+      functionName: "balanceOf",
+      args: [wallet.account.address],
+    }),
+    supportsAtomicCalls(wallet, config.chainId),
+  ])
+  if (atomic) {
+    if (balance < budget && balance + 100_000_000n < budget) {
+      throw new Error(
+        "Insufficient ATT. The faucet adds 100 ATT per claim; reduce the allowance or claim again."
+      )
+    }
+    const now = (await client.getBlock()).timestamp
+    const args = [
+      automatic ? config.buyerSigner : wallet.account.address,
+      config.buyerSigner,
+      sellers,
+      budget,
+      cap,
+      now + 86400n,
+    ] as const
+    const calls = [
+      ...(balance < budget
+        ? [
+            {
+              to: config.token,
+              data: encodeFunctionData({
+                abi: tokenAbi,
+                functionName: "faucet",
+              }),
+            },
+          ]
+        : []),
+      {
+        to: config.token,
+        data: encodeFunctionData({
+          abi: tokenAbi,
+          functionName: "approve",
+          args: [config.vault, budget],
+        }),
+      },
+      {
+        to: config.vault,
+        data: encodeFunctionData({
+          abi: vaultAbi,
+          functionName: "createAllowance",
+          args,
+        }),
+      },
+    ]
+    onStatus("Confirm the token budget and allowance together in your wallet.")
+    const receipts = await sendAtomicCalls(wallet, config, calls, onStatus)
+    return createdAllowanceId(
+      receipts,
+      config.vault,
+      wallet.account.address,
+      args
+    )
+  }
 
   if (balance < budget) {
     onStatus("Claiming demonstration ATT in your wallet.")
@@ -160,18 +219,19 @@ export async function fundAllowance(
 
   onStatus("Confirm creation of this conversation's allowance.")
   await assertWallet(wallet, config)
+  const args = [
+    allowanceBuyer,
+    config.buyerSigner,
+    sellers,
+    budget,
+    cap,
+    now + 86400n,
+  ] as const
   const creation = await wallet.writeContract({
     address: config.vault,
     abi: vaultAbi,
     functionName: "createAllowance",
-    args: [
-      allowanceBuyer,
-      config.buyerSigner,
-      sellers,
-      budget,
-      cap,
-      now + 86400n,
-    ],
+    args,
   })
   const receipt = await client.waitForTransactionReceipt({
     hash: creation,
@@ -182,8 +242,137 @@ export async function fundAllowance(
     throw new Error("Allowance creation failed.")
   }
 
-  for (const log of receipt.logs) {
-    if (log.address.toLowerCase() !== config.vault.toLowerCase()) {
+  return createdAllowanceId(
+    [receipt],
+    config.vault,
+    wallet.account.address,
+    args
+  )
+}
+
+async function supportsAtomicCalls(wallet: ConnectedWallet, chainId: number) {
+  try {
+    const capabilities = await wallet.getCapabilities({ chainId })
+    return (
+      capabilities?.atomic?.status === "supported" ||
+      capabilities?.atomic?.status === "ready"
+    )
+  } catch (error) {
+    // Only a missing RPC method is a compatibility fallback. Cancellation,
+    // disconnection and other provider errors must not trigger wallet prompts.
+    let cause: unknown = error
+    const visited = new Set<unknown>()
+    while (cause && typeof cause === "object" && !visited.has(cause)) {
+      visited.add(cause)
+      if (
+        "code" in cause &&
+        [-32601, -32004, 4200].includes(Number(cause.code))
+      ) {
+        return false
+      }
+      cause = "cause" in cause ? cause.cause : undefined
+    }
+    throw error
+  }
+}
+
+type WalletCall = { to: Address; data?: Hex; value?: bigint }
+
+async function sendAtomicCalls(
+  wallet: ConnectedWallet,
+  config: AppConfig,
+  calls: WalletCall[],
+  onStatus: (text: string) => void = () => {}
+) {
+  await assertWallet(wallet, config)
+  // Never retry as separate transactions after a request may have been sent.
+  const { id } = await wallet.sendCalls({ calls, forceAtomic: true })
+  onStatus("Waiting for wallet confirmation…")
+  const batch = await wallet.waitForCallsStatus({ id, timeout: 120_000 })
+  if (
+    batch.status !== "success" ||
+    !batch.atomic ||
+    batch.chainId !== config.chainId ||
+    !batch.receipts?.length
+  ) {
+    throw new Error(
+      "Wallet batch did not complete successfully. Check its status in your wallet before trying again."
+    )
+  }
+  const client = publicClient(config.chainId, config.rpcUrl)
+  const receipts = await Promise.all(
+    batch.receipts.map(({ transactionHash }) =>
+      client.waitForTransactionReceipt({
+        hash: transactionHash,
+        confirmations: confirmationCount(config.chainId),
+      })
+    )
+  )
+  if (receipts.some((receipt) => receipt.status !== "success")) {
+    throw new Error("Wallet batch transaction failed.")
+  }
+  return receipts
+}
+
+export async function executeWalletCalls(
+  wallet: ConnectedWallet,
+  config: AppConfig,
+  calls: WalletCall[]
+) {
+  await assertWallet(wallet, config)
+  if (calls.length > 1 && (await supportsAtomicCalls(wallet, config.chainId))) {
+    return sendAtomicCalls(wallet, config, calls)
+  }
+  const client = publicClient(config.chainId, config.rpcUrl)
+  const receipts: TransactionReceipt[] = []
+  // Each call depends on the preceding successful receipt (e.g. revoke before
+  // withdrawal). Parallel sends could fail or spend gas after a rejected step.
+  for (const call of calls) {
+    // eslint-disable-next-line react-doctor/async-await-in-loop
+    await assertWallet(wallet, config)
+    const hash = await wallet.sendTransaction(call)
+    const receipt = await client.waitForTransactionReceipt({
+      hash,
+      confirmations: confirmationCount(config.chainId),
+    })
+    if (receipt.status !== "success") {
+      throw new Error(
+        "Wallet transaction reverted. Remaining steps were not sent."
+      )
+    }
+    receipts.push(receipt)
+  }
+  return receipts
+}
+
+export async function authorizeAndFundSeller(
+  wallet: ConnectedWallet,
+  config: AppConfig,
+  seller: Address
+) {
+  const now = (await publicClient(config.chainId, config.rpcUrl).getBlock())
+    .timestamp
+  return executeWalletCalls(wallet, config, [
+    {
+      to: config.vault,
+      data: encodeFunctionData({
+        abi: vaultAbi,
+        functionName: "setSellerSigner",
+        args: [seller, now + 30n * 86400n],
+      }),
+    },
+    { to: seller, value: 2_000_000_000_000_000n },
+  ])
+}
+
+function createdAllowanceId(
+  receipts: TransactionReceipt[],
+  vault: Address,
+  owner: Address,
+  args: readonly [Address, Address, Address[], bigint, bigint, bigint]
+) {
+  for (const log of receipts.flatMap((receipt) => receipt.logs)) {
+    if (log.address.toLowerCase() !== vault.toLowerCase()) {
       continue
     }
 
@@ -194,7 +383,21 @@ export async function fundAllowance(
         topics: log.topics,
         eventName: "AllowanceCreated",
       })
-      return event.args.allowanceId.toString()
+      const created = event.args
+      if (
+        created.owner.toLowerCase() === owner.toLowerCase() &&
+        created.buyerSigner.toLowerCase() === args[0].toLowerCase() &&
+        created.budget === args[3] &&
+        created.perPurchase === args[4] &&
+        created.expiresAt === args[5] &&
+        created.sellers.length === args[2].length &&
+        created.sellers.every(
+          (seller, index) =>
+            seller.toLowerCase() === args[2][index]!.toLowerCase()
+        )
+      ) {
+        return created.allowanceId.toString()
+      }
     } catch {
       /* Ignore token-transfer events in the same receipt. */
     }
@@ -207,9 +410,44 @@ export async function updateAllowance(
   wallet: ConnectedWallet,
   config: AppConfig,
   id: string,
-  action: "revokeAllowance" | "withdrawUnused"
+  action: "revokeAllowance" | "withdrawUnused" | "closeAllowance"
 ) {
   await assertWallet(wallet, config)
+  if (action === "closeAllowance") {
+    const state = await publicClient(
+      config.chainId,
+      config.rpcUrl
+    ).readContract({
+      address: config.vault,
+      abi: vaultAbi,
+      functionName: "allowances",
+      args: [BigInt(id)],
+    })
+    const remaining = state[2] - state[4] - state[7]
+    const calls: WalletCall[] = []
+    if (!state[6]) {
+      calls.push({
+        to: config.vault,
+        data: encodeFunctionData({
+          abi: vaultAbi,
+          functionName: "revokeAllowance",
+          args: [BigInt(id)],
+        }),
+      })
+    }
+    if (remaining > 0n) {
+      calls.push({
+        to: config.vault,
+        data: encodeFunctionData({
+          abi: vaultAbi,
+          functionName: "withdrawUnused",
+          args: [BigInt(id)],
+        }),
+      })
+    }
+    await executeWalletCalls(wallet, config, calls)
+    return
+  }
   const hash = await wallet.writeContract({
     address: config.vault as Address,
     abi: vaultAbi,

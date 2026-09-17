@@ -32,7 +32,9 @@ type Props = {
   onBudgetChange: (value: string) => void
   onCapChange: (value: string) => void
   onFund: (budget: string, cap: string) => void
-  onAction: (action: "revokeAllowance" | "withdrawUnused") => void
+  onAction: (
+    action: "revokeAllowance" | "withdrawUnused" | "closeAllowance"
+  ) => void
 }
 
 export function AllowancePanel({
@@ -234,9 +236,9 @@ function AllowanceActions({
         <Button
           variant="outline"
           disabled={busy}
-          onClick={() => onAction("revokeAllowance")}
+          onClick={() => onAction("closeAllowance")}
         >
-          Stop future spending
+          Stop spending & withdraw unused ATT
         </Button>
       )}
       {allowance?.revoked && BigInt(allowance.remaining) > 0n && (
