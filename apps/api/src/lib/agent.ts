@@ -176,15 +176,36 @@ export function createAgent(
       paid.paymentStatus === "pending" &&
       paid.txHash
     ) {
-      await emit({
-        type: "status",
-        text: "Payment submitted. Waiting for blockchain confirmation…",
-      })
+      const reportWaiting = (item: Purchase) =>
+        emit({
+          type: "status",
+          text: item.confirmations
+            ? `Payment mined. Waiting for confirmations (${item.confirmations}/${item.requiredConfirmations})…`
+            : "Payment submitted. Waiting to be mined…",
+        })
+      await reportWaiting(paid)
+      let progress = JSON.stringify(paid)
       paid = await waitForSubmittedPurchase(paid, async () => {
         await payments.recoverAll(conversation.id)
-        return store.getPurchase(paid.id)!
+        const updated = store.getPurchase(paid.id)!
+        const next = JSON.stringify(updated)
+        if (next !== progress) {
+          progress = next
+          await emit({ type: "purchase", purchase: updated })
+          if (updated.paymentStatus === "pending") {
+            await reportWaiting(updated)
+          }
+        }
+        return updated
       })
       await emit({ type: "purchase", purchase: paid })
+      await emit({
+        type: "status",
+        text:
+          paid.paymentStatus === "confirmed"
+            ? "Payment confirmed. Retrieving delivery…"
+            : "Preparing a payment status update…",
+      })
     }
 
     return await deliver(paid, emit)

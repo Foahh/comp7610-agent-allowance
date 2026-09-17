@@ -22,21 +22,24 @@ export async function recoverIntent(
     return purchase
   }
   const client = publicClient(config.chainId, config.rpcUrl)
+  purchase.confirmations = undefined
+  purchase.requiredConfirmations = config.confirmations
   try {
-    const blockNumber = await client.getBlockNumber()
     // Discover a submission even if the submitting browser/seller crashed before
     // returning its hash. A receipt supplied by a peer is never sufficient alone.
     let hash = purchase.txHash as Hex | undefined
-    let receipt: TransactionReceipt | undefined
-    if (hash) {
-      try {
-        receipt = await client.getTransactionReceipt({ hash })
-      } catch (error) {
-        if (!(error instanceof TransactionReceiptNotFoundError)) {
-          throw error
-        }
-      }
-    }
+    const [blockNumber, knownReceipt] = await Promise.all([
+      client.getBlockNumber({ cacheTime: 0 }),
+      hash
+        ? client.getTransactionReceipt({ hash }).catch((error: unknown) => {
+            if (!(error instanceof TransactionReceiptNotFoundError)) {
+              throw error
+            }
+            return undefined
+          })
+        : undefined,
+    ])
+    let receipt: TransactionReceipt | undefined = knownReceipt
     if (!receipt) {
       const logs = await client.getLogs({
         address: config.vault,
@@ -90,11 +93,14 @@ export async function recoverIntent(
       purchase.error = undefined
       return purchase
     }
-    if (blockNumber - receipt.blockNumber + 1n < BigInt(config.confirmations)) {
-      purchase.error = undefined
-      return purchase
-    }
     if (receipt.status === "reverted") {
+      if (
+        blockNumber - receipt.blockNumber + 1n <
+        BigInt(config.confirmations)
+      ) {
+        purchase.error = undefined
+        return purchase
+      }
       purchase.paymentStatus = "reverted"
       purchase.error = "Payment transaction reverted. No payment was made."
       return purchase
@@ -126,6 +132,17 @@ export async function recoverIntent(
         }
       })
     if (matches) {
+      purchase.confirmations = Math.max(
+        0,
+        Math.min(
+          config.confirmations,
+          Number(blockNumber - receipt.blockNumber + 1n)
+        )
+      )
+      purchase.error = undefined
+      if (purchase.confirmations < config.confirmations) {
+        return purchase
+      }
       purchase.txHash = hash
       purchase.paymentStatus = "confirmed"
       purchase.error = undefined

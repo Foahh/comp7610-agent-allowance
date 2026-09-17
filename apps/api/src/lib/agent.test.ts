@@ -217,6 +217,10 @@ test("an active purchase streams pending state then confirms before delivery wit
     expect((await result).paymentStatus).toBe("confirmed")
     expect(sellerDeliver).toHaveBeenCalledOnce()
     expect(payments.purchase).toHaveBeenCalledOnce()
+    expect(events.filter((event) => event.type === "status").at(-1)).toEqual({
+      type: "status",
+      text: "Payment confirmed. Retrieving delivery…",
+    })
     expect(events).toContainEqual(
       expect.objectContaining({
         type: "purchase",

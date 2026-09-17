@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { DatabaseSync } from "node:sqlite"
 
+import { migratePurchaseConfirmations } from "./migrate-purchase-confirmations.ts"
 import { migratePurchasePlans } from "./migrate-purchase-plans.ts"
 import * as schema from "./schema.ts"
 
@@ -28,7 +29,7 @@ export function openDatabase(filename: string) {
       user_version: number
     }
 
-    if (![0, 2, 3].includes(version.user_version)) {
+    if (![0, 2, 3, 4].includes(version.user_version)) {
       throw new Error(
         "Unsupported database schema. Use a data directory created by this release."
       )
@@ -42,7 +43,8 @@ export function openDatabase(filename: string) {
         )
       )
       migratePurchasePlans(sqlite)
-      sqlite.exec("PRAGMA user_version = 3; COMMIT")
+      migratePurchaseConfirmations(sqlite)
+      sqlite.exec("PRAGMA user_version = 4; COMMIT")
     } catch (error) {
       sqlite.exec("ROLLBACK")
       throw error

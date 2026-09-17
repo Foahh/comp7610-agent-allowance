@@ -152,6 +152,8 @@ export const purchases = sqliteTable(
       enum: ["prepared", "pending", "confirmed", "reverted", "rejected"],
     }).notNull(),
     txHash: text("tx_hash"),
+    confirmations: integer("confirmations"),
+    requiredConfirmations: integer("required_confirmations"),
     buyerSignature: text("buyer_signature"),
     authorizationFromBlock: text("authorization_from_block"),
     gasUsed: text("gas_used"),

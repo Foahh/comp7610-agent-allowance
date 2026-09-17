@@ -18,6 +18,7 @@ import {
   deliveryStatusLabel,
   listingTypeLabel,
   purchasePaymentLabel,
+  purchaseConfirmationMessage,
 } from "#/lib/presentation"
 import { confirmPurchase } from "#/lib/wallet"
 
@@ -137,7 +138,7 @@ function PurchaseConfirmation({ purchase }: { purchase: Purchase }) {
           <div className="space-y-2">
             <p className="text-sm">
               {purchase.txHash
-                ? "Transaction submitted. Waiting for chain confirmation."
+                ? purchaseConfirmationMessage(purchase)
                 : purchase.paymentStatus === "pending"
                   ? "Submission has not been confirmed. Refresh status before submitting this same purchase in your wallet."
                   : "Confirm this purchase in your wallet. Test ETH is required for gas."}

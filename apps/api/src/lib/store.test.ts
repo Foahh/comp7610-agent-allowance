@@ -210,7 +210,7 @@ describe("relational storage", () => {
         )
         assert.equal(
           inspect.prepare("PRAGMA user_version").get()?.user_version,
-          3
+          4
         )
       } finally {
         inspect.close()

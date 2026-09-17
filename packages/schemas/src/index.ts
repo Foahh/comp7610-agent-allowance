@@ -106,6 +106,10 @@ export const PurchaseSchema = v.object({
     "rejected",
   ]),
   txHash: v.optional(HexSchema),
+  confirmations: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+  requiredConfirmations: v.optional(
+    v.pipe(v.number(), v.integer(), v.minValue(1))
+  ),
   gasUsed: v.optional(AmountSchema),
   gasWei: v.optional(AmountSchema),
   delivery: v.optional(DeliverySchema),

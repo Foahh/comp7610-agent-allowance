@@ -308,6 +308,7 @@ export function createPayments(
     }
     purchase.txHash = txHash
     purchase.paymentStatus = "pending"
+    purchase.confirmations = undefined
     save(purchase)
     return purchase
   }

@@ -80,6 +80,8 @@ CREATE TABLE IF NOT EXISTS purchases (
   conversation_id TEXT NOT NULL REFERENCES conversations(id),
   payment_status TEXT NOT NULL CHECK (payment_status IN ('prepared', 'pending', 'confirmed', 'reverted', 'rejected')),
   tx_hash TEXT,
+  confirmations INTEGER,
+  required_confirmations INTEGER,
   buyer_signature TEXT,
   authorization_from_block TEXT,
   gas_used TEXT,

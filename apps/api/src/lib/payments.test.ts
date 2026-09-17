@@ -318,11 +318,31 @@ test("mined payments return pending immediately until settlement depth, without 
   const pending = await payments.purchase(conversation, value)
   expect(pending.paymentStatus).toBe("pending")
   expect(pending.txHash).toBe(txHash)
+  expect(pending.confirmations).toBe(1)
+  expect(pending.requiredConfirmations).toBe(2)
+  expect(rpc.getBlockNumber).toHaveBeenCalledWith({ cacheTime: 0 })
   expect(rpc.getLogs).not.toHaveBeenCalled()
   rpc.getBlockNumber.mockResolvedValue(124n)
   await payments.recoverAll(conversation.id)
   expect(store.getPurchase(value.id)?.paymentStatus).toBe("confirmed")
+  expect(store.getPurchase(value.id)?.confirmations).toBe(2)
   expect(submit).toHaveBeenCalledOnce()
+})
+
+test("a receipt that disappears clears previously reported confirmation progress", async () => {
+  const value = await offer()
+  rpc.getTransactionReceipt.mockResolvedValue({
+    ...confirmed(value),
+    blockNumber: 123n,
+  })
+  await payments.purchase(conversation, value)
+  expect(store.getPurchase(value.id)?.confirmations).toBe(1)
+  rpc.getTransactionReceipt.mockRejectedValue(
+    new TransactionReceiptNotFoundError({ hash: txHash })
+  )
+  await payments.recoverAll(conversation.id)
+  expect(store.getPurchase(value.id)?.paymentStatus).toBe("pending")
+  expect(store.getPurchase(value.id)?.confirmations).toBeUndefined()
 })
 
 test("a replaced transaction can be discovered when its saved hash has no receipt", async () => {
