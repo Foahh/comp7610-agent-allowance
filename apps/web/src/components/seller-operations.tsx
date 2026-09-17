@@ -90,14 +90,15 @@ export function SellerOperations() {
           </p>
         </details>
         <p className="text-xs text-muted-foreground">
-          Signing authorization lasts 30 days. Revenue goes to your wallet.
+          Signing authorization lasts 30 days. Authorize & fund also adds 0.002
+          Sepolia ETH for gas. Revenue goes to your wallet.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button
             disabled={action.isPending || !status.data}
             onClick={() => action.mutate("setup")}
           >
-            Authorize & add 0.002 Sepolia ETH
+            Authorize & fund
           </Button>
           <Button
             variant="outline"

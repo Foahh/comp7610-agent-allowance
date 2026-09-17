@@ -238,7 +238,7 @@ function AllowanceActions({
           disabled={busy}
           onClick={() => onAction("closeAllowance")}
         >
-          Stop spending & withdraw unused ATT
+          Stop & withdraw
         </Button>
       )}
       {allowance?.revoked && BigInt(allowance.remaining) > 0n && (
